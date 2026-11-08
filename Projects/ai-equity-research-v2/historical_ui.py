@@ -3,14 +3,17 @@ from idx_fundamentals import fetch_idx_fundamentals, get_fundamentals_summary
 from idx_analysis import analyze_idx_fundamentals
 
 
-def _trillion_idr(value):
+def _trillion_currency(value, currency):
     if value is None:
         return "N/A"
     try:
         if value != value:
             return "N/A"
-        return f"Rp {value / 1_000_000_000_000:,.2f} T"
-    except (TypeError, ValueError):
+        amount = float(value) / 1_000_000_000_000
+        code = str(currency or "").strip().upper()
+        prefix = f"{code} " if code else ""
+        return f"{prefix}{amount:,.2f} T"
+    except (TypeError, ValueError, OverflowError):
         return "N/A"
 
 
@@ -69,12 +72,13 @@ def render_historical_analysis(symbol: str, market: str) -> None:
         st.warning("Tidak ada metrik historis yang dapat ditampilkan.")
     else:
         latest = metrics.iloc[0]
+        currency = analysis.get("reported_currency")
         st.markdown("#### Ringkasan periode terbaru")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Revenue", _trillion_idr(latest.get("revenue")))
-        c2.metric("Net Income", _trillion_idr(latest.get("net_income")))
-        c3.metric("EBITDA", _trillion_idr(latest.get("ebitda")))
-        c4.metric("Free Cash Flow", _trillion_idr(latest.get("free_cash_flow")))
+        c1.metric("Revenue", _trillion_currency(latest.get("revenue"), currency))
+        c2.metric("Net Income", _trillion_currency(latest.get("net_income"), currency))
+        c3.metric("EBITDA", _trillion_currency(latest.get("ebitda"), currency))
+        c4.metric("Free Cash Flow", _trillion_currency(latest.get("free_cash_flow"), currency))
 
         st.markdown("#### Tren keuangan tahunan")
         chart_columns = [
