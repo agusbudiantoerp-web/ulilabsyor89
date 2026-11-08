@@ -5,6 +5,7 @@ from multistage_adapter import calculate_multistage_dcf
 from reports import make_excel_report, make_pdf_report
 from scenario_ui import render_scenario_analysis
 from dcf_sensitivity import run_dcf_sensitivity
+from historical_ui import render_historical_analysis
 
 st.set_page_config(page_title="AI Equity Research", page_icon="📊", layout="wide")
 st.title("AI Equity Research")
@@ -199,8 +200,8 @@ if data:
 
     st.info(data["data_quality_note"])
 
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["Overview", "Fundamentals", "Technical", "Valuation"]
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["Overview", "Fundamentals", "Technical", "Valuation", "Historical Analysis"]
     )
 
     with tab1:
@@ -381,6 +382,7 @@ if data:
                 st.info("Terdapat catatan kualitas data dari sumber Yahoo Finance.")
             else:
                 st.success("Pemeriksaan konsistensi data: tidak ada warning.")
+
             st.write(
                 "**Enterprise Value:** "
                 f"{multistage_dcf['enterprise_value']:,.2f} "
@@ -541,6 +543,7 @@ if data:
                     "Perhitungan dilanjutkan dengan persetujuan manual "
                     "meskipun terdapat peringatan yang memerlukan review."
                 )
+
             st.caption(multistage_dcf.get("warning", ""))
 
         else:
@@ -556,6 +559,9 @@ if data:
 
         st.divider()
         render_scenario_analysis(data, fx_rate=fx_rate, years=years)
+
+    with tab5:
+        render_historical_analysis(symbol, market)
 
     col1, col2 = st.columns(2)
 
