@@ -14,3 +14,7 @@ __pycache__/
 *.backup_*
 *_backup.py
 app.py.backup*
+.venv311/
+/equity-research-lab-main/
+/equity-research-lab-source.zip
+*.bak
