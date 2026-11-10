@@ -1,0 +1,10 @@
+streamlit>=1.50
+pandas
+numpy
+scipy
+statsmodels
+arch
+scikit-learn
+plotly
+yfinance
+requests
