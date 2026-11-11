@@ -741,9 +741,31 @@ class TSFAStorageEngine:
         )
 
         if actual_hash != metadata["clean_hash"]:
-            raise ValueError(
-                "Hash arsip tidak cocok."
+            archived_bytes = archived_clean.read_bytes()
+
+            normalized_lf = archived_bytes.replace(
+                b"\r\n", b"\n"
             )
+
+            normalized_crlf = normalized_lf.replace(
+                b"\n", b"\r\n"
+            )
+
+            hash_lf = hashlib.sha256(
+                normalized_lf
+            ).hexdigest()
+
+            hash_crlf = hashlib.sha256(
+                normalized_crlf
+            ).hexdigest()
+
+            if metadata["clean_hash"] not in (
+                hash_lf,
+                hash_crlf,
+            ):
+                raise ValueError(
+                    "Hash arsip tidak cocok."
+                )
 
         # Validasi isi arsip sebelum pemulihan.
         restored_data = pd.read_csv(
