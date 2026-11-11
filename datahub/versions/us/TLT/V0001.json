@@ -1,0 +1,62 @@
+{
+    "version_id": "V0001",
+    "ticker": "TLT",
+    "market": "us",
+    "provider": "Yahoo Finance",
+    "created_at_utc": "2026-11-11T01:58:41.135139+00:00",
+    "validated": true,
+    "validation_status": "WARNING",
+    "validation_errors": [],
+    "validation_warnings": [
+        "8 kandidat outlier ditemukan; tidak dihapus otomatis."
+    ],
+    "outliers": [
+        {
+            "date": "2008-11-20 00:00:00",
+            "return": 0.05166123008419943,
+            "robust_score": 6.586396890960511
+        },
+        {
+            "date": "2011-08-11 00:00:00",
+            "return": -0.05044950677679705,
+            "robust_score": 6.553964264375452
+        },
+        {
+            "date": "2020-03-06 00:00:00",
+            "return": 0.052044154019091904,
+            "robust_score": 6.635674361226535
+        },
+        {
+            "date": "2020-03-10 00:00:00",
+            "return": -0.05125810937138542,
+            "robust_score": 6.658021197570412
+        },
+        {
+            "date": "2020-03-16 00:00:00",
+            "return": 0.06476545567278902,
+            "robust_score": 8.272745086933973
+        },
+        {
+            "date": "2020-03-17 00:00:00",
+            "return": -0.06668256676617057,
+            "robust_score": 8.642953899294836
+        },
+        {
+            "date": "2020-03-18 00:00:00",
+            "return": -0.05641315854568274,
+            "robust_score": 7.3214108665334
+        },
+        {
+            "date": "2020-03-20 00:00:00",
+            "return": 0.07519554043268828,
+            "robust_score": 9.614965159367836
+        }
+    ],
+    "row_count": 6111,
+    "date_start": "2002-07-30 00:00:00",
+    "date_end": "2026-11-10 00:00:00",
+    "raw_path": "datahub\\raw\\us\\TLT\\20261111T015840849730Z.csv",
+    "raw_hash": "75bf772726a4c2aaa649befa77bbe9bba73941126009320e52b2cc8e4aa72d09",
+    "clean_path": "datahub\\versions\\us\\TLT\\V0001\\TLT.csv",
+    "clean_hash": "75bf772726a4c2aaa649befa77bbe9bba73941126009320e52b2cc8e4aa72d09"
+}

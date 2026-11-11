@@ -1,0 +1,7 @@
+{
+    "ticker": "^IXIC",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\^IXIC.csv",
+    "clean_hash": "82b7acdc90c9c2845fbaf2bcd23b9210a240d4d3775faa70d837cf053ee3d7bd"
+}

@@ -1,0 +1,7 @@
+{
+    "ticker": "XOM",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\XOM.csv",
+    "clean_hash": "1aaa6d75ddba6809782a4ddd3e6d8b6568542231b294935a4c5b92effc2ec412"
+}

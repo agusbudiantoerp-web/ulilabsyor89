@@ -1,0 +1,7 @@
+{
+    "ticker": "BBNI.JK",
+    "market": "indonesia",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\indonesia\\BBNI.JK.csv",
+    "clean_hash": "472f6f7b66b02cdee82d4f84f318153dff93b126bbe20b7bae241dd8187b3309"
+}

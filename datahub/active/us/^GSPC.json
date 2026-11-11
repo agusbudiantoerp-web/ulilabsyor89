@@ -1,0 +1,7 @@
+{
+    "ticker": "^GSPC",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\^GSPC.csv",
+    "clean_hash": "a7651ff425a907da72857e005cc2d37bf3322714867aa2ad865713abee46622f"
+}

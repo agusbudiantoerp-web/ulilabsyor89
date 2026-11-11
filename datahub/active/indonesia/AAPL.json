@@ -1,0 +1,7 @@
+{
+    "ticker": "AAPL",
+    "market": "indonesia",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\indonesia\\AAPL.csv",
+    "clean_hash": "4247c84ef0c2073cc36280183bed1ccaa8acbdf27ae70b8a930eaf5998697b4e"
+}

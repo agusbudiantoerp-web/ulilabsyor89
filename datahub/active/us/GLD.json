@@ -1,0 +1,7 @@
+{
+    "ticker": "GLD",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\GLD.csv",
+    "clean_hash": "4aca69e1d39578de79744ff89c91a3564f42522929f477dde57a305d8d532648"
+}

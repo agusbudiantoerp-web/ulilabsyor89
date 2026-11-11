@@ -1,0 +1,7 @@
+{
+    "ticker": "GOOGL",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\GOOGL.csv",
+    "clean_hash": "5318383a9f7b2edcf7ea045c594feef98ebbf1d943c032997a0353b0dee45a11"
+}

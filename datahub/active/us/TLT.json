@@ -1,0 +1,7 @@
+{
+    "ticker": "TLT",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\TLT.csv",
+    "clean_hash": "75bf772726a4c2aaa649befa77bbe9bba73941126009320e52b2cc8e4aa72d09"
+}

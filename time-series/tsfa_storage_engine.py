@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -175,6 +176,8 @@ class TSFAStorageEngine:
                 + "\n"
             )
 
+
+    
     def validate_market_data(self, data):
         errors = []
         warnings = []
@@ -182,7 +185,7 @@ class TSFAStorageEngine:
 
         if not isinstance(data, pd.DataFrame):
             return {
-                "status": "REJECT",
+                "status": "REJECTED",
                 "valid": False,
                 "errors": ["Input harus berupa DataFrame."],
                 "warnings": [],
@@ -191,9 +194,6 @@ class TSFAStorageEngine:
             }
 
         df = data.copy()
-
-        if df.empty:
-            errors.append("Dataset kosong.")
 
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
@@ -211,7 +211,9 @@ class TSFAStorageEngine:
 
         try:
             dates = pd.to_datetime(
-                df.index, errors="coerce", utc=True
+                df.index,
+                errors="coerce",
+                utc=True,
             )
 
             if dates.isna().any():
@@ -225,20 +227,6 @@ class TSFAStorageEngine:
         except Exception as exc:
             errors.append(
                 f"Gagal memproses tanggal: {exc}"
-            )
-
-        required = ["Adj Close"]
-
-        missing_columns = [
-            column
-            for column in required
-            if column not in df.columns
-        ]
-
-        if missing_columns:
-            errors.append(
-                "Kolom wajib tidak ditemukan: "
-                + ", ".join(missing_columns)
             )
 
         numeric_columns = [
@@ -256,20 +244,105 @@ class TSFAStorageEngine:
 
         for column in numeric_columns:
             df[column] = pd.to_numeric(
-                df[column], errors="coerce"
+                df[column],
+                errors="coerce",
             )
 
         df = df.replace(
-            [np.inf, -np.inf], np.nan
+            [np.inf, -np.inf],
+            np.nan,
         )
+	
+	
+        # Remove trailing incomplete market bars.
+        # A bar without Close and Adj Close cannot
+        # be used for historical return calculations.
+        if (
+            "Close" in df.columns
+            and "Adj Close" in df.columns
+        ):
+            removed_trailing = 0
 
-        if df.index.has_duplicates:
-            errors.append(
-                "Terdapat tanggal duplikat."
+            while (
+                not df.empty
+                and pd.isna(df["Close"].iloc[-1])
+                and pd.isna(df["Adj Close"].iloc[-1])
+            ):
+                df = df.iloc[:-1].copy()
+                removed_trailing += 1
+
+            if removed_trailing > 0:
+                warnings.append(
+                    f"{removed_trailing} baris terakhir "
+                    "belum memiliki harga penutupan; "
+                    "baris tersebut dikeluarkan."
+                )
+
+        # Remove rows where all available price fields
+        # are missing. These rows contain no usable price.
+        price_columns = [
+            column
+            for column in (
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Adj Close",
+            )
+            if column in df.columns
+        ]
+
+        if price_columns:
+            empty_price_rows = (
+                df[price_columns].isna().all(axis=1)
             )
 
-        df = df.sort_index()
+            removed_rows = int(empty_price_rows.sum())
 
+            if removed_rows > 0:
+                df = df.loc[~empty_price_rows].copy()
+
+                warnings.append(
+                    f"{removed_rows} baris tanpa data harga "
+                    "dihapus dari dataset."
+                )
+
+        if df.empty:
+            errors.append(
+                "Dataset tidak memiliki baris harga valid."
+            )
+
+        # Canonical price: prefer Adj Close.
+        # Use Close only if Adj Close is unavailable
+        # or entirely empty.
+        if "Adj Close" not in df.columns:
+            if "Close" in df.columns:
+                df["Adj Close"] = df["Close"]
+
+                warnings.append(
+                    "Adj Close tidak tersedia; Close digunakan "
+                    "sebagai proksi harga."
+                )
+            else:
+                errors.append(
+                    "Kolom harga tidak ditemukan: "
+                    "Adj Close maupun Close."
+                )
+
+        elif df["Adj Close"].isna().all():
+            if "Close" in df.columns:
+                df["Adj Close"] = df["Close"]
+
+                warnings.append(
+                    "Adj Close seluruhnya kosong; Close digunakan "
+                    "sebagai proksi harga."
+                )
+            else:
+                errors.append(
+                    "Adj Close kosong dan Close tidak tersedia."
+                )
+
+        # Reject partial missing values.
         if "Adj Close" in df.columns:
             if df["Adj Close"].isna().any():
                 errors.append(
@@ -281,6 +354,13 @@ class TSFAStorageEngine:
                     "Adj Close memiliki harga nol atau negatif."
                 )
 
+        if df.index.has_duplicates:
+            errors.append(
+                "Terdapat tanggal duplikat."
+            )
+
+        df = df.sort_index()
+
         if "Volume" in df.columns:
             if df["Volume"].isna().any():
                 warnings.append(
@@ -290,6 +370,7 @@ class TSFAStorageEngine:
         # Outlier detection: flag only, never delete.
         if (
             "Adj Close" in df.columns
+            and not df["Adj Close"].isna().any()
             and len(df) >= 10
         ):
             returns = df["Adj Close"].pct_change()
@@ -297,6 +378,7 @@ class TSFAStorageEngine:
 
             if len(clean_returns) >= 9:
                 median = clean_returns.median()
+
                 mad = (
                     clean_returns - median
                 ).abs().median()
@@ -347,6 +429,8 @@ class TSFAStorageEngine:
             "outliers": outliers,
             "data": df if valid else None,
         }
+
+
 
     def save_dataset(
         self,
@@ -609,6 +693,7 @@ class TSFAStorageEngine:
     	    "validation": validation["status"],
 	}
 
+    
     def rollback_version(
         self,
         ticker,
@@ -660,6 +745,7 @@ class TSFAStorageEngine:
                 "Hash arsip tidak cocok."
             )
 
+        # Validasi isi arsip sebelum pemulihan.
         restored_data = pd.read_csv(
             archived_clean,
             index_col="Date",
@@ -681,10 +767,41 @@ class TSFAStorageEngine:
             / f"{ticker}.csv"
         )
 
-        self._atomic_csv(
-            validation["data"],
-            active_clean,
+        active_clean.parent.mkdir(
+            parents=True,
+            exist_ok=True,
         )
+
+        # Pulihkan file arsip secara byte-identik.
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=".tmp",
+            prefix="tsfa_rollback_",
+            dir=active_clean.parent,
+            delete=False,
+        ) as temp:
+            temp_path = Path(temp.name)
+
+        try:
+            shutil.copyfile(
+                archived_clean,
+                temp_path,
+            )
+
+            copied_hash = self._hash_file(
+                temp_path
+            )
+
+            if copied_hash != actual_hash:
+                raise ValueError(
+                    "Hash file hasil pemulihan tidak cocok."
+                )
+
+            temp_path.replace(active_clean)
+
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
 
         self._audit({
             "event": "ROLLBACK",

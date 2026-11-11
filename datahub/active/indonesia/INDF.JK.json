@@ -1,0 +1,7 @@
+{
+    "ticker": "INDF.JK",
+    "market": "indonesia",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\indonesia\\INDF.JK.csv",
+    "clean_hash": "72f66e5972c4e34744e27833b5a86af9a827c2b3cb7d16ab33936313e0719d15"
+}

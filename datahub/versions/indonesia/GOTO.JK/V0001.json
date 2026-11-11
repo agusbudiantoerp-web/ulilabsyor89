@@ -1,0 +1,52 @@
+{
+    "version_id": "V0001",
+    "ticker": "GOTO.JK",
+    "market": "indonesia",
+    "provider": "Yahoo Finance",
+    "created_at_utc": "2026-11-11T00:28:52.402385+00:00",
+    "validated": true,
+    "validation_status": "WARNING",
+    "validation_errors": [],
+    "validation_warnings": [
+        "6 kandidat outlier ditemukan; tidak dihapus otomatis."
+    ],
+    "outliers": [
+        {
+            "date": "2022-05-18 00:00:00",
+            "return": 0.24,
+            "robust_score": 9.71279999999997
+        },
+        {
+            "date": "2022-12-13 00:00:00",
+            "return": 0.14942528735632177,
+            "robust_score": 6.047241379310323
+        },
+        {
+            "date": "2023-05-31 00:00:00",
+            "return": 0.3486238532110091,
+            "robust_score": 14.108807339449493
+        },
+        {
+            "date": "2023-06-05 00:00:00",
+            "return": -0.1496598639455783,
+            "robust_score": 6.056734693877534
+        },
+        {
+            "date": "2023-12-11 00:00:00",
+            "return": -0.20370370370370372,
+            "robust_score": 8.243888888888863
+        },
+        {
+            "date": "2024-03-06 00:00:00",
+            "return": 0.17460317460317465,
+            "robust_score": 7.066190476190457
+        }
+    ],
+    "row_count": 1096,
+    "date_start": "2022-04-11 00:00:00",
+    "date_end": "2026-11-10 00:00:00",
+    "raw_path": "datahub\\raw\\indonesia\\GOTO.JK\\20261111T002852319850Z.csv",
+    "raw_hash": "ac1b69a826314e7fde38c9c7c9d74b5692d0441eac542d56e4930b9b40862600",
+    "clean_path": "datahub\\versions\\indonesia\\GOTO.JK\\V0001\\GOTO.JK.csv",
+    "clean_hash": "ac1b69a826314e7fde38c9c7c9d74b5692d0441eac542d56e4930b9b40862600"
+}

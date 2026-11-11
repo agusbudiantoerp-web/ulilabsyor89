@@ -1,0 +1,102 @@
+{
+    "version_id": "V0001",
+    "ticker": "TLKM.JK",
+    "market": "indonesia",
+    "provider": "Yahoo Finance",
+    "created_at_utc": "2026-11-11T00:28:41.511634+00:00",
+    "validated": true,
+    "validation_status": "WARNING",
+    "validation_errors": [],
+    "validation_warnings": [
+        "16 kandidat outlier ditemukan; tidak dihapus otomatis."
+    ],
+    "outliers": [
+        {
+            "date": "2006-06-16 00:00:00",
+            "return": 0.10294122337505063,
+            "robust_score": 6.457287920666075
+        },
+        {
+            "date": "2008-10-08 00:00:00",
+            "return": -0.09790229947390405,
+            "robust_score": 6.141206749554645
+        },
+        {
+            "date": "2008-10-14 00:00:00",
+            "return": 0.0984848240029681,
+            "robust_score": 6.177747296496781
+        },
+        {
+            "date": "2008-10-20 00:00:00",
+            "return": 0.0967742293454732,
+            "robust_score": 6.0704452666894015
+        },
+        {
+            "date": "2008-10-24 00:00:00",
+            "return": -0.09923671819812341,
+            "robust_score": 6.224912048816716
+        },
+        {
+            "date": "2008-12-09 00:00:00",
+            "return": 0.10000026374099158,
+            "robust_score": 6.272807665841567
+        },
+        {
+            "date": "2008-12-15 00:00:00",
+            "return": 0.0984848240029681,
+            "robust_score": 6.177747296496781
+        },
+        {
+            "date": "2011-03-23 00:00:00",
+            "return": 0.174242489403738,
+            "robust_score": 10.929867405930182
+        },
+        {
+            "date": "2020-03-20 00:00:00",
+            "return": 0.0992366632734476,
+            "robust_score": 6.224908603506528
+        },
+        {
+            "date": "2020-03-26 00:00:00",
+            "return": 0.13740473766748296,
+            "robust_score": 8.619112185503424
+        },
+        {
+            "date": "2025-10-21 00:00:00",
+            "return": 0.11564630432601741,
+            "robust_score": 7.254251110591077
+        },
+        {
+            "date": "2026-01-28 00:00:00",
+            "return": -0.11928935370910032,
+            "robust_score": 7.482771988860266
+        },
+        {
+            "date": "2026-06-08 00:00:00",
+            "return": -0.14855067645622366,
+            "robust_score": 9.318273644298195
+        },
+        {
+            "date": "2026-06-09 00:00:00",
+            "return": 0.1148935677737104,
+            "robust_score": 7.207033518966516
+        },
+        {
+            "date": "2026-10-16 00:00:00",
+            "return": -0.14798206278026904,
+            "robust_score": 9.28260569611489
+        },
+        {
+            "date": "2026-10-20 00:00:00",
+            "return": 0.16384180790960445,
+            "robust_score": 10.27745438054699
+        }
+    ],
+    "row_count": 5446,
+    "date_start": "2004-09-28 00:00:00",
+    "date_end": "2026-11-10 00:00:00",
+    "raw_path": "datahub\\raw\\indonesia\\TLKM.JK\\20261111T002841314635Z.csv",
+    "raw_hash": "e73892b161d6bf99d6b0f22d6d7f9c6d29cc4e062d666f0f7fd72a015d9887b0",
+    "clean_path": "datahub\\versions\\indonesia\\TLKM.JK\\V0001\\TLKM.JK.csv",
+    "clean_hash": "e73892b161d6bf99d6b0f22d6d7f9c6d29cc4e062d666f0f7fd72a015d9887b0"
+}

@@ -1,0 +1,7 @@
+{
+    "ticker": "META",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\META.csv",
+    "clean_hash": "7a21f152c1bb1b8a49d3498c6e1fc119b31945a5519e058b469288574da6da6a"
+}

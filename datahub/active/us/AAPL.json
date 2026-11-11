@@ -1,0 +1,7 @@
+{
+    "ticker": "AAPL",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\AAPL.csv",
+    "clean_hash": "696276d432e84377578c84bc7f4705dd9758e85448570080cb185db94785c35e"
+}

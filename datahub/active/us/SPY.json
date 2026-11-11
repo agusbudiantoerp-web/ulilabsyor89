@@ -1,0 +1,7 @@
+{
+    "ticker": "SPY",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\SPY.csv",
+    "clean_hash": "d2d4edc32e6e25dad1ba665469ee53cfaf7034b54cf11f4bbf88fc6ed22a811e"
+}

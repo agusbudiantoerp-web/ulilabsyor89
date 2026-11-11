@@ -1,0 +1,7 @@
+{
+    "ticker": "NVDA",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\NVDA.csv",
+    "clean_hash": "80994f537e0f30f103cc3d8c2f4e606a88dcd16b257951d8c7117c1e23696d0f"
+}

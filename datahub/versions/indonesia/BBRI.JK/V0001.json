@@ -1,0 +1,107 @@
+{
+    "version_id": "V0001",
+    "ticker": "BBRI.JK",
+    "market": "indonesia",
+    "provider": "Yahoo Finance",
+    "created_at_utc": "2026-11-11T00:28:35.898818+00:00",
+    "validated": true,
+    "validation_status": "WARNING",
+    "validation_errors": [],
+    "validation_warnings": [
+        "17 kandidat outlier ditemukan; tidak dihapus otomatis."
+    ],
+    "outliers": [
+        {
+            "date": "2003-12-18 00:00:00",
+            "return": 0.10869560363209163,
+            "robust_score": 6.268426456715224
+        },
+        {
+            "date": "2008-03-25 00:00:00",
+            "return": 0.13084079440386875,
+            "robust_score": 7.545529624499915
+        },
+        {
+            "date": "2008-05-05 00:00:00",
+            "return": 0.1596641871873845,
+            "robust_score": 9.20776169147508
+        },
+        {
+            "date": "2008-10-08 00:00:00",
+            "return": -0.1093749675017599,
+            "robust_score": 6.307605064791951
+        },
+        {
+            "date": "2008-10-31 00:00:00",
+            "return": 0.18965530101561612,
+            "robust_score": 10.937335704639121
+        },
+        {
+            "date": "2008-11-03 00:00:00",
+            "return": 0.1231881471764178,
+            "robust_score": 7.104204909041974
+        },
+        {
+            "date": "2008-11-26 00:00:00",
+            "return": 0.12745093945011887,
+            "robust_score": 7.350038217612514
+        },
+        {
+            "date": "2008-11-27 00:00:00",
+            "return": 0.15652213972700757,
+            "robust_score": 9.026561231008005
+        },
+        {
+            "date": "2008-12-15 00:00:00",
+            "return": 0.16326506218403258,
+            "robust_score": 9.415422529099326
+        },
+        {
+            "date": "2009-04-30 00:00:00",
+            "return": 0.10476184318592874,
+            "robust_score": 6.041568265296826
+        },
+        {
+            "date": "2009-05-19 00:00:00",
+            "return": 0.11764732202232553,
+            "robust_score": 6.784668020452575
+        },
+        {
+            "date": "2011-09-22 00:00:00",
+            "return": -0.13114760480548004,
+            "robust_score": 7.563223242037247
+        },
+        {
+            "date": "2012-06-06 00:00:00",
+            "return": 0.11214946621504063,
+            "robust_score": 6.4676091547210905
+        },
+        {
+            "date": "2013-09-10 00:00:00",
+            "return": 0.11805577593920136,
+            "robust_score": 6.808223373689857
+        },
+        {
+            "date": "2014-03-14 00:00:00",
+            "return": 0.10455744264100386,
+            "robust_score": 6.029780578023742
+        },
+        {
+            "date": "2020-03-26 00:00:00",
+            "return": 0.20491798927651117,
+            "robust_score": 11.817528055555371
+        },
+        {
+            "date": "2026-10-16 00:00:00",
+            "return": -0.1483870967741936,
+            "robust_score": 8.557416971553538
+        }
+    ],
+    "row_count": 5678,
+    "date_start": "2003-11-10 00:00:00",
+    "date_end": "2026-11-10 00:00:00",
+    "raw_path": "datahub\\raw\\indonesia\\BBRI.JK\\20261111T002835671792Z.csv",
+    "raw_hash": "9b28dfd02d27a8633f09b16b4c81991354e9ff9e2cb807ff666b351bfb6639f4",
+    "clean_path": "datahub\\versions\\indonesia\\BBRI.JK\\V0001\\BBRI.JK.csv",
+    "clean_hash": "9b28dfd02d27a8633f09b16b4c81991354e9ff9e2cb807ff666b351bfb6639f4"
+}

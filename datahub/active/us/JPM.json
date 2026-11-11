@@ -1,0 +1,7 @@
+{
+    "ticker": "JPM",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\JPM.csv",
+    "clean_hash": "ef8f85837bc0e825e85c6c8c23dcb772de4c7dd66603de192f135a04002a4b79"
+}

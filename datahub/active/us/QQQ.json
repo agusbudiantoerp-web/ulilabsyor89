@@ -1,0 +1,7 @@
+{
+    "ticker": "QQQ",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\QQQ.csv",
+    "clean_hash": "789d7f789e84a67c5103f0ce0cc993fe01cdb4a598f7ff416886490b17566662"
+}

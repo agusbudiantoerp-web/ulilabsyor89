@@ -1,0 +1,7 @@
+{
+    "ticker": "AMZN",
+    "market": "us",
+    "active_version": "V0001",
+    "clean_path": "datahub\\clean\\us\\AMZN.csv",
+    "clean_hash": "1bd507121cebebe864be56d2cfd3a524cca517a1f33c5304bf01de25de51311f"
+}
