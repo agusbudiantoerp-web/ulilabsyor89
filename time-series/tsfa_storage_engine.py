@@ -728,7 +728,7 @@ class TSFAStorageEngine:
             )
 
         archived_clean = Path(
-            metadata["clean_path"]
+            str(metadata["clean_path"]).replace("\\", "/")
         )
 
         if not archived_clean.exists():
