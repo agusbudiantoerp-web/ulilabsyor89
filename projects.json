@@ -316,5 +316,37 @@
         "href": "#demo"
       }
     ]
+  },
+  {
+    "judul": "TSFA Dual Market V1.3 – Portfolio Engine",
+    "kategori": [
+      "Financial Engineering",
+      "Portfolio Management",
+      "Risk Analytics",
+      "Aplikasi"
+    ],
+    "konteks": "Python & Streamlit – Indonesian and US equity portfolio analysis",
+    "ringkas": "Portfolio decision-support engine untuk mencatat transaksi, menganalisis kinerja, mengukur risiko, mengevaluasi alokasi aset, dan menyusun strategi rebalancing untuk pasar saham Indonesia dan Amerika Serikat.",
+    "hasil": [
+      "Portfolio tracking berbasis transaksi dengan moving weighted-average cost.",
+      "Analisis return, drawdown, volatilitas, dan kontribusi risiko.",
+      "Target allocation dan rebalancing analysis.",
+      "Sector exposure dan sector stress testing.",
+      "Market stress testing dan analisis skenario.",
+      "Ekspor laporan analisis ke Excel dengan 13 worksheet."
+    ],
+    "catatan": "V1.3 development preview. Aplikasi Python belum diterbitkan sebagai layanan publik. Data portofolio pengguna dirancang untuk diproses secara terpisah dan tidak dimasukkan ke repositori publik.",
+    "tech": [
+      "Python",
+      "Streamlit",
+      "Pandas",
+      "NumPy",
+      "SciPy",
+      "Plotly",
+      "Excel"
+    ],
+    "detail": "project-portfolio/tsfa-portfolio-engine.html",
+    "files": []
   }
 ]
+

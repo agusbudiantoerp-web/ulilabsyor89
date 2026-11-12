@@ -1,0 +1,139 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1117">
+<title>TSFA Dual Market V1.3 | Agus Budianto Ulil Absyor</title>
+<meta name="description" content="TSFA Dual Market V1.3 is a portfolio management and financial engineering platform for Indonesian and US equity markets, featuring transaction-based portfolio tracking, risk analytics, stress testing, and Excel reporting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1117;--surface:#111b23;--ink:#eaf1f5;--muted:#9aabb7;--line:#293b47;--orange:#ff7a1a;--teal:#00d1b2;--blue:#55aaff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "Space Grotesk",Arial,sans-serif}
+a{color:var(--blue)}
+.wrap{width:min(980px,calc(100% - 36px));margin:auto}
+header{border-bottom:1px solid var(--line);padding:18px 0}
+.brand{text-decoration:none;color:var(--ink);font-weight:700}
+.brand span{color:var(--orange)}
+.back{display:inline-block;margin:30px 0 18px;text-decoration:none;font-family:"IBM Plex Mono",monospace;font-size:.82rem}
+.eyebrow,.meta{font:600 .76rem "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)}
+h1,h2,h3{line-height:1.12;letter-spacing:-.035em}
+h1{font-size:clamp(2.5rem,7vw,5rem);margin:14px 0}
+h2{font-size:1.55rem;margin:0 0 14px}
+.lead{font-size:1.18rem;color:#c0cdd5;max-width:72ch}
+.status{display:inline-block;border:1px solid #416173;padding:7px 11px;color:var(--teal);font:.76rem "IBM Plex Mono",monospace}
+.hero{padding:30px 0 44px;border-bottom:1px solid var(--line)}
+section{padding:36px 0;border-bottom:1px solid var(--line)}
+.panel{background:var(--surface);border:1px solid var(--line);padding:24px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.stack{display:flex;flex-wrap:wrap;gap:8px}
+.stack span{border:1px solid #344854;color:var(--muted);padding:5px 9px;font:.74rem "IBM Plex Mono",monospace}
+ul{padding-left:22px;color:#c7d2d9}
+li{margin:8px 0}
+.note{color:var(--muted);font-size:.9rem}
+.links{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.links a{display:inline-block;padding:10px 14px;border:1px solid #416173;text-decoration:none;font-weight:600}
+.links a.primary{background:var(--orange);border-color:var(--orange);color:#111}
+.footer{padding:28px 0;color:var(--muted);font-size:.8rem}
+@media(max-width:680px){.grid{grid-template-columns:1fr}.panel{padding:18px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="brand" href="../index.html">AGUS BUDIANTO <span>ULIL ABSYOR</span></a>
+</div></header>
+
+<main class="wrap">
+<a class="back" href="../index.html#projects-section">&lt; BACK TO PROJECT PORTFOLIO</a>
+
+<div class="hero">
+<div class="eyebrow">Financial Engineering / Portfolio Management / Risk Analytics</div>
+<h1>TSFA Dual Market V1.3</h1>
+<div class="status">Development Preview - V1.3</div>
+<p class="lead">A dual-market portfolio management and financial engineering platform designed to support investment decisions through transaction-based portfolio tracking, performance measurement, risk analysis, stress testing, and portfolio allocation.</p>
+<p class="note">Research and decision-support platform for Indonesian and United States equity markets.</p>
+</div>
+
+<section>
+<h2>Project Context</h2>
+<div class="panel">
+Managing an equity portfolio requires more than monitoring market prices. Investors need a consistent record of transactions, reliable cost-basis calculations, performance measurement, risk attribution, and disciplined allocation decisions.
+<br><br>
+TSFA Dual Market V1.3 is being developed to bring these activities into an integrated portfolio analysis workflow while maintaining separation between individual portfolio data and shared market research infrastructure.
+</div>
+</section>
+
+<section>
+<h2>Core Capabilities</h2>
+<ul>
+<li><strong>Transaction-based portfolio tracking:</strong> portfolio holdings and cash are derived from recorded transactions, with opening balances available when historical records are incomplete.</li>
+<li><strong>Portfolio accounting:</strong> moving weighted-average cost methodology and share quantities recorded in units.</li>
+<li><strong>Performance analytics:</strong> portfolio return, drawdown, volatility, and related performance indicators.</li>
+<li><strong>Risk analytics:</strong> portfolio risk contribution, correlation analysis, and risk assessment.</li>
+<li><strong>Portfolio construction:</strong> target allocation and rebalancing analysis.</li>
+<li><strong>Sector analysis:</strong> sector exposure and sector-level holdings assessment.</li>
+<li><strong>Stress testing:</strong> market and sector scenario analysis to evaluate potential portfolio impact.</li>
+<li><strong>Excel reporting:</strong> downloadable analysis workbook containing 13 structured worksheets.</li>
+</ul>
+</section>
+
+<section class="grid">
+<div class="panel">
+<h2>System Architecture</h2>
+<p>Market data and transaction records &rarr; data validation &rarr; portfolio accounting engine &rarr; performance and risk analytics &rarr; allocation and stress testing &rarr; interactive dashboard and Excel reporting.</p>
+</div>
+<div class="panel">
+<h2>Technology Stack</h2>
+<div class="stack">
+<span>Python</span><span>Streamlit</span><span>Pandas</span><span>NumPy</span><span>SciPy</span><span>Plotly</span><span>OpenPyXL</span><span>Excel</span>
+</div>
+</div>
+</section>
+
+<section>
+<h2>Excel Reporting Structure</h2>
+<p>The V1.3 reporting workflow is designed to export portfolio analysis into a structured workbook with 13 worksheets:</p>
+<div class="panel">
+<ul>
+<li>HOLDINGS</li>
+<li>ANALYSIS_RESULTS</li>
+<li>PORTFOLIO_SUMMARY</li>
+<li>VALIDATION_NOTES</li>
+<li>RISK_ANALYSIS</li>
+<li>RISK_CONTRIBUTION</li>
+<li>CORRELATION_MATRIX</li>
+<li>TARGET_ALLOCATION</li>
+<li>REBALANCING_ANALYSIS</li>
+<li>SECTOR_EXPOSURE</li>
+<li>SECTOR_HOLDINGS</li>
+<li>MARKET_STRESS</li>
+<li>SECTOR_STRESS</li>
+</ul>
+</div>
+</section>
+
+<section>
+<h2>Data Privacy & Development Scope</h2>
+<div class="panel">
+Portfolio uploads are intended to be processed separately from shared market data and the public source-code repository. Personal holdings and transaction records are not included in this public project page or repository.
+</div>
+<p class="note">This page describes the V1.3 development scope. It is not a claim of a completed production deployment, audited investment performance, or guaranteed investment returns.</p>
+</section>
+
+<section>
+<h2>Project Resources</h2>
+<p class="note">The public project page documents the system architecture and development scope. The V1.3 application will be linked here after its separate hosting and deployment have been verified.</p>
+<div class="links">
+<a href="mailto:aulilabsyor@gmail.com?subject=Project%20enquiry%3A%20TSFA%20Dual%20Market%20V1.3">Discuss this project</a>
+</div>
+</section>
+</main>
+
+<footer class="wrap footer">
+&copy; 2026 Agus Budianto Ulil Absyor - Financial Engineering / Portfolio Analytics
+</footer>
+</body>
+</html>
