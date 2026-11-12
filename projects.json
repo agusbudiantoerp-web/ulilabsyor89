@@ -1,352 +1,366 @@
-[
-  {
-    "judul": "AI Quant Fund",
-    "kategori": [
-      "Financial Engineering",
-      "AI & Quantitative Research"
-    ],
-    "konteks": "Quantitative research and portfolio decision-support system for the Indonesia Stock Exchange (IDX)",
-    "ringkas": "A modular research workflow combining market-regime analysis, technical and fundamental factors, machine-learning signals, portfolio construction, and risk controls to support transparent investment research.",
-    "hasil": [
-      "IDX equity-universe screening and data-quality checks",
-      "Market regime classification and sector-level context",
-      "Technical and factor signals, including momentum, trend, and volume",
-      "Machine-learning experiments using XGBoost and out-of-sample evaluation"
-    ],
-    "catatan": "Research prototype · iterative development",
-    "tech": [
-      "Python",
-      "Pandas",
-      "XGBoost",
-      "Scikit-learn",
-      "yfinance",
-      "Excel"
-    ],
-    "detail": "project-portfolio/ai-quant-fund.html",
-    "files": []
-  },
-  {
-    "judul": "IDX Equity Research AI",
-    "kategori": [
-      "AI Equity Research",
-      "Financial Markets"
-    ],
-    "konteks": "Automated equity-research workflow for Indonesian listed companies",
-    "ringkas": "A Telegram-led research assistant designed to turn a stock ticker request into a structured equity-research report, combining quantitative signals, fundamental context, market data, and analyst-style commentary.",
-    "hasil": [
-      "Telegram command workflow for ticker-based research requests",
-      "Technical and fundamental research sections",
-      "Foreign-flow, broker-summary, sector, and market-regime context where data is available",
-      "AI-assisted synthesis and scoring with explicit caveats"
-    ],
-    "catatan": "Telegram workflow prototype · V23 iteration",
-    "tech": [
-      "Python",
-      "Telegram Bot API",
-      "Groq / Gemini integrations",
-      "Pandas",
-      "Excel",
-      "PDF"
-    ],
-    "detail": "project-portfolio/idx-equity-research-ai.html",
-    "files": []
-  },
-  {
-    "judul": "AI Equity Research V2",
-    "kategori": [
-      "AI Equity Research",
-      "Financial Markets",
-      "Financial Engineering"
-    ],
-    "konteks": "Streamlit application · IDX and US equity research",
-    "ringkas": "Interactive equity research combining market data, fundamental analysis, DCF valuation, configurable sensitivity analysis, scenario analysis, and downloadable Excel/PDF reports.",
-    "hasil": [
-      "Research coverage for Indonesian (IDX) and US-listed equities",
-      "Fundamental metrics and financial-statement context",
-      "DCF valuation and WACC / growth sensitivity analysis",
-      "Scenario analysis with downloadable Excel and PDF reports"
-    ],
-    "catatan": "Research support only · not investment advice. Verify data and assumptions independently.",
-    "tech": [
-      "Python",
-      "Streamlit",
-      "Pandas",
-      "NumPy",
-      "yfinance",
-      "DCF",
-      "Excel",
-      "PDF"
-    ],
-    "launch": "https://ulilabsyor89-equity-research-v2.streamlit.app/",
-    "files": []
-  },
-  {
-    "judul": "AI Journal Finder V1.0",
-    "kategori": [
-      "AI Research",
-      "Academic Discovery",
-      "Aplikasi"
-    ],
-    "konteks": "Streamlit application · multidisciplinary scholarly paper and journal discovery",
-    "ringkas": "A research-discovery tool for finding scholarly papers and potential journals for publication using OpenAlex metadata.",
-    "hasil": [
-      "Paper Finder for multidisciplinary scholarly literature discovery",
-      "Journal Finder to explore journals, publishers, ISSN, citation and open-access metadata",
-      "Search results with paper and journal links",
-      "CSV and Excel export for further screening and review"
-    ],
-    "catatan": "Research discovery support only. Verify journal indexing, scope, policies, and publication fees independently before submitting.",
-    "tech": [
-      "Python",
-      "Streamlit",
-      "OpenAlex API",
-      "Pandas",
-      "Requests",
-      "Excel"
-    ],
-    "launch": "https://ai-journal-finder.streamlit.app/",
-    "files": []
-  },
-  {
-    "judul": "Mining Financial Engineering",
-    "kategori": [
-      "Mining Finance",
-      "Financial Modeling"
-    ],
-    "konteks": "Financial modeling and investment decision support for mining and heavy-equipment projects",
-    "ringkas": "A suite of mining-finance concepts and tools connecting operational assumptions with project cash flow, valuation, commodity sensitivity, and stochastic risk analysis.",
-    "hasil": [
-      "Project cash-flow modeling and capital budgeting",
-      "NPV and IRR evaluation",
-      "Commodity-price, production, and cost sensitivity analysis",
-      "Scenario and Monte Carlo risk modeling"
-    ],
-    "catatan": "Decision-support tools · multiple prototypes",
-    "tech": [
-      "Python",
-      "Excel",
-      "Streamlit",
-      "Pandas",
-      "NumPy",
-      "Monte Carlo simulation"
-    ],
-    "detail": "project-portfolio/mining-financial-engineering.html",
-    "files": []
-  },
-  {
-    "judul": "AI Project Control",
-    "kategori": [
-      "Project Controls",
-      "Construction Technology"
-    ],
-    "konteks": "AI-assisted project controls for construction, infrastructure, and mining projects",
-    "ringkas": "A proposed workflow to convert project documents and progress data into structured cost, schedule, resource, risk, and performance insights for project teams.",
-    "hasil": [
-      "Drawing and document intake as a future workflow input",
-      "BOQ and cost-estimate structuring",
-      "Baseline schedule, progress tracking, and critical-path review",
-      "Earned Value Management indicators including PV, EV, AC, SPI, and CPI"
-    ],
-    "catatan": "Concept and prototype development",
-    "tech": [
-      "Python",
-      "FastAPI (planned architecture)",
-      "Streamlit / web dashboard",
-      "Pandas",
-      "Project scheduling",
-      "Monte Carlo simulation"
-    ],
-    "detail": "project-portfolio/ai-project-control.html",
-    "files": []
-  },
-  {
-    "judul": "Rotasi aset berbasis rezim VIX (TLT, GLD, SPY)",
-    "kategori": [
-      "Keuangan & saham",
-      "Riset"
-    ],
-    "konteks": "MScFE 622 Stochastic Modeling · proyek kelompok bersama 2 rekan",
-    "ringkas": "Memodelkan rezim volatilitas dari perubahan VIX dengan rantai Markov dan Gaussian HMM (EM dan Viterbi), lalu menguji aturan rotasi: tahan aset dengan rata-rata return tertinggi di setiap rezim.",
-    "hasil": [
-      "5.520 observasi harian, 2004–2026.",
-      "Dalam sampel (dengan hindsight): Sharpe 1,16 vs 0,65 untuk SPY; drawdown maksimum −24,0% vs −55,2%.",
-      "Uji out-of-sample kausal: Sharpe 0,47 vs 0,85 untuk SPY."
-    ],
-    "catatan": "Kesimpulan laporan: keunggulan tidak konsisten di luar sampel, sehingga strategi tidak direkomendasikan menggantikan benchmark. Manfaat paling masuk akal adalah drawdown yang lebih kecil.",
-    "tech": [
-      "Python",
-      "hmmlearn",
-      "yfinance",
-      "python-docx"
-    ],
-    "files": [
-      {
-        "label": "Notebook",
-        "href": "proyek-regime-rotation.ipynb"
-      }
-    ]
-  },
-  {
-    "judul": "PE/VC Investment Analysis Engine",
-    "kategori": [
-      "Keuangan & saham",
-      "Aplikasi"
-    ],
-    "konteks": "Aplikasi Streamlit · Excel → model Python → memo investasi",
-    "ringkas": "Alur dari workbook Excel ke data tervalidasi, model Python, audit trail, dashboard, dan memo investment committee dalam format DOCX.",
-    "hasil": [
-      "DCF dengan sensitivitas WACC dan growth; LBO dengan debt schedule, cash sweep, dan covenant.",
-      "Cap table VC multi-putaran dengan liquidation preference.",
-      "Monte Carlo MOIC dan IRR (P5 sampai P95) serta register temuan due diligence."
-    ],
-    "catatan": "Data bawaan bersifat ilustratif. Alat bantu analisis awal, bukan pengganti due diligence; batasan model dicantumkan di README.",
-    "tech": [
-      "Python",
-      "Streamlit",
-      "pandas",
-      "Plotly",
-      "openpyxl"
-    ],
-    "files": [
-      {
-        "label": "app.py",
-        "href": "proyek-pevc-app.py"
-      },
-      {
-        "label": "README",
-        "href": "proyek-pevc-README.md"
-      },
-      {
-        "label": "requirements",
-        "href": "proyek-pevc-requirements.txt"
-      }
-    ]
-  },
-  {
-    "judul": "IDX Terminal",
-    "kategori": [
-      "Keuangan & saham",
-      "Aplikasi"
-    ],
-    "konteks": "Server lokal tanpa dependensi, cukup Python 3.8+",
-    "ringkas": "Memantau emiten bursa Indonesia dengan data Yahoo Finance (.JK) yang diperbarui di latar belakang setiap 5 detik, dikelompokkan per sektor dan grup konglomerasi.",
-    "hasil": [
-      "Endpoint snapshot, detail emiten, berita, pemegang saham, dan broker.",
-      "Agregasi berita dari sumber RSS.",
-      "Impor CSV pemegang saham dan broker (maksimal 5 MB)."
-    ],
-    "catatan": "Memakai data Yahoo Finance, bukan data resmi bursa.",
-    "tech": [
-      "Python",
-      "HTTP server",
-      "Yahoo Finance"
-    ],
-    "files": [
-      {
-        "label": "server.py",
-        "href": "proyek-idx-terminal-server.py"
-      }
-    ]
-  },
-  {
-    "judul": "Quant Terminal",
-    "kategori": [
-      "Keuangan & saham",
-      "Aplikasi"
-    ],
-    "konteks": "Python (Pyodide) di browser, tanpa server",
-    "ringkas": "Terminal riset kuantitatif lokal untuk saham global dan IDX: backtest, walk-forward, portofolio, Monte Carlo, stress test, dan panel order flow.",
-    "hasil": [
-      "Enam strategi: SMA, breakout, RSI, MACD, OBV, dan Bollinger Bands.",
-      "Aturan pasar IDX: tick size, lot, batas auto-rejection, dan daftar LQ45 contoh.",
-      "Data riil lewat yfinance atau API pihak ketiga dengan anggaran request lokal; tanpa data memakai data simulasi.",
-      "Panel order flow: antrean bid/ask dan sisi agresor transaksi."
-    ],
-    "catatan": "Berjalan penuh di browser dengan data simulasi (bukan kuotasi pasar). Alat riset, bukan saran investasi.",
-    "tech": [
-      "Python",
-      "stdlib HTTP server",
-      "JavaScript",
-      "yfinance",
-      "Backtesting"
-    ],
-    "files": [
-      {
-        "label": "Buka terminal",
-        "href": "quant-terminal.html"
-      },
-      {
-        "label": "quant-server.py",
-        "href": "quant-server.py"
-      },
-      {
-        "label": "quant-orderflow.py",
-        "href": "quant-orderflow.py"
-      },
-      {
-        "label": "quant-universe.py",
-        "href": "quant-universe.py"
-      }
-    ]
-  },
-  {
-    "judul": "Kalkulator biaya dan margin hauling",
-    "kategori": [
-      "Tambang & produksi",
-      "Aplikasi"
-    ],
-    "konteks": "Dari lembar Excel ke Python, dengan versi web di halaman ini",
-    "ringkas": "Menghitung biaya dan margin per ret untuk kontraktor hauling tambang.",
-    "hasil": [
-      "Fuel ratio, pendapatan, serta biaya solar, unit, dan driver.",
-      "Profit kotor, profit bersih setelah fix cost, dan titik impas harga kontrak."
-    ],
-    "catatan": "",
-    "tech": [
-      "Python",
-      "CLI"
-    ],
-    "files": [
-      {
-        "label": "kalkulator_hauling.py",
-        "href": "proyek-kalkulator-hauling.py"
-      },
-      {
-        "label": "Coba di web",
-        "href": "#demo"
-      }
-    ]
-  },
-  {
-    "judul": "TSFA Dual Market V1.3 – Portfolio Engine",
-    "kategori": [
-      "Financial Engineering",
-      "Portfolio Management",
-      "Risk Analytics",
-      "Aplikasi"
-    ],
-    "konteks": "Python & Streamlit – Indonesian and US equity portfolio analysis",
-    "ringkas": "Portfolio decision-support engine untuk mencatat transaksi, menganalisis kinerja, mengukur risiko, mengevaluasi alokasi aset, dan menyusun strategi rebalancing untuk pasar saham Indonesia dan Amerika Serikat.",
-    "hasil": [
-      "Portfolio tracking berbasis transaksi dengan moving weighted-average cost.",
-      "Analisis return, drawdown, volatilitas, dan kontribusi risiko.",
-      "Target allocation dan rebalancing analysis.",
-      "Sector exposure dan sector stress testing.",
-      "Market stress testing dan analisis skenario.",
-      "Ekspor laporan analisis ke Excel dengan 13 worksheet."
-    ],
-    "catatan": "V1.3 development preview. Aplikasi Python belum diterbitkan sebagai layanan publik. Data portofolio pengguna dirancang untuk diproses secara terpisah dan tidak dimasukkan ke repositori publik.",
-    "tech": [
-      "Python",
-      "Streamlit",
-      "Pandas",
-      "NumPy",
-      "SciPy",
-      "Plotly",
-      "Excel"
-    ],
-    "detail": "project-portfolio/tsfa-portfolio-engine.html",
-    "files": []
-  }
-]
+﻿[
+    {
+        "judul":  "AI Quant Fund",
+        "kategori":  [
+                         "Financial Engineering",
+                         "AI \u0026 Quantitative Research"
+                     ],
+        "konteks":  "Quantitative research and portfolio decision-support system for the Indonesia Stock Exchange (IDX)",
+        "ringkas":  "A modular research workflow combining market-regime analysis, technical and fundamental factors, machine-learning signals, portfolio construction, and risk controls to support transparent investment research.",
+        "hasil":  [
+                      "IDX equity-universe screening and data-quality checks",
+                      "Market regime classification and sector-level context",
+                      "Technical and factor signals, including momentum, trend, and volume",
+                      "Machine-learning experiments using XGBoost and out-of-sample evaluation"
+                  ],
+        "catatan":  "Research prototype · iterative development",
+        "tech":  [
+                     "Python",
+                     "Pandas",
+                     "XGBoost",
+                     "Scikit-learn",
+                     "yfinance",
+                     "Excel"
+                 ],
+        "detail":  "project-portfolio/ai-quant-fund.html",
+        "files":  [
 
+                  ]
+    },
+    {
+        "judul":  "IDX Equity Research AI",
+        "kategori":  [
+                         "AI Equity Research",
+                         "Financial Markets"
+                     ],
+        "konteks":  "Automated equity-research workflow for Indonesian listed companies",
+        "ringkas":  "A Telegram-led research assistant designed to turn a stock ticker request into a structured equity-research report, combining quantitative signals, fundamental context, market data, and analyst-style commentary.",
+        "hasil":  [
+                      "Telegram command workflow for ticker-based research requests",
+                      "Technical and fundamental research sections",
+                      "Foreign-flow, broker-summary, sector, and market-regime context where data is available",
+                      "AI-assisted synthesis and scoring with explicit caveats"
+                  ],
+        "catatan":  "Telegram workflow prototype · V23 iteration",
+        "tech":  [
+                     "Python",
+                     "Telegram Bot API",
+                     "Groq / Gemini integrations",
+                     "Pandas",
+                     "Excel",
+                     "PDF"
+                 ],
+        "detail":  "project-portfolio/idx-equity-research-ai.html",
+        "files":  [
+
+                  ]
+    },
+    {
+        "judul":  "AI Equity Research V2",
+        "kategori":  [
+                         "AI Equity Research",
+                         "Financial Markets",
+                         "Financial Engineering"
+                     ],
+        "konteks":  "Streamlit application · IDX and US equity research",
+        "ringkas":  "Interactive equity research combining market data, fundamental analysis, DCF valuation, configurable sensitivity analysis, scenario analysis, and downloadable Excel/PDF reports.",
+        "hasil":  [
+                      "Research coverage for Indonesian (IDX) and US-listed equities",
+                      "Fundamental metrics and financial-statement context",
+                      "DCF valuation and WACC / growth sensitivity analysis",
+                      "Scenario analysis with downloadable Excel and PDF reports"
+                  ],
+        "catatan":  "Research support only · not investment advice. Verify data and assumptions independently.",
+        "tech":  [
+                     "Python",
+                     "Streamlit",
+                     "Pandas",
+                     "NumPy",
+                     "yfinance",
+                     "DCF",
+                     "Excel",
+                     "PDF"
+                 ],
+        "launch":  "https://ulilabsyor89-equity-research-v2.streamlit.app/",
+        "files":  [
+
+                  ]
+    },
+    {
+        "judul":  "AI Journal Finder V1.0",
+        "kategori":  [
+                         "AI Research",
+                         "Academic Discovery",
+                         "Aplikasi"
+                     ],
+        "konteks":  "Streamlit application · multidisciplinary scholarly paper and journal discovery",
+        "ringkas":  "A research-discovery tool for finding scholarly papers and potential journals for publication using OpenAlex metadata.",
+        "hasil":  [
+                      "Paper Finder for multidisciplinary scholarly literature discovery",
+                      "Journal Finder to explore journals, publishers, ISSN, citation and open-access metadata",
+                      "Search results with paper and journal links",
+                      "CSV and Excel export for further screening and review"
+                  ],
+        "catatan":  "Research discovery support only. Verify journal indexing, scope, policies, and publication fees independently before submitting.",
+        "tech":  [
+                     "Python",
+                     "Streamlit",
+                     "OpenAlex API",
+                     "Pandas",
+                     "Requests",
+                     "Excel"
+                 ],
+        "launch":  "https://ai-journal-finder.streamlit.app/",
+        "files":  [
+
+                  ]
+    },
+    {
+        "judul":  "Mining Financial Engineering",
+        "kategori":  [
+                         "Mining Finance",
+                         "Financial Modeling"
+                     ],
+        "konteks":  "Financial modeling and investment decision support for mining and heavy-equipment projects",
+        "ringkas":  "A suite of mining-finance concepts and tools connecting operational assumptions with project cash flow, valuation, commodity sensitivity, and stochastic risk analysis.",
+        "hasil":  [
+                      "Project cash-flow modeling and capital budgeting",
+                      "NPV and IRR evaluation",
+                      "Commodity-price, production, and cost sensitivity analysis",
+                      "Scenario and Monte Carlo risk modeling"
+                  ],
+        "catatan":  "Decision-support tools · multiple prototypes",
+        "tech":  [
+                     "Python",
+                     "Excel",
+                     "Streamlit",
+                     "Pandas",
+                     "NumPy",
+                     "Monte Carlo simulation"
+                 ],
+        "detail":  "project-portfolio/mining-financial-engineering.html",
+        "files":  [
+
+                  ]
+    },
+    {
+        "judul":  "AI Project Control",
+        "kategori":  [
+                         "Project Controls",
+                         "Construction Technology"
+                     ],
+        "konteks":  "AI-assisted project controls for construction, infrastructure, and mining projects",
+        "ringkas":  "A proposed workflow to convert project documents and progress data into structured cost, schedule, resource, risk, and performance insights for project teams.",
+        "hasil":  [
+                      "Drawing and document intake as a future workflow input",
+                      "BOQ and cost-estimate structuring",
+                      "Baseline schedule, progress tracking, and critical-path review",
+                      "Earned Value Management indicators including PV, EV, AC, SPI, and CPI"
+                  ],
+        "catatan":  "Concept and prototype development",
+        "tech":  [
+                     "Python",
+                     "FastAPI (planned architecture)",
+                     "Streamlit / web dashboard",
+                     "Pandas",
+                     "Project scheduling",
+                     "Monte Carlo simulation"
+                 ],
+        "detail":  "project-portfolio/ai-project-control.html",
+        "files":  [
+
+                  ]
+    },
+    {
+        "judul":  "Rotasi aset berbasis rezim VIX (TLT, GLD, SPY)",
+        "kategori":  [
+                         "Keuangan \u0026 saham",
+                         "Riset"
+                     ],
+        "konteks":  "MScFE 622 Stochastic Modeling · proyek kelompok bersama 2 rekan",
+        "ringkas":  "Memodelkan rezim volatilitas dari perubahan VIX dengan rantai Markov dan Gaussian HMM (EM dan Viterbi), lalu menguji aturan rotasi: tahan aset dengan rata-rata return tertinggi di setiap rezim.",
+        "hasil":  [
+                      "5.520 observasi harian, 2004–2026.",
+                      "Dalam sampel (dengan hindsight): Sharpe 1,16 vs 0,65 untuk SPY; drawdown maksimum −24,0% vs −55,2%.",
+                      "Uji out-of-sample kausal: Sharpe 0,47 vs 0,85 untuk SPY."
+                  ],
+        "catatan":  "Kesimpulan laporan: keunggulan tidak konsisten di luar sampel, sehingga strategi tidak direkomendasikan menggantikan benchmark. Manfaat paling masuk akal adalah drawdown yang lebih kecil.",
+        "tech":  [
+                     "Python",
+                     "hmmlearn",
+                     "yfinance",
+                     "python-docx"
+                 ],
+        "files":  [
+                      {
+                          "label":  "Notebook",
+                          "href":  "proyek-regime-rotation.ipynb"
+                      }
+                  ]
+    },
+    {
+        "judul":  "PE/VC Investment Analysis Engine",
+        "kategori":  [
+                         "Keuangan \u0026 saham",
+                         "Aplikasi"
+                     ],
+        "konteks":  "Aplikasi Streamlit · Excel → model Python → memo investasi",
+        "ringkas":  "Alur dari workbook Excel ke data tervalidasi, model Python, audit trail, dashboard, dan memo investment committee dalam format DOCX.",
+        "hasil":  [
+                      "DCF dengan sensitivitas WACC dan growth; LBO dengan debt schedule, cash sweep, dan covenant.",
+                      "Cap table VC multi-putaran dengan liquidation preference.",
+                      "Monte Carlo MOIC dan IRR (P5 sampai P95) serta register temuan due diligence."
+                  ],
+        "catatan":  "Data bawaan bersifat ilustratif. Alat bantu analisis awal, bukan pengganti due diligence; batasan model dicantumkan di README.",
+        "tech":  [
+                     "Python",
+                     "Streamlit",
+                     "pandas",
+                     "Plotly",
+                     "openpyxl"
+                 ],
+        "files":  [
+                      {
+                          "label":  "app.py",
+                          "href":  "proyek-pevc-app.py"
+                      },
+                      {
+                          "label":  "README",
+                          "href":  "proyek-pevc-README.md"
+                      },
+                      {
+                          "label":  "requirements",
+                          "href":  "proyek-pevc-requirements.txt"
+                      }
+                  ]
+    },
+    {
+        "judul":  "IDX Terminal",
+        "kategori":  [
+                         "Keuangan \u0026 saham",
+                         "Aplikasi"
+                     ],
+        "konteks":  "Server lokal tanpa dependensi, cukup Python 3.8+",
+        "ringkas":  "Memantau emiten bursa Indonesia dengan data Yahoo Finance (.JK) yang diperbarui di latar belakang setiap 5 detik, dikelompokkan per sektor dan grup konglomerasi.",
+        "hasil":  [
+                      "Endpoint snapshot, detail emiten, berita, pemegang saham, dan broker.",
+                      "Agregasi berita dari sumber RSS.",
+                      "Impor CSV pemegang saham dan broker (maksimal 5 MB)."
+                  ],
+        "catatan":  "Memakai data Yahoo Finance, bukan data resmi bursa.",
+        "tech":  [
+                     "Python",
+                     "HTTP server",
+                     "Yahoo Finance"
+                 ],
+        "files":  [
+                      {
+                          "label":  "server.py",
+                          "href":  "proyek-idx-terminal-server.py"
+                      }
+                  ]
+    },
+    {
+        "judul":  "Quant Terminal",
+        "kategori":  [
+                         "Keuangan \u0026 saham",
+                         "Aplikasi"
+                     ],
+        "konteks":  "Python (Pyodide) di browser, tanpa server",
+        "ringkas":  "Terminal riset kuantitatif lokal untuk saham global dan IDX: backtest, walk-forward, portofolio, Monte Carlo, stress test, dan panel order flow.",
+        "hasil":  [
+                      "Enam strategi: SMA, breakout, RSI, MACD, OBV, dan Bollinger Bands.",
+                      "Aturan pasar IDX: tick size, lot, batas auto-rejection, dan daftar LQ45 contoh.",
+                      "Data riil lewat yfinance atau API pihak ketiga dengan anggaran request lokal; tanpa data memakai data simulasi.",
+                      "Panel order flow: antrean bid/ask dan sisi agresor transaksi."
+                  ],
+        "catatan":  "Berjalan penuh di browser dengan data simulasi (bukan kuotasi pasar). Alat riset, bukan saran investasi.",
+        "tech":  [
+                     "Python",
+                     "stdlib HTTP server",
+                     "JavaScript",
+                     "yfinance",
+                     "Backtesting"
+                 ],
+        "files":  [
+                      {
+                          "label":  "Buka terminal",
+                          "href":  "quant-terminal.html"
+                      },
+                      {
+                          "label":  "quant-server.py",
+                          "href":  "quant-server.py"
+                      },
+                      {
+                          "label":  "quant-orderflow.py",
+                          "href":  "quant-orderflow.py"
+                      },
+                      {
+                          "label":  "quant-universe.py",
+                          "href":  "quant-universe.py"
+                      }
+                  ]
+    },
+    {
+        "judul":  "Kalkulator biaya dan margin hauling",
+        "kategori":  [
+                         "Tambang \u0026 produksi",
+                         "Aplikasi"
+                     ],
+        "konteks":  "Dari lembar Excel ke Python, dengan versi web di halaman ini",
+        "ringkas":  "Menghitung biaya dan margin per ret untuk kontraktor hauling tambang.",
+        "hasil":  [
+                      "Fuel ratio, pendapatan, serta biaya solar, unit, dan driver.",
+                      "Profit kotor, profit bersih setelah fix cost, dan titik impas harga kontrak."
+                  ],
+        "catatan":  "",
+        "tech":  [
+                     "Python",
+                     "CLI"
+                 ],
+        "files":  [
+                      {
+                          "label":  "kalkulator_hauling.py",
+                          "href":  "proyek-kalkulator-hauling.py"
+                      },
+                      {
+                          "label":  "Coba di web",
+                          "href":  "#demo"
+                      }
+                  ]
+    },
+    {
+        "judul":  "TSFA Dual Market V1.3 – Portfolio Engine",
+        "kategori":  [
+                         "Financial Engineering",
+                         "Portfolio Management",
+                         "Risk Analytics",
+                         "Aplikasi"
+                     ],
+        "konteks":  "Python \u0026 Streamlit – Indonesian and US equity portfolio analysis",
+        "ringkas":  "Portfolio decision-support engine untuk mencatat transaksi, menganalisis kinerja, mengukur risiko, mengevaluasi alokasi aset, dan menyusun strategi rebalancing untuk pasar saham Indonesia dan Amerika Serikat.",
+        "hasil":  [
+                      "Portfolio tracking berbasis transaksi dengan moving weighted-average cost.",
+                      "Analisis return, drawdown, volatilitas, dan kontribusi risiko.",
+                      "Target allocation dan rebalancing analysis.",
+                      "Sector exposure dan sector stress testing.",
+                      "Market stress testing dan analisis skenario.",
+                      "Ekspor laporan analisis ke Excel dengan 13 worksheet."
+                  ],
+        "catatan":  "Live application. Data portofolio pengguna diproses dalam session Streamlit dan dipisahkan dari repositori publik.",
+        "tech":  [
+                     "Python",
+                     "Streamlit",
+                     "Pandas",
+                     "NumPy",
+                     "SciPy",
+                     "Plotly",
+                     "Excel"
+                 ],
+        "detail":  "project-portfolio/tsfa-portfolio-engine.html",
+        "files":  [
+
+                  ],
+        "launch":  "https://tsfa-dual-market-v3.streamlit.app/"
+    }
+]
