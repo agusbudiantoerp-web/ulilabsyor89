@@ -1,4 +1,4 @@
-streamlit>=1.50
+﻿streamlit>=1.50
 pandas
 numpy
 scipy
@@ -8,3 +8,4 @@ scikit-learn
 plotly
 yfinance
 requests
+openpyxl>=3.1
