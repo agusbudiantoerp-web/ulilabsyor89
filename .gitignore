@@ -13,3 +13,14 @@ env/
 
 # Streamlit
 .streamlit/secrets.toml
+# Local backups and development patches
+*_BACKUP.py
+*_backup*.py
+*_PRE_*.py
+*.bak
+_patch_*.py
+patch_*.py
+
+# Private portfolio workbooks and exports
+*My_Portfolio*.xlsx
+*Portfolio*Analysis*.xlsx
