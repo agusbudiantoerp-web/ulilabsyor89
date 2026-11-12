@@ -518,5 +518,45 @@
   "deskripsi": "Versi bertema neon dari panduan manajemen keuangan usaha kecil.",
   "href": "halaman-financial-management-small-business-neon-lab.html",
   "kb": 25
+ },
+ {
+  "judul": "Laboratorium Ilmu Ekonomi",
+  "jenis": "Modul belajar",
+  "kategori": "Keuangan & investasi",
+  "deskripsi": "Teori, rumus, dan simulasi interaktif: permintaan-penawaran, inflasi, PDB, kebijakan fiskal-moneter, dan perdagangan internasional.",
+  "href": "halaman-laboratorium-ilmu-ekonomi.html",
+  "kb": 21
+ },
+ {
+  "judul": "Launching Gantry & Form Traveller",
+  "jenis": "Kalkulator",
+  "kategori": "Alat & dashboard",
+  "deskripsi": "Metode kerja dan perhitungan launching gantry serta form traveller pada pembangunan jembatan bentang panjang.",
+  "href": "halaman-launching-gantry-form-traveller.html",
+  "kb": 17
+ },
+ {
+  "judul": "Laboratorium Interaktif Pengujian Material Sipil",
+  "jenis": "Kalkulator",
+  "kategori": "Alat & dashboard",
+  "deskripsi": "Kalkulator dan studi kasus pengujian beton, tanah, baja, lereng, dan pondasi tiang dengan acuan SNI, ASTM, dan ISO.",
+  "href": "halaman-pengujian-material-sipil.html",
+  "kb": 33
+ },
+ {
+  "judul": "Bridge Intelligence: Structural Analysis Platform",
+  "jenis": "Aplikasi",
+  "kategori": "Alat & dashboard",
+  "deskripsi": "Platform analisis struktur jembatan tingkat lanjut.",
+  "href": "halaman-bridge-intelligence.html",
+  "kb": 32
+ },
+ {
+  "judul": "ERP Project Control: Seri Planner",
+  "jenis": "Aplikasi",
+  "kategori": "Project control & manajemen",
+  "deskripsi": "Forecast, peluang selesai, rencana pemulihan, dan action plan dari data proyek mingguan. Data tersimpan di browser.",
+  "href": "halaman-erp-project-control-planner.html",
+  "kb": 21
  }
 ]

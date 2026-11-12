@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BRIDGE INTELLIGENCE – Advanced Structural Analysis Platform</title>
+<meta name="description" content="Bridge Intelligence: platform analisis struktur jembatan tingkat lanjut.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌉</text></svg>">
+<style>
+:root{--bg:#0a1428;--p:#111e38;--p2:#16264a;--bd:#24386a;--tx:#e8f0ff;--mu:#8fa6d0;--cy:#22d3ee;--bl:#3b82f6;--gn:#34d399;--or:#fb923c;--rd:#f87171;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:52px}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:4px;overflow-x:auto;background:#0b1730;border-bottom:1px solid var(--bd);padding:8px 10px;align-items:center}
+nav b{color:var(--cy);margin-right:10px;white-space:nowrap}nav a{color:var(--mu);text-decoration:none;padding:4px 9px;border-radius:6px;white-space:nowrap}nav a:hover{background:var(--p2);color:var(--tx)}
+.hero{padding:60px 20px;text-align:center;background:radial-gradient(ellipse at 50% 0,#17346b,var(--bg) 70%)}
+.hero h1{font-size:clamp(26px,5vw,48px);margin:0;letter-spacing:2px}.hero h1 span{color:var(--cy)}
+.hero p{color:var(--mu);max-width:640px;margin:14px auto}
+.btn{background:linear-gradient(90deg,var(--bl),var(--cy));color:#001;border:0;padding:10px 18px;border-radius:8px;font-weight:700;cursor:pointer}
+.btn.s{background:var(--p2);color:var(--tx);border:1px solid var(--bd);padding:6px 12px}
+.big{font-size:16px;padding:14px 28px;letter-spacing:1px}
+#app{display:none;padding:10px}
+.warn{background:#3a2a10;border:1px solid var(--or);color:#ffd9b0;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px}
+.grid{display:grid;grid-template-columns:290px minmax(0,1fr) 270px;gap:10px}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.card{background:var(--p);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:10px}
+.card h3{margin:0 0 8px;font-size:12px;letter-spacing:1px;color:var(--cy);text-transform:uppercase}
+label{display:block;color:var(--mu);font-size:11px;margin-top:6px}
+input,select,textarea{width:100%;background:#0b1730;color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:5px 7px;font:inherit}
+input[type=range]{padding:0;accent-color:var(--cy)}
+.row{display:flex;gap:6px}.row>*{flex:1}
+.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px}
+.k{background:var(--p2);border:1px solid var(--bd);border-radius:8px;padding:8px}.k small{color:var(--mu);display:block}.k b{font-size:17px;color:var(--cy)}.k i{font-style:normal;font-size:11px;color:var(--mu)}
+.bad{color:var(--rd)!important}.ok{color:var(--gn)!important}
+canvas{width:100%;display:block;background:#0b1730;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:11px}td,th{border-bottom:1px solid var(--bd);padding:3px 4px;text-align:right}th{color:var(--mu)}td:first-child,th:first-child{text-align:left}
+.ctl{display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap}.ctl input[type=range]{flex:1;min-width:140px}
+.err{color:var(--rd);font-size:11px}
+pre,textarea{font:11px/1.4 ui-monospace,monospace}
+@media print{nav,.hero,.grid>div:not(.rp),.btn{display:none}}
+</style></head><body>
+<nav><b>⬢ BRIDGE INTELLIGENCE</b><a href="#dash">Dashboard</a><a href="#cfg">Bridge Configuration</a><a href="#sim">Moving Load Simulation</a><a href="#ana">Structural Analysis</a><a href="#std">Design Standards</a><a href="#rep">Reports</a><a href="#abt">About</a></nav>
+<section class="hero" id="top"><h1>BRIDGE <span>INTELLIGENCE</span></h1><div style="color:var(--cy);letter-spacing:3px">Simulate. Analyze. Visualize. Engineer.</div>
+<p>Platform analisis struktur jembatan dengan solver elemen hingga balok (Euler-Bernoulli) dan simulasi beban kendaraan bergerak. Setiap perpindahan truk menghitung ulang gaya geser, momen, lendutan, dan reaksi.</p>
+<button class="btn big" id="start">START BRIDGE SIMULATION</button></section>
+<div id="app"><div class="warn">⚠ <b>Analisis awal (preliminary), bukan desain tersertifikasi.</b> Model balok 1D tidak mewakili distribusi melintang dek; kabel/busur memakai mode sederhana linier; pemeriksaan gempa, angin, fatik, tekuk, fondasi dan sambungan tidak diimplementasikan; faktor beban kode tidak diverifikasi.</div>
+<div class="kp" id="kp"></div>
+<div class="grid" id="dash">
+<div id="cfg"><div class="card"><h3>Bridge Configuration</h3><div id="f1"></div></div>
+<div class="card"><h3>Vehicle Load</h3><div id="f2"></div><div id="vtab"></div><div class="err" id="verr"></div></div>
+<div class="card" id="std"><h3>Design Standards</h3><div id="f3"></div></div></div>
+<div id="sim"><div class="card"><h3>Moving Load Simulation</h3><canvas id="cb" style="height:260px"></canvas>
+<div class="ctl"><button class="btn s" id="play">▶ PLAY</button><button class="btn s" id="pause">❚❚ PAUSE</button><button class="btn s" id="reset">⟲ RESET</button><input type="range" id="pos" min="0" max="100" step="0.1"><span id="posv"></span></div>
+<div class="row"><div><label>Kecepatan (m/s)</label><input type="number" id="spd" value="10" min="0.5" step="0.5"></div><div><label>Pembesaran lendutan visual (×)</label><input type="number" id="exg" value="200" min="1"></div></div><div class="err" id="gerr"></div></div>
+<div class="card" id="ana"><h3>Structural Response (garis tebal = posisi kendaraan saat ini, area redup = envelope seluruh lintasan)</h3>
+<canvas id="c1" style="height:170px"></canvas><canvas id="c2" style="height:170px;margin-top:6px"></canvas><canvas id="c3" style="height:170px;margin-top:6px"></canvas></div></div>
+<div><div class="card"><h3>Live Response</h3><div id="live"></div></div><div class="card"><h3>Envelope &amp; Posisi Kritis</h3><div id="envp"></div></div>
+<div class="card"><h3>Capacity Check (input pengguna)</h3><label>φMn (kN·m)</label><input type="number" id="pm" value="50000"><label>φVn (kN)</label><input type="number" id="pv" value="3000"><label>Batas lendutan L/…</label><input type="number" id="dl" value="800"><div id="util"></div></div></div>
+</div>
+<div class="grid"><div class="card rp" id="rep" style="grid-column:1/-1"><h3>Reports &amp; Validation</h3>
+<div class="row" style="flex-wrap:wrap"><button class="btn s" id="bj">⬇ Unduh JSON konfigurasi</button><button class="btn s" id="bc">⬇ Unduh CSV hasil</button><button class="btn s" id="bt">⬇ Unduh laporan (.txt)</button><button class="btn s" id="bh">⬇ Unduh aplikasi (.html)</button><button class="btn s" id="bp">Print / Simpan PDF</button><button class="btn s" id="bl">Terapkan JSON dari kotak</button></div>
+<textarea id="rt" rows="12" style="margin-top:8px"></textarea><h3 style="margin-top:12px">Engineering Validation Tests</h3><div id="tests"></div></div>
+<div class="card" id="abt" style="grid-column:1/-1"><h3>About</h3>Solver: balok menerus Euler-Bernoulli, matriks kekakuan elemen 4×4 (v, θ), perakitan global, dekomposisi Cholesky, beban titik via fungsi bentuk Hermite, pemulihan gaya ujung elemen (V, M), reaksi perletakan. Kabel/gantungan/busur dimodelkan sebagai pegas vertikal linier di balok pengaku (mode <b>SIMPLIFIED</b>, tanpa non-linearitas geometri, kabel tekan tidak dibatasi). Satuan: m, kN, kN·m, mm, GPa.</div></div></div>
+<script>
+const $=i=>document.getElementById(i),g=9.81;
+// ---------- solver ----------
+function mk(xs,EI,pins,sp,clamp){const N=xs.length,nd=2*N,K=new Float64Array(nd*nd);
+for(let e=0;e<N-1;e++){const l=xs[e+1]-xs[e],c=EI/l**3,k=[[12,6*l,-12,6*l],[6*l,4*l*l,-6*l,2*l*l],[-12,-6*l,12,-6*l],[6*l,2*l*l,-6*l,4*l*l]],d=[2*e,2*e+1,2*e+2,2*e+3];for(let i=0;i<4;i++)for(let j=0;j<4;j++)K[d[i]*nd+d[j]]+=c*k[i][j]}
+sp.forEach(s=>K[2*s.n*nd+2*s.n]+=s.k);const fx=new Set();pins.forEach(n=>fx.add(2*n));if(clamp)fx.add(1);
+const fr=[];for(let i=0;i<nd;i++)if(!fx.has(i))fr.push(i);const n=fr.length,A=new Float64Array(n*n);
+for(let i=0;i<n;i++)for(let j=0;j<n;j++)A[i*n+j]=K[fr[i]*nd+fr[j]];
+for(let j=0;j<n;j++){let s=A[j*n+j];for(let k=0;k<j;k++)s-=A[j*n+k]**2;if(!(s>0))throw new Error("Matriks kekakuan singular (perletakan tidak stabil)");const d=Math.sqrt(s);A[j*n+j]=d;
+for(let i=j+1;i<n;i++){let t=A[i*n+j];for(let k=0;k<j;k++)t-=A[i*n+k]*A[j*n+k];A[i*n+j]=t/d}}
+return{xs,EI,N,nd,fr,n,A,sp,pins}}
+function an(m,pts,q){const{xs,N,nd,fr,n,A,EI}=m,fe=[],F=new Float64Array(nd);
+for(let e=0;e<N-1;e++){const l=xs[e+1]-xs[e];fe.push([-q*l/2,-q*l*l/12,-q*l/2,q*l*l/12])}
+for(const p of pts){if(!p.P||p.x<0||p.x>xs[N-1])continue;let e=0;while(e<N-2&&xs[e+1]<=p.x)e++;const l=xs[e+1]-xs[e],a=Math.min(l,p.x-xs[e]),t=a/l,
+sh=[1-3*t*t+2*t**3,l*(t-2*t*t+t**3),3*t*t-2*t**3,l*(-t*t+t**3)];for(let i=0;i<4;i++)fe[e][i]-=p.P*sh[i]}
+fe.forEach((f,e)=>{for(let i=0;i<4;i++)F[2*e+i]+=f[i]});
+const y=new Float64Array(n);for(let i=0;i<n;i++){let s=F[fr[i]];for(let k=0;k<i;k++)s-=A[i*n+k]*y[k];y[i]=s/A[i*n+i]}
+const x=new Float64Array(n);for(let i=n-1;i>=0;i--){let s=y[i];for(let k=i+1;k<n;k++)s-=A[k*n+i]*x[k];x[i]=s/A[i*n+i]}
+const U=new Float64Array(nd);fr.forEach((d,i)=>U[d]=x[i]);
+const V=[],M=[],ff=[];for(let e=0;e<N-1;e++){const l=xs[e+1]-xs[e],c=EI/l**3,k=[[12,6*l,-12,6*l],[6*l,4*l*l,-6*l,2*l*l],[-12,-6*l,12,-6*l],[6*l,2*l*l,-6*l,4*l*l]],u=[U[2*e],U[2*e+1],U[2*e+2],U[2*e+3]];
+const f=k.map((r,i)=>c*r.reduce((s,v,j)=>s+v*u[j],0)-fe[e][i]);ff.push(f);V.push(f[0]);M.push(-f[1])}
+V.push(-ff[N-2][2]);M.push(ff[N-2][3]);
+const R=m.pins.map(p=>({x:xs[p],R:(p>0?ff[p-1][2]:0)+(p<N-1?ff[p][0]:0)}));
+m.sp.forEach(s=>R.push({x:xs[s.n],R:-s.k*U[2*s.n],spring:1}));
+return{V,M,D:Array.from({length:N},(_,i)=>-U[2*i]*1000),R}}
+const mx=a=>{let b=0;a.forEach((v,i)=>{if(v>a[b])b=i});return b},mn=a=>{let b=0;a.forEach((v,i)=>{if(v<a[b])b=i});return b};
+// ---------- state ----------
+const VEH={car:[1.5,"2.7","50,50","2,2",4.5],suv:[2.2,"2.9","50,50","2,2",4.8],pickup:[3,"3.1","45,55","2,2",5.3],lct:[7.5,"3.4","40,60","2,4",6],two:[16,"4.5","33,67","2,4",8],three:[26,"4.2,1.4","20,40,40","2,4,4",9],four:[40,"3.4,1.3,1.3","25,25,25,25","2,4,4,4",11],six:[48,"3.6,1.3,4.2,1.3,1.3","10,15,15,20,20,20","2,4,4,4,4,4",14],tw:[60,"3.8,1.4,1.4","25,25,25,25","2,2,4,4",11],custom:null};
+const VN={car:"Passenger Car",suv:"SUV",pickup:"Pickup Truck",lct:"Light Commercial Truck",two:"Two-Axle Truck",three:"Three-Axle Truck",four:"Four-Axle Truck",six:"Six-Axle Heavy Truck",tw:"Twelve-Wheel Truck (60 t, 4 gandar)",custom:"Custom Vehicle"};
+const TYP={girder:"Steel Girder",rc:"Reinforced Concrete",psc:"Prestressed Concrete",boxs:"Box Girder – Single Span",boxm:"Box Girder – Multi Span",cable:"Cable-Stayed",susp:"Suspension",arch:"Arch"};
+const MAT={rc:["Reinforced Concrete",25],psc:["Prestressed Concrete",35],steel:["Structural Steel",200],comp:["Composite Steel-Concrete (E ekuivalen)",210],user:["User-Defined",30]};
+function sl(id,lab,v,a,b,s){return `<label>${lab}</label><div class=row><input type=range id=${id}r min=${a} max=${b} step=${s} value=${v}><input type=number id=${id} min=${a} max=${b} step=${s} value=${v} style="max-width:84px"></div>`}
+function nu(id,lab,v,s){const tx=typeof v==="string"&&(v===""||isNaN(v));return `<label>${lab}</label><input type=${tx?"text":"number"} id=${id} value="${v}" step=${s||"any"}>`}
+function so(id,lab,o,v){return `<label>${lab}</label><select id=${id}>${Object.entries(o).map(([k,t])=>`<option value=${k}${k==v?" selected":""}>${Array.isArray(t)?t[0]:t}</option>`).join("")}</select>`}
+$("f1").innerHTML=so("type","Tipe jembatan",TYP,"rc")+sl("L","Panjang total (m)",60,0,2000,1)+sl("np","Pilar antara (jumlah bentang = pilar+1)",1,0,50,1)+'<div id=spn class=err style="color:var(--mu)"></div>'+sl("W","Lebar jembatan (m)",9,1,60,.5)+sl("hg","Tinggi girder (m)",1.6,.1,20,.05)+
+'<div class=row><div>'+nu("ng","Jml girder",4,1)+'</div><div>'+nu("bf","Lebar sayap/box (m)",.5,.01)+'</div></div><div class=row><div>'+nu("tw_","Tebal web (m)",.2,.005)+'</div><div>'+nu("tf","Tebal sayap (m)",.15,.005)+'</div></div>'+so("mat","Material",MAT,"rc")+nu("E","Modulus E (GPa)",25,.1)+nu("q","Beban merata tambahan/berat sendiri (kN/m)",40,.1)+
+'<div id=cabx><div class=row><div>'+nu("nc","Kabel/hanger per sisi",6,1)+'</div><div>'+nu("HT","Tinggi tower/rise (m)",15,.5)+'</div></div>'+nu("Ac","Luas kabel (m²)",.01,.001)+'</div><div class=err id=berr></div>'+
+'<div class=row><button class="btn s" id=pr1>Preset 1: 3 bentang</button><button class="btn s" id=pr2>Preset 2: Cable-stayed</button></div>';
+$("f2").innerHTML=so("vp","Tipe kendaraan",VN,"tw")+nu("mass","Massa total (ton)",60,.1)+nu("spac","Jarak gandar (m, koma)","3.8,1.4,1.4")+nu("dist","Distribusi beban gandar (%, koma)","25,25,25,25")+nu("tires","Jumlah ban per gandar","2,2,4,4")+nu("vlen","Panjang kendaraan (m)",11,.1)+nu("dla","Dynamic load allowance (%) – pengguna","0",1);
+$("f3").innerHTML=so("s1","Standar pembebanan",{sni:"SNI pembebanan jembatan",aashto:"AASHTO LRFD",aashtos:"AASHTO Standard Spec.",ec:"Eurocode EN 1991-2",user:"User-defined"},"sni")+so("s2","Filosofi desain",{lrfd:"LRFD",asd:"ASD",ls:"Limit State Design"},"lrfd")+so("s3","Standar beton",{sni:"SNI 2847",aci:"ACI 318",ec:"Eurocode 2"},"sni")+so("s4","Standar baja",{sni:"SNI 1729",aisc:"AISC",ec:"Eurocode 3"},"sni")+so("s5","Standar gempa",{sni:"SNI 2833",aashto:"AASHTO seismic",ec:"Eurocode 8"},"sni")+nu("ed","Edisi/tahun","")+'<div class=warn style="margin-top:8px">Pilihan standar dicatat di laporan saja. Faktor beban, DLA, kombinasi dan batas lendutan kode <b>tidak diverifikasi</b> dan tidak diterapkan; hasil berlabel <b>PRELIMINARY</b>. Gunakan beban merata/DLA/kapasitas masukan pengguna.</div>';
+document.querySelectorAll("#f1 input[type=range]").forEach(r=>{const n=$(r.id.slice(0,-1));r.oninput=()=>{n.value=r.value;upd(1)};n.oninput=()=>{r.value=n.value;upd(1)}});
+document.querySelectorAll("#app input:not([type=range]),#app select").forEach(e=>{if(!e.oninput)e.oninput=e.onchange=()=>upd(e.id!=="spd"&&e.id!=="exg"&&e.id!=="pm"&&e.id!=="pv"&&e.id!=="dl")});
+$("vp").onchange=()=>{const v=VEH[$("vp").value];if(v){$("mass").value=v[0];$("spac").value=v[1];$("dist").value=v[2];$("tires").value=v[3];$("vlen").value=v[4]}upd(1)};
+$("mat").onchange=()=>{$("E").value=MAT[$("mat").value][1];upd(1)};
+function setv(o){for(const k in o){$(k).value=o[k];const r=$(k+"r");if(r)r.value=o[k]}upd(1)}
+$("pr1").onclick=()=>setv({type:"psc",L:150,np:2,mat:"psc",E:35,hg:2.4,hgr:2.4});$("pr2").onclick=()=>setv({type:"cable",L:300,np:0,mat:"steel",E:200,hg:2.5,ng:2,bf:.6,tw_:.03,tf:.04,HT:50,nc:8,q:120});
+$("start").onclick=()=>{$("app").style.display="block";$("start").parentElement.style.display="none";upd(1);scrollTo(0,0)};
+// ---------- model ----------
+let S,model,env,cur,xf=0,play=0,last=0,vt;
+const num=i=>parseFloat($(i).value),lst=i=>$(i).value.split(",").map(s=>parseFloat(s.trim()));
+function read(){const p={};["L","np","W","hg","ng","bf","tw_","tf","E","q","nc","HT","Ac","mass","vlen","dla"].forEach(k=>p[k]=num(k));["type","mat","vp","spac","dist","tires","s1","s2","s3","s4","s5","ed"].forEach(k=>p[k]=$(k).value);return p}
+function valid(p){const e=[];if(!(p.L>0))e.push("Panjang jembatan harus > 0 m: perhitungan dinonaktifkan.");if(!(p.E>0))e.push("Kekakuan material harus positif.");
+const nw=p.type.startsWith("box")?2:1;if(!(p.hg>0&&p.bf>nw*p.tw_&&p.tw_>0&&p.tf>0&&p.hg>2*p.tf))e.push("Dimensi penampang tidak valid (h > 2tf, bf > jumlah web × tw).");if(!(p.ng>=1))e.push("Jumlah girder minimal 1.");return e}
+function veh(p){const sp=lst("spac"),d=lst("dist"),t=lst("tires"),e=[],n=d.length;
+if(sp.length!==n-1||sp.some(v=>!(v>0)))e.push("Jarak gandar harus berjumlah (gandar−1) dan > 0.");if(t.length!==n||t.some(v=>!(v>0)))e.push("Jumlah ban per gandar harus sama dengan jumlah gandar.");
+const sd=d.reduce((a,b)=>a+b,0);if(Math.abs(sd-100)>1e-6)e.push("Distribusi gandar = "+sd.toFixed(2)+"% (harus 100%).");if(!(p.mass>0))e.push("Massa harus > 0.");
+const tot=p.mass*g,off=[0];sp.forEach(s=>off.push(off[off.length-1]+s));const ax=d.map((pc,i)=>({off:off[i],pct:pc,P:tot*pc/100,tire:t[i],w:tot*pc/100/t[i]}));
+return{ax,e,tot,sumTires:t.reduce((a,b)=>a+b,0),len:off[off.length-1]}}
+function pts(xf){const k=1+S.dla/100;return V.ax.map(a=>({x:xf-a.off,P:a.P*k}))}
+let V;
+function buildModel(){const p=S=read(),errs=valid(p);V=veh(p);const ve=V.e;$("verr").innerHTML=ve.join("<br>");
+const cab=["cable","susp","arch"].includes(p.type),multi=p.type==="boxs"?0:cab?0:p.np;$("np").disabled=cab||p.type==="boxs";$("cabx").style.display=cab?"":"none";
+const ns=multi+1;$("spn").textContent=cab?"Pilar antara = 0 (sistem kabel/busur: perletakan hanya di abutmen)":`Jumlah bentang = ${ns}; panjang bentang sama = ${(p.L/ns||0).toFixed(2)} m`;
+const nw=p.type.startsWith("box")?2:1,I=p.ng*(p.bf*p.hg**3-(p.bf-nw*p.tw_)*(p.hg-2*p.tf)**3)/12;p.I=I;p.EI=p.E*1e6*I;
+$("berr").innerHTML=errs.join("<br>");$("gerr").textContent="";if(errs.length||ve.length){model=null;return false}
+const ne=Math.max(4,Math.ceil(200/ns)),xs=[],pins=[0];for(let s=0;s<ns;s++)for(let i=0;i<ne;i++)xs.push(p.L/ns*(s+i/ne));xs.push(p.L);for(let s=1;s<=ns;s++)pins.push(s*ne);
+const sp=[];if(cab){const A=p.Ac,Ec=195e6,near=x=>Math.round(x/p.L*(xs.length-1));
+if(p.type==="cable"){const nt=p.np>=1?2:1;for(let t=1;t<=nt;t++){const xt=p.L*t/(nt+1);for(let j=1;j<=p.nc;j++)for(const sg of[-1,1]){const dx=j*p.L/(nt+1)*.45/p.nc,x=xt+sg*dx;if(x<=0||x>=p.L)continue;const Lc=Math.hypot(dx,p.HT);sp.push({n:near(x),k:Ec*A/Lc*(p.HT/Lc)**2})}}}
+else{const hs=p.L/(p.nc*2+1);for(let j=1;j<=p.nc*2;j++){const x=j*hs,h=Math.max(1.5,p.type==="susp"?p.HT*(.25+.75*(2*x/p.L-1)**2):4*p.HT*x*(p.L-x)/p.L**2);sp.push({n:near(x),k:Ec*A/h})}}}
+try{model=mk(xs,p.EI,pins,sp,0);model.ns=ns;model.cab=cab}catch(e){$("gerr").textContent=e.message;model=null;return false}return true}
+function sweep(){env=null;if(!model)return;const N=model.N,L=S.L,tot=L+V.len,st=Math.max(40,Math.min(160,Math.ceil(tot/1))),E={Vp:Array(N).fill(0),Vn:Array(N).fill(0),Mp:Array(N).fill(0),Mn:Array(N).fill(0),D:Array(N).fill(0),crit:{},R:0};
+const c={Vp:[-1e99],Vn:[1e99],Mp:[-1e99],Mn:[1e99],D:[-1e99]};
+for(let s=0;s<=st;s++){const x=tot*s/st,r=an(model,pts(x),S.q);for(let i=0;i<N;i++){E.Vp[i]=Math.max(E.Vp[i],r.V[i]);E.Vn[i]=Math.min(E.Vn[i],r.V[i]);E.Mp[i]=Math.max(E.Mp[i],r.M[i]);E.Mn[i]=Math.min(E.Mn[i],r.M[i]);E.D[i]=Math.max(E.D[i],r.D[i])}
+const t=(k,v,gt)=>{if(gt?v>c[k][0]:v<c[k][0])c[k]=[v,x]};t("Vp",Math.max(...r.V),1);t("Vn",Math.min(...r.V),0);t("Mp",Math.max(...r.M),1);t("Mn",Math.min(...r.M),0);t("D",Math.max(...r.D),1);E.R=Math.max(E.R,...r.R.map(a=>Math.abs(a.R)))}
+E.crit=c;env=E}
+// ---------- drawing ----------
+function ch(cv,xs,S2,unit,inv){const W=cv.width=cv.clientWidth,H=cv.height=cv.clientHeight,c=cv.getContext("2d");let lo=0,hi=0;S2.forEach(s=>s.y.forEach(v=>{lo=Math.min(lo,v);hi=Math.max(hi,v)}));if(hi-lo<1e-9){hi=1;lo=-1}
+const x0=48,x1=W-8,y0=16,y1=H-6,L=xs[xs.length-1],sx=v=>x0+v/L*(x1-x0),sy=v=>inv?y0+(v-lo)/(hi-lo)*(y1-y0):y1-(v-lo)/(hi-lo)*(y1-y0);
+c.fillStyle="#8fa6d0";c.font="10px system-ui";c.fillText(unit,4,11);c.strokeStyle="#24386a";c.beginPath();c.moveTo(x0,sy(0));c.lineTo(x1,sy(0));c.stroke();c.fillText(hi.toFixed(1),4,inv?y1:y0+8);c.fillText(lo.toFixed(1),4,inv?y0+8:y1);
+S2.forEach(s=>{c.beginPath();s.y.forEach((v,i)=>i?c.lineTo(sx(xs[i]),sy(v)):c.moveTo(sx(xs[i]),sy(v)));c.strokeStyle=s.col;c.lineWidth=s.w||1;if(s.fill){c.lineTo(sx(L),sy(0));c.lineTo(sx(0),sy(0));c.fillStyle=s.col+"33";c.fill()}else c.stroke();
+if(s.mark!==undefined){const i=s.mark,x=sx(xs[i]),y=sy(s.y[i]);c.fillStyle=s.col;c.beginPath();c.arc(x,y,4,0,7);c.fill();c.fillText(s.y[i].toFixed(1)+" @"+xs[i].toFixed(1)+"m",Math.min(x+6,x1-90),y-5)}});
+c.lineWidth=1;if(S.xf!==undefined){c.strokeStyle="#fb923c88";c.beginPath();c.moveTo(sx(S.xf),y0);c.lineTo(sx(S.xf),y1);c.stroke()}}
+function drawBridge(){const cv=$("cb"),W=cv.width=cv.clientWidth,H=cv.height=cv.clientHeight,c=cv.getContext("2d");c.clearRect(0,0,W,H);if(!model){c.fillStyle="#f87171";c.font="14px system-ui";c.fillText("Perhitungan dinonaktifkan: periksa input yang tidak valid.",20,40);return}
+const p=S,m=24,L=p.L,sx=x=>m+x/L*(W-2*m),dy=H*.62,sc=Math.min(H*.12,Math.max(8,p.hg*(W-2*m)/L*1.5*10)),th=Math.max(7,Math.min(sc,H*.1)),ex=num("exg")/1000;
+c.lineWidth=2;c.strokeStyle="#3b82f6";c.fillStyle="#3b82f655";
+const def=(x)=>{const i=Math.min(model.N-1,Math.round(x/L*(model.N-1)));return cur?cur.D[i]*ex:0};
+// piers
+c.fillStyle="#24386a";model.pins.forEach(n=>{const x=sx(model.xs[n]);c.beginPath();c.moveTo(x,dy+th);c.lineTo(x-9,H-14);c.lineTo(x+9,H-14);c.closePath();c.fill()});
+c.fillStyle="#16264a";c.fillRect(0,H-14,W,14);
+// type structures
+c.strokeStyle="#22d3ee";c.lineWidth=1.5;const t=p.type,hh=Math.min(H*.45,p.HT/Math.max(p.L,1)*(W-2*m)*3+20);
+if(t==="cable"){const nt=p.np>=1?2:1;for(let k=1;k<=nt;k++){const xt=sx(L*k/(nt+1));c.fillStyle="#3b82f6";c.fillRect(xt-4,dy-hh,8,hh+th);for(let j=1;j<=p.nc;j++)for(const sg of[-1,1]){const x=L*k/(nt+1)+sg*j*L/(nt+1)*.45/p.nc;c.beginPath();c.moveTo(xt,dy-hh+j*0+4+(j-1)*2);c.lineTo(sx(x),dy+def(x)-1);c.stroke()}}}
+if(t==="susp"){const xa=sx(L*.12),xb=sx(L*.88);[xa,xb].forEach(x=>{c.fillStyle="#3b82f6";c.fillRect(x-4,dy-hh,8,hh+th)});c.beginPath();c.moveTo(m,dy-hh*.2);c.quadraticCurveTo(W/2,dy+hh*.1,W-m,dy-hh*.2);c.moveTo(xa,dy-hh);c.quadraticCurveTo(W/2,dy+hh*.1+hh*.2,xb,dy-hh);c.stroke();for(let j=1;j<=p.nc*2;j++){const x=L*j/(p.nc*2+1),X=sx(x),u=(X-W/2)/(W/2-m),ya=dy-hh*.2-(1-u*u)*-hh*.1;c.beginPath();c.moveTo(X,dy-hh*(.1+.9*u*u)+hh*.1);c.lineTo(X,dy+def(x));c.stroke()}}
+if(t==="arch"){c.beginPath();for(let i=0;i<=40;i++){const x=L*i/40,y=dy-4*hh*x*(L-x)/L**2;i?c.lineTo(sx(x),y):c.moveTo(sx(x),y)}c.lineWidth=3;c.stroke();c.lineWidth=1;for(let j=1;j<=p.nc*2;j++){const x=L*j/(p.nc*2+1);c.beginPath();c.moveTo(sx(x),dy-4*hh*x*(L-x)/L**2);c.lineTo(sx(x),dy+def(x));c.stroke()}}
+// deck (deflected)
+c.beginPath();for(let i=0;i<model.N;i++){const x=sx(model.xs[i]),y=dy+(cur?cur.D[i]*ex:0);i?c.lineTo(x,y):c.moveTo(x,y)}c.strokeStyle="#e8f0ff";c.lineWidth=2;c.stroke();
+c.fillStyle="#3b82f644";c.strokeStyle="#3b82f6";c.lineWidth=1;c.strokeRect(sx(0),dy,sx(L)-sx(0),th);if(t.startsWith("box")){c.strokeRect(sx(0),dy+th*.25,sx(L)-sx(0),th*.5)}else if(t!=="boxs")for(let i=1;i<p.ng&&i<5;i++){c.beginPath();c.moveTo(sx(0),dy+th*i/Math.min(p.ng,5));c.lineTo(sx(L),dy+th*i/Math.min(p.ng,5));c.stroke()}
+// truck
+const k=(W-2*m)/L,tl=Math.max(V.len*k,26),fx=sx(xf),ty=dy+def(Math.min(L,Math.max(0,xf)))-12;c.fillStyle="#fb923c";c.fillRect(fx-tl-6,ty-10,tl+8,12);c.fillRect(fx-8,ty-16,10,6);c.fillStyle="#fff";V.ax.forEach(a=>{c.beginPath();c.arc(fx-Math.max(a.off*k,V.len?a.off/V.len*tl:0),ty+3,3.5,0,7);c.fill()});
+c.fillStyle="#8fa6d0";c.font="11px system-ui";c.fillText(`${TYP[t]} | L=${L} m | ${model.ns} bentang | ${model.cab?"SIMPLIFIED spring-supported girder":"Euler-Bernoulli FEM"}`,m,14)}
+function fmt(v,d=1){return (+v).toFixed(d)}
+function refresh(){if(!model){drawBridge();["kp","live","envp","util"].forEach(i=>$(i).innerHTML="");return}
+const L=S.L;cur=an(model,pts(xf),S.q);const N=model.N,xs=model.xs,r=cur;
+$("posv").textContent=fmt(xf,1)+" m";
+const iVp=mx(r.V),iVn=mn(r.V),iMp=mx(r.M),iMn=mn(r.M),iD=mx(r.D),Vm=Math.max(r.V[iVp],-r.V[iVn]),Mm=Math.max(r.M[iMp],-r.M[iMn]);
+const o={xf};ch($("c1"),xs,[{y:env.Vp,col:"#34d399",fill:1},{y:env.Vn,col:"#34d399",fill:1},{y:r.V,col:"#34d399",w:2,mark:Math.abs(r.V[iVp])>=Math.abs(r.V[iVn])?iVp:iVn}],"SFD – V (kN)",0);
+ch($("c2"),xs,[{y:env.Mp,col:"#3b82f6",fill:1},{y:env.Mn,col:"#3b82f6",fill:1},{y:r.M,col:"#22d3ee",w:2,mark:r.M[iMp]>=-r.M[iMn]?iMp:iMn}],"BMD – M (kN·m), sagging +",0);
+ch($("c3"),xs,[{y:env.D,col:"#fb923c",fill:1},{y:r.D,col:"#fb923c",w:2,mark:iD}],"Lendutan (mm, ke bawah +)",1);
+drawBridge();
+const dd=r.D[iD],ratio=dd>1e-9?L*1000/dd:Infinity,Rm=Math.max(...r.R.map(a=>Math.abs(a.R)));
+const eV=Math.max(env.Vp[mx(env.Vp)],-env.Vn[mn(env.Vn)]),eM=Math.max(env.Mp[mx(env.Mp)],-env.Mn[mn(env.Mn)]),eD=Math.max(...env.D);
+const uM=eM/num("pm"),uV=eV/num("pv"),uD=ratio===Infinity?0:num("dl")/(L*1000/Math.max(eD,1e-9));
+const cl=u=>u>1?"bad":u>.8?"":"ok",kc=(t,v,u,s)=>`<div class=k><small>${t}</small><b>${v}</b> <i>${u}</i><br><i>${s||""}</i></div>`;
+$("kp").innerHTML=kc("Bridge",TYP[S.type],"",`${model.ns} bentang, ${model.pins.length-1>0?model.pins.length-2:0} pilar, B=${S.W} m`)+kc("Girder / Material",`h=${S.hg} m`,"",MAT[S.mat][0]+", EI="+(S.EI/1e6).toFixed(2)+" MN·m²")+kc("Vmax (kini)",fmt(Vm),"kN","x="+fmt(xs[r.V[iVp]>=-r.V[iVn]?iVp:iVn])+" m")+kc("Mmax (kini)",fmt(Mm),"kN·m","x="+fmt(xs[r.M[iMp]>=-r.M[iMn]?iMp:iMn])+" m")+kc("Lendutan maks",fmt(dd,2),"mm","x="+fmt(xs[iD])+" m")+kc("Reaksi maks",fmt(Rm),"kN","")+kc("Utilisasi maks (envelope)",`<span class=${cl(Math.max(uM,uV,uD))}>${fmt(Math.max(uM,uV)*1,2)}</span>`,"","Mu/φMn, Vu/φVn (input pengguna)");
+$("live").innerHTML=`Posisi kendaraan: <b>${fmt(xf)}</b> m<br>Beban total: ${fmt(V.tot*(1+S.dla/100))} kN<br>Vmax+ ${fmt(r.V[iVp])} kN @ ${fmt(xs[iVp])} m<br>Vmax− ${fmt(r.V[iVn])} kN @ ${fmt(xs[iVn])} m<br>Mmax+ ${fmt(r.M[iMp])} kN·m @ ${fmt(xs[iMp])} m<br>Mmax− ${fmt(r.M[iMn])} kN·m @ ${fmt(xs[iMn])} m<br>Lendutan ${fmt(dd,2)} mm @ ${fmt(xs[iD])} m, L/Δ = ${ratio===Infinity?"∞":fmt(ratio,0)}<br><b>Reaksi:</b><br>`+r.R.map(a=>`${a.spring?"kabel":"tumpuan"} x=${fmt(a.x)}: ${fmt(a.R)} kN`).slice(0,12).join("<br>")+(r.R.length>12?"<br>…":"");
+const c=env.crit;$("envp").innerHTML=`V+ ${fmt(c.Vp[0])} kN (x kend.=${fmt(c.Vp[1])} m)<br>V− ${fmt(c.Vn[0])} kN (${fmt(c.Vn[1])} m)<br>M+ ${fmt(c.Mp[0])} kN·m (${fmt(c.Mp[1])} m)<br>M− ${fmt(c.Mn[0])} kN·m (${fmt(c.Mn[1])} m)<br>Lendutan ${fmt(c.D[0],2)} mm (${fmt(c.D[1])} m)<br>Reaksi maks ${fmt(env.R)} kN`;
+$("util").innerHTML=`<br>Mu/φMn = <b class=${cl(uM)}>${fmt(uM,3)}</b><br>Vu/φVn = <b class=${cl(uV)}>${fmt(uV,3)}</b><br>Δ/Δijin = <b class=${cl(uD)}>${fmt(uD,3)}</b><br><i style="color:var(--mu)">Rasio &lt; 1 tidak menjamin aman; pemeriksaan lain belum dilakukan.</i>`;
+S.res={Vm,Mm,dd,Rm,eV,eM,eD,env:env.crit}}
+function vtable(){$("vtab").innerHTML="<table><tr><th>Gandar</th><th>Offset m</th><th>%</th><th>Beban kN</th><th>Ban</th><th>kN/ban</th></tr>"+V.ax.map((a,i)=>`<tr><td>${i+1}</td><td>${a.off.toFixed(2)}</td><td>${a.pct}</td><td>${a.P.toFixed(2)}</td><td>${a.tire}</td><td>${a.w.toFixed(3)}</td></tr>`).join("")+`<tr><th>Σ</th><th></th><th></th><th>${V.ax.reduce((s,a)=>s+a.P,0).toFixed(2)}</th><th>${V.sumTires}</th><th>${V.ax.reduce((s,a)=>s+a.w*a.tire,0).toFixed(2)}</th></tr></table>`}
+function upd(rebuild){clearTimeout(vt);if(rebuild){const ok=buildModel();vtable();const r=$("pos");r.max=ok?S.L+V.len:100;if(xf>+r.max)xf=0;r.value=xf;vt=setTimeout(()=>{sweep();refresh();rep()},ok?30:0);if(!ok){refresh();return}}else{refresh()}}
+$("pos").oninput=e=>{xf=+e.target.value;refresh()};
+$("play").onclick=()=>{play=1;last=performance.now();requestAnimationFrame(loop)};$("pause").onclick=()=>play=0;$("reset").onclick=()=>{play=0;xf=0;$("pos").value=0;refresh()};
+function loop(t){if(!play||!model)return;const dt=(t-last)/1000;last=t;xf+=num("spd")*dt;const mxp=S.L+V.len;if(xf>mxp)xf=0;$("pos").value=xf;refresh();requestAnimationFrame(loop)}
+// ---------- report ----------
+function rep(){if(!model||!S.res){$("rt").value="";return}const r=S.res,c=r.env,t=new Date().toISOString().slice(0,10);
+$("rt").value=`BRIDGE INTELLIGENCE – LAPORAN ANALISIS AWAL (PRELIMINARY)\nTanggal: ${t}\nTipe: ${TYP[S.type]} | L=${S.L} m | bentang=${model.ns} | lebar=${S.W} m\nPenampang: h=${S.hg} m, ${S.ng} girder, bf=${S.bf}, tw=${S.tw_}, tf=${S.tf} | I=${S.I.toFixed(5)} m4 | E=${S.E} GPa | EI=${S.EI.toFixed(0)} kN.m2 (${MAT[S.mat][0]})\nBeban merata: ${S.q} kN/m | DLA masukan pengguna: ${S.dla}%\nKendaraan: ${VN[S.vp]} ${S.mass} t, P=${(S.mass*g).toFixed(2)} kN; gandar: ${V.ax.map(a=>a.P.toFixed(1)+"kN/"+a.tire+"ban").join(", ")}\nStandar dipilih (TIDAK diverifikasi): ${S.s1}, ${S.s2}, beton ${S.s3}, baja ${S.s4}, gempa ${S.s5} ${S.ed}\nModel: ${model.cab?"SIMPLIFIED spring-supported girder (bukan analisis kabel/busur lengkap)":"balok menerus Euler-Bernoulli FEM"}; ${model.N-1} elemen\nEnvelope: V+=${c.Vp[0].toFixed(1)} kN (x=${c.Vp[1].toFixed(1)} m), V-=${c.Vn[0].toFixed(1)}, M+=${c.Mp[0].toFixed(1)} kN.m (x=${c.Mp[1].toFixed(1)} m), M-=${c.Mn[0].toFixed(1)}, lendutan=${c.D[0].toFixed(2)} mm (x=${c.D[1].toFixed(1)} m), reaksi maks=${r.env?"":""}${env.R.toFixed(1)} kN\nKeterbatasan: model 1D, tanpa distribusi melintang, tanpa dinamika, gempa/angin/fatik/tekuk/fondasi/sambungan tidak diperiksa.`}
+$("bj").onclick=()=>dl(JSON.stringify(read(),null,1),"bridge_config.json","application/json");$("bc").onclick=()=>{if(!model)return;const c=S.res.env;dl("parameter,nilai,lokasi_kendaraan_m\nVmax+,"+c.Vp[0]+","+c.Vp[1]+"\nVmax-,"+c.Vn[0]+","+c.Vn[1]+"\nMmax+,"+c.Mp[0]+","+c.Mp[1]+"\nMmax-,"+c.Mn[0]+","+c.Mn[1]+"\nDefleksi_mm,"+c.D[0]+","+c.D[1],"bridge_results.csv","text/csv")};$("bt").onclick=()=>{rep();dl($("rt").value,"bridge_report.txt","text/plain")};$("bh").onclick=()=>dl("<!DOCTYPE html>\n"+document.documentElement.outerHTML,"bridge-intelligence.html","text/html");
+function dl(t,n,m){if(!t){alert("Belum ada hasil: periksa input.");return}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:m+";charset=utf-8"}));a.download=n;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function cp(s){$("rt").value=s;$("rt").select();try{navigator.clipboard.writeText(s)}catch(e){try{document.execCommand("copy")}catch(_){}}}
+$("bp").onclick=()=>{rep();print()};$("bl").onclick=()=>{try{const o=JSON.parse($("rt").value);for(const k in o){const id=k==="tw_"?"tw_":k;if($(id))$(id).value=o[k];if($(id+"r"))$(id+"r").value=o[k]}upd(1)}catch(e){alert("JSON tidak valid")}};
+// ---------- tests ----------
+function tests(){const R=[],T=(n,e,gv,tol)=>R.push([n,e,gv,Math.abs(e-gv)<=tol*Math.max(1,Math.abs(e))]),ls=(L,n)=>Array.from({length:n+1},(_,i)=>L*i/n);
+const EI=1e5,L=10,xs=ls(L,40),ss=mk(xs,EI,[0,40],[],0);
+let r=an(ss,[{x:5,P:100}],0);T("1. SS beam, P tengah: Mmax = PL/4 (kN·m)",250,Math.max(...r.M),1e-6);T("1. Lendutan = PL³/48EI (mm)",100*L**3/(48*EI)*1000,Math.max(...r.D),1e-6);
+r=an(ss,[],10);T("2. UDL: Vmax = wL/2 (kN)",50,Math.max(...r.V),1e-6);T("2. Mmax = wL²/8 (kN·m)",125,Math.max(...r.M),1e-6);T("2. Lendutan = 5wL⁴/384EI (mm)",5*10*L**4/(384*EI)*1000,Math.max(...r.D),1e-6);
+const cm=mk(xs,EI,[0],[],1);r=an(cm,[{x:L,P:100}],0);T("3. Kantilever: |M| = PL (kN·m)",1000,Math.abs(Math.min(...r.M)),1e-6);T("3. Lendutan = PL³/3EI (mm)",100*L**3/(3*EI)*1000,Math.max(...r.D),1e-6);
+let best=[0,0];for(let x=0;x<=L;x+=.25){const m=Math.max(...an(ss,[{x,P:100}],0).M);if(m>best[0])best=[m,x]}T("4. Beban bergerak: posisi kritis M = L/2 (m)",5,best[1],1e-6);
+const p=read();const v=veh({...p,mass:60});T("5. Σ beban gandar = m·g (kN)",588.6,v.ax.reduce((s,a)=>s+a.P,0),1e-9);T("5. Σ beban roda = m·g (kN)",588.6,v.ax.reduce((s,a)=>s+a.w*a.tire,0),1e-9);
+const a1=Math.max(...an(ss,v.ax.map(a=>({x:12-a.off,P:a.P})),0).M),a2=Math.max(...an(ss,v.ax.map(a=>({x:18-a.off,P:a.P})),0).M);R.push(["5. Respons berubah saat truk bergerak",a1.toFixed(1),a2.toFixed(1),Math.abs(a1-a2)>1]);
+const c2=mk(ls(20,80),EI,[0,40,80],[],0);r=an(c2,[],10);T("6. 2 bentang menerus: R_tengah = 5wL/4 (kN)",125,r.R[1].R,1e-6);T("6. R_ujung = 3wL/8 (kN)",37.5,r.R[0].R,1e-6);T("6. Keseimbangan ΣR = ΣP (kN)",200,r.R.reduce((s,a)=>s+a.R,0),1e-6);T("6. Kontinuitas: M tumpuan tengah = −wL²/8 (kN·m)",-125,r.M[40],1e-6);
+$("tests").innerHTML="<table><tr><th>Uji</th><th>Teori</th><th>Solver</th><th>Status</th></tr>"+R.map(a=>`<tr><td>${a[0]}</td><td>${typeof a[1]=="number"?a[1].toFixed(4):a[1]}</td><td>${typeof a[2]=="number"?a[2].toFixed(4):a[2]}</td><td class=${a[3]?"ok":"bad"}>${a[3]?"PASS":"FAIL"}</td></tr>`).join("")+`</table><b class=${R.every(a=>a[3])?"ok":"bad"}>${R.filter(a=>a[3]).length}/${R.length} lulus</b>`}
+tests();window.addEventListener("resize",()=>model&&refresh());
+</script></body></html>

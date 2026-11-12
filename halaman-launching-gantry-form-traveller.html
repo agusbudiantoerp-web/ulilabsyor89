@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Launching Gantry & Form Traveller: Metode dan Perhitungan</title>
+<meta name="description" content="Metode kerja, simulasi, dan perhitungan keseimbangan launching gantry serta form traveller untuk jembatan bentang panjang.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏗️</text></svg>">
+<style>
+:root{--bg:#f4f5f7;--sf:#fff;--tx:#1c2230;--mu:#5c667a;--ac:#1d4ed8;--ac2:#c2410c;--bd:#d6dbe5;--ok:#15803d;--no:#c92a2a}
+@media(prefers-color-scheme:dark){:root{--bg:#12161f;--sf:#1b212d;--tx:#e8ecf4;--mu:#9aa5bb;--ac:#7aa2ff;--ac2:#f2994a;--bd:#323b4d;--ok:#4ade80;--no:#ff7b7b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 Georgia,serif}
+header{padding:40px 6vw 24px;border-bottom:4px solid var(--ac)}h1{font-size:clamp(1.7rem,4.2vw,2.8rem);line-height:1.1;margin:0 0 10px;max-width:24ch}header p{max-width:75ch;color:var(--mu);margin:6px 0}
+nav{display:flex;flex-wrap:wrap;gap:6px;padding:12px 6vw;position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--bd)}
+button{font:600 14px system-ui,sans-serif;border:1px solid var(--bd);background:var(--sf);color:var(--tx);padding:8px 13px;border-radius:6px;cursor:pointer}
+nav button.on,.go{background:var(--ac);color:#fff;border-color:var(--ac)}.alt{border-color:var(--ac2);color:var(--ac2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ac2);outline-offset:2px}
+main{padding:22px 6vw 60px;max-width:1150px}h2{margin:0 0 4px;font-size:1.6rem}h3{margin:22px 0 6px;font-size:1.15rem}
+.th{background:var(--sf);border-left:4px solid var(--ac);padding:10px 16px;margin:8px 0 14px;font-size:15px}.th code,.out code{font:14px ui-monospace,monospace;background:var(--bg);padding:1px 5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;margin-bottom:10px}
+label{font:13px system-ui,sans-serif;color:var(--mu);display:flex;flex-direction:column;gap:3px}
+input,select{font:15px system-ui,sans-serif;padding:7px;border:1px solid var(--bd);border-radius:5px;background:var(--sf);color:var(--tx)}
+canvas{width:100%;background:var(--sf);border:1px solid var(--bd)}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0;font:14px system-ui,sans-serif}.row input[type=range]{flex:1;min-width:180px}
+.out{background:var(--sf);border:1px solid var(--bd);padding:12px 16px;margin-top:10px;font:15px system-ui,sans-serif}
+table{border-collapse:collapse;margin:8px 0;font-size:14px;display:block;overflow-x:auto}td,th{border:1px solid var(--bd);padding:4px 10px;text-align:right}th{background:var(--bg)}
+.ok{color:var(--ok);font-weight:700}.no{color:var(--no);font-weight:700}
+details{background:var(--sf);border:1px solid var(--bd);padding:8px 14px;margin:8px 0}summary{cursor:pointer;font:600 15px system-ui,sans-serif}li{margin:4px 0}
+footer{padding:20px 6vw;color:var(--mu);font:13px system-ui,sans-serif;border-top:1px solid var(--bd)}
+@media print{nav,button{display:none}section[hidden]{display:block!important}}
+</style></head><body>
+<header><h1>Launching Gantry dan Form Traveller</h1>
+<p>Metode kerja, simulasi dinamis, dan perhitungan keseimbangan untuk launching gantry di atas pierhead serta form traveller pada pembangunan jembatan bentang panjang.</p>
+<p>Alat bantu perhitungan awal (preliminary). Desain final, gambar kerja, dan pengesahan tetap oleh ahli struktur dan prosedur kerja proyek.</p>
+<button class="alt" onclick="print()">Cetak / simpan PDF</button></header>
+<nav id="nav"><button class="on" data-t="tg">Launching gantry</button><button data-t="tf">Form traveller</button><button data-t="tm">Method statement</button><button data-t="ta">Asumsi dan acuan</button></nav>
+<main>
+<section id="tg">
+<h2>Launching gantry: simulasi dan kesetimbangan</h2>
+<div class="th">Gantry bertumpu pada pierhead A (belakang) dan B (depan), jarak tumpuan = span S. Saat diluncurkan, bagian depan (badan + nose) menjulur dari B hingga ujung nose mencapai pier C. Guling ditinjau terhadap tumpuan B:<br>
+<code>Mdepan = w·a²/2 + Wn·(a + Ln/2)</code>; <code>Mbelakang = w·Lb²/2 + Wc·Lb</code> (Lb = Lm − a, Wc = counterweight + winch di ujung belakang); <code>FS = Mbelakang / (ψ·Mdepan)</code>. Reaksi dari ΣM terhadap A. Kondisi kritis: ujung nose hampir menyentuh pier C (a = S − Ln, kantilever = S).</div>
+<div class="grid"><label>Jarak span S (m)<select id="S"><option>30</option><option>35</option><option selected>40</option><option>45</option><option>50</option><option>60</option><option>70</option><option>80</option></select></label><span id="gi"></span></div>
+<h3>Estimasi berat main winch</h3>
+<div class="th">Tarikan tali <code>F = W·DAF/(n·η)</code> (η sheave ≈ 0,95); winch dipilih 1,25·F; berat winch ≈ k × tarikan nominal (k indikatif 0,15–0,25, cek katalog vendor). Winch ditempatkan di bagian belakang sehingga ikut menjadi ballast.</div>
+<div class="grid"><span id="wi"></span><label>Berat winch dihitung sebagai ballast belakang<select id="iw"><option value="1">Ya</option><option value="0">Tidak</option></select></label></div>
+<h3>Simulasi dinamis</h3>
+<canvas id="cv" width="1000" height="330"></canvas>
+<div class="row"><button class="go" id="play">▶ Putar</button><label style="flex-direction:row;align-items:center;flex:1">Posisi launching&nbsp;<input type="range" id="pos" min="0" max="100" value="60"></label><b id="pl"></b></div>
+<div class="out" id="og"></div>
+</section>
+<section id="tf" hidden>
+<h2>Form traveller: pengecoran, curing, dan pergeseran</h2>
+<div class="th">Pengecoran: guling terhadap tumpuan depan F: <code>Mo = Ws·xs + Wf·xf</code>; gaya angkur belakang <code>T = SF·Mo/a</code>; reaksi depan <code>RF = Ws + Wf + Mo/a</code>. Pergeseran (tanpa beton): hold-down belakang <code>Tm = SF·Wf·xf/a</code>, gaya tarik <code>Fp = Wf·(μ + i)</code>. Di pilar, ketidakseimbangan momen ΔM tiap tahap dibandingkan kapasitas pilar/temporary stressing.</div>
+<div class="grid"><span id="fi"></span></div>
+<div class="out" id="of"></div>
+</section>
+<section id="tm" hidden>
+<h2>Method statement</h2>
+<details open><summary>A. Launching gantry ke span berikutnya</summary><ol>
+<li><b>Persiapan:</b> verifikasi kuat beton pierhead, elevasi dan posisi shoe tumpuan, jalur rel bersih, alat ukur terkalibrasi.</li>
+<li><b>Inspeksi peralatan:</b> las dan baut kritis (NDT), wire rope, winch, rem, limit switch, anemometer, sistem hidrolik.</li>
+<li><b>Hold point 1:</b> perhitungan stabilitas (FS, reaksi pierhead, uplift tumpuan A) disetujui; manual operasi dan rencana tanggap darurat tersedia.</li>
+<li>Pasang ballast/counterweight sesuai hitungan; winch dan trolley dalam posisi parkir di ujung belakang.</li>
+<li><b>Hold point 2:</b> cek cuaca (angin di bawah batas kerja), area aman, rambu, spotter, komunikasi radio.</li>
+<li>Lepas pengunci dan angkur; luncurkan perlahan sesuai manual (berhenti tiap interval tetap untuk cek reaksi, lendutan nose, dan keselarasan kiri-kanan).</li>
+<li>Saat nose mendekati pier C: pasang tumpuan depan, sentuhkan nose, lakukan transfer beban bertahap.</li>
+<li>Pindahkan tumpuan belakang ke posisi baru, setel elevasi dan angkur, uji beban sesuai program, lalu mulai erection span baru.</li></ol></details>
+<details><summary>B. Form traveller (siklus tiap segmen)</summary><ol>
+<li>Rakit traveller di pier table; lakukan proof load bekisting (mis. 1,1–1,2× berat segmen) dan setel kamber.</li>
+<li><b>Hold point:</b> perhitungan angkur belakang dan reaksi depan disetujui; angkur terpasang dan dikencangkan.</li>
+<li>Pembesian, duct tendon, dan bekisting; cek elevasi dan alinyemen.</li>
+<li>Pengecoran simetris kiri-kanan bergantian agar ketidakseimbangan di pilar terkendali.</li>
+<li>Curing dan uji kuat beton; stressing PT setelah kuat beton mencapai nilai desain.</li>
+<li>Lepas angkur belakang, kendurkan bekisting.</li>
+<li>Geser traveller dengan jack hidrolik, hold-down belakang aktif, dua sisi sinkron.</li>
+<li>Pasang angkur baru, setel elevasi, lanjut pembesian dan pengecoran segmen berikutnya.</li></ol></details>
+</section>
+<section id="ta" hidden>
+<h2>Asumsi dan acuan</h2>
+<div class="th"><b>Acuan umum:</b> SNI 1725:2016 (pembebanan jembatan), SNI 1727:2020 (beban minimum), AASHTO Guide Specifications for Construction Loads, AASHTO LRFD Bridge Construction Specifications, dan ketentuan SMKK (Permen PUPR 10/2021). Verifikasi edisi dan pasal yang berlaku di proyek.<br><b>Asumsi model:</b> berat gantry merata dengan nose lebih ringan; counterweight dan winch berada di ujung belakang badan; beban angkat tidak ada saat launching; tumpuan sebagai tumpuan sederhana; defleksi, tegangan batang, dan tekuk lokal tidak dihitung. Pada form traveller, titik tumpu depan dianggap di ujung kantilever yang sudah dicor, dan beban kiri-kanan simetris kecuali dinyatakan lain.<br><b>Kriteria praktik:</b> FS guling ≥ 1,5 saat operasi (nilai akhir mengikuti spesifikasi dan manual alat). Reaksi tumpuan belakang negatif berarti ada uplift dan butuh angkur.</div>
+</section>
+</main>
+<footer>Satu file HTML mandiri: simpan dengan Ctrl+S dan buka tanpa internet.</footer>
+<script>
+const $=i=>document.getElementById(i),f=(x,d=1)=>isFinite(x)?x.toFixed(d):'–',v=i=>+$(i).value,OK=(b,t)=>`<span class=${b?'ok':'no'}>${b?'MEMENUHI':(t||'TIDAK MEMENUHI')}</span>`;
+const inp=(p,l)=>l.map(([i,t,d])=>`<label>${t}<input id="${i}" type="number" step="any" value="${d}"></label>`).join('');
+$('gi').outerHTML=inp('',[['kL','Panjang badan gantry = k × S (k)',1.7],['kn','Panjang nose = k × S',0.35],['w','Berat badan gantry w (kN/m)',45],['rn','Berat nose / berat badan',0.35],['Wc','Counterweight tambahan di ujung belakang (kN)',0],['SF','FS guling minimum',1.5],['ps','Faktor dinamik beban depan ψ',1.1],['mu','Koefisien gesek roda/rel μ',0.04],['gl','Kelandaian memanjang (%)',1],['Rc','Kapasitas reaksi pierhead (kN)',6000],['wv','Kecepatan angin kerja (m/s)',20],['Hg','Tinggi rangka gantry (m)',4.5],['so','Rasio kepadatan rangka',0.4],['hc','Tinggi pusat angin di atas tumpuan (m)',6],['Bg','Jarak tumpuan lateral (m)',7]]);
+$('wi').outerHTML=inp('',[['Wg','Berat girder/segmen yang diangkat (kN)',1500],['nf','Jumlah lilitan (fall) tali',8],['da','Faktor dinamik angkat',1.15],['kw','Rasio berat winch / tarikan (kN per kN)',0.2]]);
+$('fi').outerHTML=inp('',[['Ws','Berat segmen basah Ws (kN)',1500],['Wf','Berat form traveller Wf (kN)',900],['xs','Jarak tumpuan depan ke titik berat segmen xs (m)',2.5],['xf','Jarak tumpuan depan ke titik berat traveller xf (m)',1],['aa','Jarak angkur belakang ke tumpuan depan a (m)',5],['sf2','FS guling traveller',1.5],['Pb','Kapasitas izin 1 batang angkur (kN)',500],['Ap','Luas pad tumpuan depan (m²)',0.4],['fct','Kuat tekan beton saat pengecoran f′c(t) (MPa)',30],['mu2','Koefisien gesek geser traveller μ',0.1],['gi2','Kelandaian (%)',2],['Ls','Panjang segmen Ls (m)',4],['Lc','Panjang kantilever sebelum segmen ini Lc (m)',40],['Wr','Berat pembesian + bekisting satu sisi (kN)',120],['ep','Toleransi selisih cor kiri-kanan (%)',5],['Mc','Kapasitas ΔM pilar/temporary stressing (kN·m)',100000]]);
+function P(){const S=v('S'),Lm=v('kL')*S,Ln=v('kn')*S,w=v('w'),Wn=v('rn')*w*Ln,Fl=v('Wg')*v('da')/(v('nf')*.95),Fr=1.25*Fl,Ww=v('kw')*Fr,Wc=v('Wc')+($('iw').value=='1'?Ww:0),ps=v('ps');
+const st=a=>{const b=Lm-S-a,Lb=Lm-a,Mf=w*a*a/2+Wn*(a+Ln/2),Mb=w*Lb*Lb/2+Wc*Lb,xc=(S+a-b)/2,tot=w*Lm+Wn+Wc,RB=(w*Lm*xc+Wn*(S+a+Ln/2)-Wc*b)/S;return{a,b,Lb,Mf,Mb,FS:Mb/(ps*Mf),RB,RA:tot-RB,tot,c:a+Ln}};
+return{S,Lm,Ln,w,Wn,Fl,Fr,Ww,Wc,ps,st,am:S-Ln}}
+function calcG(){const p=P(),sf=v('SF'),s=p.st(p.am),Wreq=Math.max(0,(sf*p.ps*s.Mf-p.w*s.Lb*s.Lb/2)/s.Lb),add=Math.max(0,Wreq-p.Wc),q=.000613*v('wv')**2,Fw=q*1.8*v('Hg')*p.Lm*v('so'),FSl=s.tot*v('Bg')/2/(Fw*v('hc')),Fp=s.tot*(v('mu')+v('gl')/100);
+const rows=[0,.25,.5,.75,1].map(k=>{const r=p.st(p.am*k);return[k*100+' %',f(r.a),f(r.c),f(r.b),f(r.FS,2),f(r.RA,0),f(r.RB,0)]}),valid=p.am>=0&&s.b>=0;
+$('og').innerHTML=`<b>Dimensi:</b> badan Lm = ${f(p.Lm)} m; nose Ln = ${f(p.Ln)} m; berat nose = ${f(p.Wn,0)} kN; total gantry (dengan ballast) = ${f(s.tot,0)} kN<br>
+<b>Main winch:</b> tarikan tali F = ${f(p.Fl,0)} kN; winch terpilih ≈ ${f(p.Fr,0)} kN (${f(p.Fr/9.81,1)} ton); berat winch estimasi = <b>${f(p.Ww,0)} kN (${f(p.Ww/9.81,1)} ton)</b><br>`+(valid?'':`<span class=no>Geometri tidak valid: ujung belakang badan lewat tumpuan A sebelum nose sampai pier C. Perbesar k badan (≥ 2 − k nose).</span><br>`)+
+tb(['Posisi','a depan B (m)','Kantilever (m)','b belakang A (m)','FS','R_A (kN)','R_B (kN)'],rows)+
+`FS kritis = <b>${f(s.FS,2)}</b> (min ${sf}): ${OK(s.FS>=sf)}; uplift tumpuan A: ${OK(s.RA>=0,'UPLIFT, butuh angkur')}; reaksi pierhead B ${f(s.RB,0)} kN ≤ ${f(v('Rc'),0)} kN: ${OK(s.RB<=v('Rc'))}<br>
+Ballast belakang total diperlukan = ${f(Wreq,0)} kN; tambahan di luar yang ada = <b>${f(add,0)} kN</b><br>
+Angin lateral: F = ${f(Fw,1)} kN, FS guling lateral = ${f(FSl,1)}: ${OK(FSl>=sf)}<br>Gaya tarik launching ≈ ${f(Fp,0)} kN; winch tarik disarankan ≥ ${f(1.25*Fp,0)} kN`;draw()}
+const tb=(h,r)=>'<table><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr>'+r.map(a=>'<tr>'+a.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join('')+'</table>';
+function draw(){const p=P(),ps=v('pos')/100,s=p.st(Math.max(0,p.am)*ps),c=$('cv'),g=c.getContext('2d'),W=c.width,H=c.height,k=(W-40)/(2.8*p.S),X=x=>20+(x+.7*p.S)*k,tc=getComputedStyle(document.body).color,gy=H-30,py=gy-100,sf=v('SF');
+g.clearRect(0,0,W,H);g.fillStyle=tc;g.strokeStyle=tc;g.font='14px sans-serif';g.lineWidth=1;g.globalAlpha=.3;g.fillRect(0,gy,W,4);g.globalAlpha=1;
+[0,1,2].forEach(i=>{const x=X(i*p.S);g.globalAlpha=.5;g.fillRect(x-8,py+10,16,gy-py-10);g.fillRect(x-28,py,56,10);g.globalAlpha=1;g.fillText('P'+(i+1)+(i?'':' (A)'),x-14,gy+18);if(i==1)g.fillText('(B)',x+10,gy+18);if(i==2)g.fillText('(C)',x+14,gy+18)});
+g.globalAlpha=.3;g.fillRect(X(-.7*p.S),py-8,X(p.S)-X(-.7*p.S),8);g.globalAlpha=1;g.setLineDash([6,4]);g.strokeRect(X(p.S),py-8,X(2*p.S)-X(p.S),8);g.setLineDash([]);g.fillText('span terbangun',X(-.6*p.S),py+28);g.fillText('span yang akan dibangun',X(1.2*p.S),py+28);
+const xr=-s.b,xf=p.S+s.a,xn=xf+p.Ln,by=py-16,ty=by-46,ok=s.FS>=sf&&s.b>=0&&s.RA>=0,cl=ok?'#15803d':'#c92a2a';
+[0,p.S].forEach(x=>{g.fillStyle=tc;g.beginPath();g.moveTo(X(x),py-8);g.lineTo(X(x)-9,by+1);g.lineTo(X(x)+9,by+1);g.fill()});
+g.strokeStyle=cl;g.fillStyle=cl;g.lineWidth=2;g.strokeRect(X(xr),ty,X(xf)-X(xr),46);g.beginPath();const n=Math.max(4,Math.round((X(xf)-X(xr))/46));for(let i=0;i<n;i++){const a=X(xr)+(X(xf)-X(xr))*i/n,b=X(xr)+(X(xf)-X(xr))*(i+1)/n;g.moveTo(a,i%2?ty:by);g.lineTo(b,i%2?by:ty)}g.stroke();
+g.beginPath();g.moveTo(X(xf),ty);g.lineTo(X(xn),by);g.lineTo(X(xf),by);g.closePath();g.globalAlpha=.3;g.fill();g.globalAlpha=1;g.stroke();
+if(p.Wc>0){g.fillStyle='#b45309';g.fillRect(X(xr),ty-22,22,22);g.fillStyle=tc;g.fillText('Wc',X(xr)+2,ty-26)}
+g.fillStyle='#1d4ed8';g.fillRect(X(xr)+28,ty-14,24,14);g.fillStyle=tc;g.fillText('winch',X(xr)+28,ty-18);
+g.fillStyle=cl;g.font='bold 15px sans-serif';g.fillText(`FS = ${f(s.FS,2)} (min ${sf})  ·  kantilever c = ${f(s.c)} m  ·  b = ${f(s.b)} m  ·  R_A = ${f(s.RA,0)} kN  ·  R_B = ${f(s.RB,0)} kN`,20,24);
+$('pl').textContent=Math.round(ps*100)+' %'}
+let tm=null;$('play').onclick=()=>{if(tm){clearInterval(tm);tm=null;$('play').textContent='▶ Putar';return}$('play').textContent='❚❚ Henti';tm=setInterval(()=>{let q=v('pos')+1;if(q>100)q=0;$('pos').value=q;draw()},60)};
+function calcF(){const Ws=v('Ws'),Wf=v('Wf'),xs=v('xs'),xf=v('xf'),a=v('aa'),sf=v('sf2'),Mo=Ws*xs+Wf*xf,T0=Mo/a,Tr=sf*T0,nb=Math.ceil(Tr/v('Pb')),RF=Ws+Wf+T0,q=RF/v('Ap')/1000,al=.45*v('fct'),Tm=sf*Wf*xf/a,Fp=Wf*(v('mu2')+v('gi2')/100),Lc=v('Lc'),Ls=v('Ls'),Mc=v('Mc');
+const R=[['Pengecoran segmen satu sisi saja',Ws*(Lc+xs)],['Pengecoran dua sisi (toleransi selisih)',v('ep')/100*Ws*(Lc+xs)],['Curing dan stressing (seimbang)',0],['Pergeseran traveller satu sisi',Wf*Ls],['Pembesian dan bekisting satu sisi',v('Wr')*(Lc+Ls+xs)]];
+$('of').innerHTML=`<b>Tahap 1: pengecoran</b><br>Mo = ${f(Mo,0)} kN·m; gaya angkur belakang aktual = ${f(T0,0)} kN; desain (FS ${sf}) = <b>${f(Tr,0)} kN</b> → minimal <b>${nb}</b> batang angkur (${f(v('Pb'),0)} kN/batang)<br>Reaksi depan RF = ${f(RF,0)} kN; tegangan kontak = ${f(q,2)} MPa ≤ 0,45·f′c(t) = ${f(al,1)} MPa: ${OK(q<=al)}<br>
+<b>Tahap 2: curing</b>: beban statis, angkur tetap terpasang; geser hanya setelah stressing dan kuat beton memenuhi syarat desain.<br>
+<b>Tahap 3: pergeseran</b><br>Hold-down belakang minimal = <b>${f(Tm,0)} kN</b>; gaya tarik jack = ${f(Fp,0)} kN; jack disarankan ≥ ${f(1.25*Fp,0)} kN<br>
+<b>Ketidakseimbangan momen di pilar (Lc = ${Lc} m)</b>`+tb(['Tahap','ΔM (kN·m)','ΔM / kapasitas'],R.map(r=>[r[0],f(r[1],0),f(r[1]/Mc*100,0)+' % '+(r[1]<=Mc?'✔':'✖')]))}
+document.addEventListener('input',e=>{const t=e.target;if(t.id=='pos')draw();else if($('tg').contains(t))calcG();else if($('tf').contains(t))calcF()});
+$('nav').onclick=e=>{const t=e.target.dataset.t;if(!t)return;['tg','tf','tm','ta'].forEach(i=>$(i).hidden=i!=t);[...$('nav').children].forEach(b=>b.classList.toggle('on',b.dataset.t==t))};
+calcG();calcF();
+</script></body></html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ERP Project Control · Seri Planner</title>
+<meta name="description" content="Forecast, peluang selesai, rencana pemulihan, dan action plan dihitung langsung dari data proyek yang terkunci setiap minggu.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+<style>
+:root{color-scheme:dark;--bg:#071a3a;--card:#0d2550;--bd:#1f3b6e;--tx:#e8f0ff;--mu:#8fa5cc;--b:#3b86e8;--o:#e0592a;--g:#1fa46d;--y:#d08a00;--r:#e86a6a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:960px;margin:auto;padding:24px 18px}
+h1{font-size:clamp(32px,6vw,58px);line-height:1.05;margin:.3em 0}h2{font-size:clamp(22px,3.5vw,30px);margin:0 0 4px}
+p{color:var(--mu);margin:.3em 0 14px}.top{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--mu)}
+section{margin:36px 0}.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:12px 0}
+.c h3{margin:0 0 6px;font-size:16px}.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.k div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.k b{display:block;font-size:30px}.k span{font-size:13px;color:var(--mu)}
+svg{width:100%;height:auto;display:block}.g{stroke:#ffffff1c}.t{fill:var(--mu);font-size:11px}.v{fill:var(--tx);font-size:11px;font-weight:600}
+.lg{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--mu);margin-top:6px}.lg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--bd);padding:5px 6px;text-align:right}td:first-child,th:first-child{text-align:left}
+input{width:64px;background:#071a3a;color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:3px 5px}input.l{width:130px}
+.sc{display:grid;grid-template-columns:150px 1fr 150px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.tr{position:relative;height:16px;background:#ffffff0d;border-radius:8px}.tr b{position:absolute;top:2px;width:12px;height:12px;border-radius:50%;margin-left:-6px}
+.ok{position:absolute;top:0;bottom:0;background:#1fa46d33;border-radius:8px 0 0 8px}.q{border-left:3px solid #22b8cf;background:#0d2550;padding:10px 14px;border-radius:6px;margin:12px 0}
+.x{overflow-x:auto}footer{border-top:1px solid var(--bd);padding:20px 0;color:var(--mu);font-size:14px}footer b,.nm{color:var(--tx)}
+nav{position:sticky;top:0;background:var(--bg);display:flex;gap:6px;overflow-x:auto;padding:8px 0;z-index:5}nav a{white-space:nowrap;color:var(--mu);text-decoration:none;font-size:13px;border:1px solid var(--bd);border-radius:20px;padding:4px 10px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}button{background:var(--b);color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer}td[contenteditable]{background:#ffffff08;cursor:text}#st{font-size:12px;color:var(--mu)}html{scroll-behavior:smooth}
+@media(max-width:600px){.sc{grid-template-columns:1fr}}
+</style></head><body><div class="w">
+<div class="top"><span>ERP PROJECT CONTROL</span><span>Seri Planner</span></div>
+<nav id="nv"></nav><div class="bar"><button id="ex">Ekspor data (JSON)</button><button id="im">Impor data</button><input id="fi" type="file" accept=".json" hidden><button id="rs" style="background:#5a6b8c">Reset ke data awal</button><span id="st">Semua angka di halaman ini bisa diedit; perubahan tersimpan otomatis di browser.</span></div>
+<section style="margin-top:20px"><div style="color:#22b8cf;font-size:13px">Untuk planner &amp; scheduler</div>
+<h1>Planner masa kini tidak berhenti di Gantt chart</h1>
+<p style="font-size:18px">Forecast, peluang selesai, rencana pemulihan, dan action plan dihitung langsung dari data proyek yang terkunci setiap minggu.</p>
+<div class="c"><h3>Kurva S + proyeksi: rencana, realisasi, pemulihan &amp; tren</h3><div id="s1"></div>
+<div class="lg"><span><i style="background:var(--b)"></i>Realisasi</span><span><i style="background:var(--o)"></i>Rencana R3</span><span><i style="background:var(--y)"></i>Action Plan Rev0</span><span><i style="background:var(--g)"></i>Target pemulihan</span><span><i style="background:#8fa5cc"></i>Tren 6 minggu</span></div></div>
+<div class="k" id="kp"></div></section>
+
+<section><h2>Data proyek (bisa diedit)</h2><p>Ubah angka di bawah, semua grafik dan rumus langsung dihitung ulang. Nilai awal direkonstruksi dari grafik PDF.</p>
+<div class="c"><div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mu)">
+<label>Durasi kontrak (minggu) <input id="D" type="number" value="28"></label>
+<label>Tanggal akhir kontrak <input class="l" id="E" type="date" value="2026-12-28"></label>
+<label>Batas site (orang) <input id="CAP" type="number" value="260"></label></div>
+<div class="x"><table id="tb"></table></div></div></section>
+
+<section><h2>Deviasi −5,64% itu sebenarnya berapa hari?</h2>
+<p>Earned schedule: ES = t + (EV − PV<sub>t</sub>) ÷ (PV<sub>t+1</sub> − PV<sub>t</sub>); SPI(t) = ES ÷ AT; prakiraan = Durasi ÷ SPI(t).</p>
+<div class="c"><h3>SPI(t) membaca ketertinggalan dalam minggu, bukan persen</h3><div id="s2"></div>
+<div class="lg"><span><i style="background:var(--b)"></i>SPI(t)</span><span><i style="background:var(--o)"></i>SPI (progres ÷ rencana)</span></div></div>
+<div class="c"><h3>Prakiraan selesai: hari terlambat dari kontrak</h3><div id="s3"></div></div>
+<div class="q" id="kd"></div></section>
+
+<section><h2>Satu tanggal tidak cukup untuk memutuskan</h2><p id="sp"></p>
+<div class="c"><h3>Enam cara membaca tanggal selesai</h3><div id="sc"></div></div>
+<div class="c"><h3>Laju capai vs laju perlu (% bobot per minggu)</h3><div id="s4"></div>
+<div class="lg"><span><i style="background:var(--b)"></i>Realisasi per minggu</span><span><i style="background:#e0559a"></i>Laju perlu s/d kontrak</span><span><i style="background:var(--o)"></i>Rencana R3 per minggu</span></div></div></section>
+
+<section><h2>Berapa peluang selesai tepat waktu?</h2><p>3.000 simulasi dari realisasi terkunci (seed tetap). Tren: kenaikan mingguan diambil acak dari 6 minggu terakhir (±25%). Action Plan: target AP Rev0 × faktor kinerja (segitiga: min SPI 6 minggu, SPI sekarang, 1,0), lalu laju tren setelah W28.</p>
+<div class="c"><h3>Distribusi peluang selesai per minggu (%)</h3><div id="s5"></div>
+<div class="lg"><span><i style="background:var(--b)"></i>Tren historis</span><span><i style="background:var(--y)"></i>Capaian Action Plan</span></div></div>
+<div class="c"><h3>Peluang kumulatif selesai sampai minggu tertentu</h3><div id="s6"></div></div>
+<div class="k" id="mk"></div></section>
+
+<section><h2>Deviasi ditutup di minggu yang jelas</h2><p>Target pemulihan per minggu (% bobot proyek) mengikuti Action Plan Rev0.</p>
+<div class="c"><h3>Selisih target pemulihan terhadap R3 (poin)</h3><div id="s7"></div></div>
+<div class="c x"><table id="rc"></table></div></section>
+
+<section><h2>Target tanpa tenaga hanyalah angka</h2><p>Tenaga perlu (pemulihan) vs rencana Action Plan vs batas site, orang-ekuivalen per hari.</p>
+<div class="c"><div id="s8"></div><div class="lg"><span><i style="background:var(--g)"></i>Tenaga perlu</span><span><i style="background:var(--y)"></i>Rencana Action Plan</span></div></div></section>
+
+<section><h2>Rencana yang tidak ditepati bukan rencana</h2><p>PPC = Percent Plan Complete: janji mingguan tuntas ÷ janji mingguan. Contoh modul, data W19.</p>
+<div class="c x"><table><tr><th>Subkon</th><th>W16</th><th>W17</th><th>W18</th><th>W19</th></tr>
+<tr><td>Subkon A</td><td>50%</td><td>21%</td><td>19%</td><td>29%</td></tr><tr><td>Subkon B</td><td>64%</td><td>50%</td><td>55%</td><td>37%</td></tr>
+<tr><td>Subkon C</td><td>62%</td><td>44%</td><td>40%</td><td>60%</td></tr><tr><td>Subkon D</td><td>11%</td><td>9%</td><td>20%</td><td>16%</td></tr>
+<tr><td>Subkon E</td><td>0%</td><td>25%</td><td>75%</td><td>43%</td></tr><tr><td>Kontraktor</td><td>4%</td><td>17%</td><td>17%</td><td>23%</td></tr>
+<tr><td><b>Proyek</b></td><td>22%</td><td>24%</td><td>26%</td><td>30%</td></tr></table></div>
+<div class="c x"><h3>Risiko tertinggi (skor = peluang × dampak)</h3><table><tr><td>Tenaga aktual jauh di bawah kebutuhan</td><td>20</td></tr><tr><td>Material sipil &amp; approval belum tetap</td><td>16</td></tr><tr><td>Approval 39 paket MEP → PO/DP</td><td>15</td></tr><tr><td>Peralatan MEP tiba Desember</td><td>15</td></tr><tr><td>Hujan Nov–Des (faktor 0,85)</td><td>12</td></tr></table></div></section>
+
+<section><h2>Planner bukan sekadar pembuat jadwal, tetapi pengarah keputusan</h2>
+<p>Siklus mingguan: kunci data → forecast (ES · Monte Carlo) → recovery plan → action plan harian → eksekusi (PPC &amp; skor) → risiko &amp; interface.</p>
+<div class="q">Planner, analisis mana yang paling sering Anda butuhkan tetapi belum tersedia di software penjadwalan Anda?</div></section>
+
+<footer>ERP ini dibuat oleh<br><b class="nm" style="font-size:22px">Ir. Agus Budianto Ulil Absyor S.T.,M.M.,M.LSCM.,M.AIB</b></footer></div>
+<script>
+const $=id=>document.getElementById(id),n=(v,d=2)=>v.toFixed(d).replace('.',',');
+const R3={8:3.3,9:6.9,10:10.5,11:14.5,12:18.9,13:23.2,14:27.6,15:32,16:37.1,17:42.4,18:45,19:48,20:50,21:63.04,22:66.3,23:74.05,24:79.52,25:84.13,26:91.23,27:97.22,28:100};
+const ACT={9:6.88,10:11.38,11:14.98,12:16.48,13:17.78,14:21.28,15:23.48,16:26.98,17:30.08,18:35.48,19:45.84,20:50.51,21:57.4};
+const AP={22:9.22,23:6.88,24:7.28,25:7.63,26:7.36,27:5.27,28:2.21}, REC={22:10.39,23:6.06,24:5.92,25:6.17,26:6.95,27:5.06,28:2.06};
+const NEED=[240,194,241,238,210,150,112],PLAN=[184,216,264,265,218,154,116];
+const AT=21;
+const LS='erp-pc-v1',WS=[22,23,24,25,26,27,28],cells=()=>[...document.querySelectorAll('.c.x table:not(#rc) td')];
+const MP={R:R3,A:ACT,P:AP,C:REC,N:NEED,L:PLAN};
+function snap(){return{R3,ACT,AP,REC,NEED,PLAN,D:$('D').value,E:$('E').value,CAP:$('CAP').value,cells:cells().map(c=>c.textContent)}}
+function apply(s){Object.assign(R3,s.R3);Object.assign(ACT,s.ACT);Object.assign(AP,s.AP);Object.assign(REC,s.REC);NEED.splice(0,7,...s.NEED);PLAN.splice(0,7,...s.PLAN);$('D').value=s.D;$('E').value=s.E;$('CAP').value=s.CAP;cells().forEach((c,i)=>{if(s.cells&&s.cells[i]!=null)c.textContent=s.cells[i]})}
+function sv(){try{localStorage.setItem(LS,JSON.stringify(snap()));$('st').textContent='Tersimpan otomatis di browser ini'}catch(e){$('st').textContent='Penyimpanan browser tidak tersedia; gunakan Ekspor data'}}
+try{const sd=JSON.parse(localStorage.getItem(LS));if(sd)apply(sd)}catch(e){}
+cells().forEach(c=>c.contentEditable=true);
+(()=>{const I=(k,w,v)=>`<td><input type=number step=.01 data-k=${k} data-w=${w} value=${v}></td>`;
+ let h='<tr><th>Minggu</th>'+Object.keys(R3).map(w=>`<th>W${w}</th>`).join('')+'</tr><tr><td>Rencana R3 kum. (%)</td>';
+ for(const w in R3)h+=I('R',w,R3[w]);h+='</tr><tr><td>Realisasi kum. (%)</td>';
+ for(const w in R3)h+=+w>=9&&+w<=AT?I('A',w,ACT[w]):'<td></td>';$('tb').innerHTML=h+'</tr>';
+ const r=(l,k,f)=>`<tr><td>${l}</td>`+WS.map((w,i)=>I(k,k=='N'||k=='L'?i:w,f(w,i))).join('')+'</tr>';
+ $('tb').parentNode.insertAdjacentHTML('afterend','<div class=x><table id=tb2><tr><th>Target pemulihan &amp; sumber daya</th>'+WS.map(w=>`<th>W${w}</th>`).join('')+'</tr>'+r('Action Plan Rev0 (% mgg)','P',w=>AP[w])+r('Target pemulihan (% mgg)','C',w=>REC[w])+r('Tenaga perlu (orang)','N',(w,i)=>NEED[i])+r('Tenaga rencana AP (orang)','L',(w,i)=>PLAN[i])+'</table></div>');})();
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.k)MP[t.dataset.k][t.dataset.w]=+t.value;if(t.dataset.k||['D','E','CAP'].includes(t.id)||t.isContentEditable){run();sv()}});
+const LB=['Kurva S','Data','Earned Schedule','Skenario','Monte Carlo','Pemulihan','Tenaga','PPC & Risiko','Penutup'];
+document.querySelectorAll('section').forEach((x,i)=>x.id='m'+i);$('nv').innerHTML=LB.map((l,i)=>`<a href="#m${i}">${l}</a>`).join('');
+$('ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(snap(),null,1)],{type:'application/json'}));a.download='data-proyek.json';a.click()};
+$('im').onclick=()=>$('fi').click();
+$('fi').onchange=e=>{const f=e.target.files[0];if(f)f.text().then(t=>{try{localStorage.setItem(LS,t);location.reload()}catch(x){alert('File tidak valid')}})};
+$('rs').onclick=()=>{try{localStorage.removeItem(LS)}catch(e){}location.reload()};
+// chart helpers
+function LC(id,x0,x1,y0,y1,S,o={}){const w=760,h=o.h||270,p={l:42,r:18,t:12,b:26};
+ const X=x=>p.l+(x-x0)/(x1-x0)*(w-p.l-p.r),Y=y=>h-p.b-(y-y0)/(y1-y0)*(h-p.t-p.b);let s=`<svg viewBox="0 0 ${w} ${h}">`;
+ for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4;s+=`<line class=g x1=${p.l} x2=${w-p.r} y1=${Y(v)} y2=${Y(v)}></line><text class=t x=${p.l-6} y=${Y(v)+4} text-anchor=end>${n(v,o.d??0)}</text>`}
+ for(let x=x0;x<=x1;x++)if((x-x0)%(o.sx||2)==0)s+=`<text class=t x=${X(x)} y=${h-7} text-anchor=middle>W${x}</text>`;
+ if(o.ref!=null)s+=`<line x1=${p.l} x2=${w-p.r} y1=${Y(o.ref)} y2=${Y(o.ref)} stroke="#8fa5cc" stroke-dasharray="4 4"></line>`;
+ if(o.vx!=null)s+=`<line x1=${X(o.vx)} x2=${X(o.vx)} y1=${p.t} y2=${h-p.b} stroke="#fff" stroke-dasharray="4 4" opacity=.6></line>`;
+ S.forEach(a=>{s+=`<polyline fill=none stroke="${a.c}" stroke-width=2.5 ${a.d?'stroke-dasharray="6 4"':''} points="${a.p.map(q=>X(q[0])+','+Y(q[1])).join(' ')}"></polyline>`;
+  if(a.dot)a.p.forEach(q=>s+=`<circle cx=${X(q[0])} cy=${Y(q[1])} r=3.5 fill="${a.c}"></circle>`);
+  if(a.lab){const q=a.p[a.p.length-1];s+=`<text class=v x=${X(q[0])+6} y=${Y(q[1])+4}>${a.lab}</text>`}});
+ $(id).innerHTML=s+'</svg>'}
+function BC(id,L,G,o={}){const w=760,h=o.h||240,p={l:42,r:14,t:22,b:26};const all=G.flatMap(g=>g.v.filter(v=>v!=null));
+ const y1=o.max??Math.max(...all,o.ref||0)*1.15,y0=o.min??Math.min(0,...all)*1.25;const Y=y=>h-p.b-(y-y0)/(y1-y0)*(h-p.t-p.b);
+ const bw=(w-p.l-p.r)/L.length,gw=bw*.78/G.length;let s=`<svg viewBox="0 0 ${w} ${h}">`;
+ for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4;s+=`<line class=g x1=${p.l} x2=${w-p.r} y1=${Y(v)} y2=${Y(v)}></line><text class=t x=${p.l-6} y=${Y(v)+4} text-anchor=end>${n(v,0)}</text>`}
+ if(o.ref!=null)s+=`<line x1=${p.l} x2=${w-p.r} y1=${Y(o.ref)} y2=${Y(o.ref)} stroke="#d08a00" stroke-dasharray="5 4"></line>`;
+ L.forEach((l,i)=>{s+=`<text class=t x=${p.l+bw*(i+.5)} y=${h-7} text-anchor=middle>${l}</text>`;
+  G.forEach((g,j)=>{const v=g.v[i];if(v==null)return;const x=p.l+bw*i+bw*.11+gw*j,yy=Y(Math.max(v,0)),hh=Math.abs(Y(v)-Y(0));
+  s+=`<rect x=${x} y=${yy} width=${gw-2} height=${Math.max(hh,1)} rx=3 fill="${typeof g.c=='function'?g.c(v):g.c}"></rect><text class=v x=${x+gw/2-1} y=${(v>=0?yy:Y(v))+(v>=0?-4:12)} text-anchor=middle>${n(v,g.d??0)}</text>`})});
+ $(id).innerHTML=s+'</svg>'}
+// Monte Carlo (seed tetap)
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function mc(pool,AP_on,lo,mo,hi){const r=rng(2026),N=3000,cnt={};
+ for(let i=0;i<N;i++){let c=ACT[AT],wk=AT;while(c<100&&wk<60){wk++;let inc;
+  if(AP_on&&wk<=28){const u=r(),f=(mo-lo)/(hi-lo),F=u<f?lo+Math.sqrt(u*(hi-lo)*(mo-lo)):hi-Math.sqrt((1-u)*(hi-lo)*(hi-mo));inc=AP[wk]*F}
+  else inc=pool[Math.floor(r()*pool.length)]*(.75+.5*r());c+=inc}
+  cnt[wk]=(cnt[wk]||0)+1}
+ const pc=p=>{let a=0;for(let w=AT;w<=60;w++){a+=(cnt[w]||0)/N;if(a>=p)return w}};
+ const cum=w=>{let a=0;for(let k=AT;k<=w;k++)a+=(cnt[k]||0);return a/N*100};
+ return{cnt,N,P:pc,cum}}
+function run(){
+ const D=+$('D').value,E=new Date($('E').value),cap=+$('CAP').value,cl=x=>x==null?0:x;
+ const dt=x=>new Date(E.getTime()+(x-D)*7*864e5).toLocaleDateString('id-ID',{day:'numeric',month:'short'});
+ const ES=w=>{const ac=ACT[w];let t=8;while(t<D-1&&R3[t+1]<=ac)t++;return t+(ac-R3[t])/(R3[t+1]-R3[t])};
+ const wk=[];for(let w=10;w<=AT;w++)wk.push(w);
+ const spi=wk.map(w=>ACT[w]/R3[w]),spit=wk.map(w=>ES(w)/w),late=wk.map((w,i)=>(D/spit[i]-D)*7);
+ const inc=w=>ACT[w]-ACT[w-1],r3inc=w=>R3[w]-R3[w-1];
+ const a=ACT[AT],pool=[16,17,18,19,20,21].map(inc),avg6=pool.reduce((s,v)=>s+v)/6,avg4=[18,19,20,21].reduce((s,w)=>s+inc(w),0)/4;
+ const need=(100-a)/(D-AT),S=spi[spi.length-1],St=spit[spit.length-1],lag=AT-ES(AT);
+ const minS=Math.min(...[16,17,18,19,20,21].map(w=>ACT[w]/R3[w]));
+ const T=mc(pool,false),A=mc(pool,true,Math.min(minS,S-.01),S,1);
+ const pT=T.cum(D),pA=A.cum(D);
+ // KPI
+ $('kp').innerHTML=[['SPI',n(S,3),'progres ÷ rencana R3'],['SPI(t)',n(St,3),`tertinggal ${n(lag)} mgg (±${Math.round(lag*7)} hari)`],[`Peluang ≤ W${D}`,Math.round(pT)+'% → '+Math.round(pA)+'%','tren historis → eksekusi Action Plan'],['Deviasi tertutup','<span id=cl></span>','target pemulihan ≥ R3']].map(k=>`<div><span>${k[0]}</span><b>${k[1]}</b><span>${k[2]}</span></div>`).join('');
+ // recovery
+ const rec={21:a};for(let w=22;w<=28;w++)rec[w]=Math.min(100,rec[w-1]+REC[w]);
+ let ap=R3[AT],apc={21:ap};for(let w=22;w<=28;w++)apc[w]=Math.min(100,apc[w-1]+AP[w]);
+ const pts=(o,f,t)=>{const r=[];for(let w=f;w<=t;w++)if(o[w]!=null)r.push([w,o[w]]);return r};
+ const tr=[[AT,a]];for(let w=22;w<=32;w++)tr.push([w,Math.min(100,tr[tr.length-1][1]+avg6)]);
+ LC('s1',12,32,0,100,[{c:'#3b86e8',p:pts(ACT,12,21),dot:1},{c:'#e0592a',p:pts(R3,12,28)},{c:'#d08a00',p:pts(apc,21,28),d:1},{c:'#1fa46d',p:pts(rec,21,28),dot:1},{c:'#8fa5cc',p:tr.filter(q=>q[1]<=100||q[0]<=29),d:1}],{vx:D,sx:4,h:300});
+ LC('s2',10,21,.6,1.15,[{c:'#3b86e8',p:wk.map((w,i)=>[w,spit[i]]),dot:1,lab:n(St,3)},{c:'#e0592a',p:wk.map((w,i)=>[w,spi[i]]),dot:1,lab:n(S,3)}],{ref:1,sx:1,d:1});
+ BC('s3',wk.map(w=>'W'+w),[{v:late,c:v=>v>0?'#e86a6a':'#3b86e8',d:0}],{});
+ $('kd').innerHTML=`<b>Keputusan planner:</b> SPI turun ke ${n(S)} karena satu lonjakan rencana (+${n(r3inc(AT))}%), tetapi dalam satuan waktu proyek hanya mundur ${n(lag)} minggu. Prakiraan selesai ES: W${n(D/St,1)} (${n(late[late.length-1],0)} hari dari kontrak).`;
+ // skenario
+ const fin=[['Laju 4 minggu terakhir',`±${n(avg4,1)}%/mgg`,AT+(100-a)/avg4],['Rencana R3','kurva acuan kontrak',D],['Laju 6 minggu',`${n(avg6,1)}%/mgg`,AT+(100-a)/avg6],['Earned schedule',`durasi ÷ SPI(t) ${n(St,3)}`,D/St]];
+ const sx=x=>((x-26)/5*100)+'%';const row=(a1,b,x,txt)=>`<div class=sc><div><b>${a1}</b><br><span style="color:var(--mu)">${b}</span></div><div class=tr><div class=ok style="width:${sx(D)}"></div><b style="left:${sx(x)};background:#3b86e8"></b></div><div>${txt}</div></div>`;
+ let h=fin.map(f=>row(f[0],f[1],f[2],`W${n(f[2],1)} · ${dt(f[2])}`)).join('');
+ h+=`<div class=sc><div><b>Monte Carlo · tren</b><br><span style="color:var(--mu)">3.000 iterasi, ±25%</span></div><div class=tr><div class=ok style="width:${sx(D)}"></div><b style="left:${sx(T.P(.5))};background:#3b86e8"></b></div><div>P50 W${T.P(.5)} · P80 W${T.P(.8)}</div></div>`;
+ h+=`<div class=sc><div><b>Monte Carlo · Action Plan</b><br><span style="color:var(--mu)">target AP × faktor kinerja</span></div><div class=tr><div class=ok style="width:${sx(D)}"></div><b style="left:${sx(A.P(.5))};background:#d08a00"></b></div><div>P50 W${A.P(.5)} · P80 W${A.P(.8)}</div></div><div class=t style="font-size:12px;color:var(--mu);padding-top:6px">Skala W26–W31 · area hijau = tepat waktu (≤ W${D})</div>`;
+ $('sc').innerHTML=h;
+ $('sp').innerHTML=`Laju 4 minggu terakhir (±${n(avg4,1)}%/mgg) di atas kebutuhan <b>${n(need)}%/mgg</b> (= (100 − progres) ÷ (durasi − AT)). Tetapi rata-rata 6 minggu hanya ${n(avg6,1)}%/mgg, sehingga Monte Carlo menempatkan P50 di W${T.P(.5)}.`;
+ BC('s4',wk.map(w=>'W'+w),[{v:wk.map(inc),c:'#3b86e8',d:2},{v:wk.map(r3inc),c:'#e0592a',d:1}],{});
+ // MC charts
+ const wl=[26,27,28,29,30,31,32,33],pc=(M,w)=>w==33?Object.keys(M.cnt).filter(k=>+k>=33).reduce((s,k)=>s+M.cnt[k],0)/M.N*100:(w==26?Object.keys(M.cnt).filter(k=>+k<=26).reduce((s,k)=>s+M.cnt[k],0):M.cnt[w]||0)/(w==26?M.N/100:M.N/100);
+ const f=w=>w==33?Object.keys(0||{}).length:0;
+ BC('s5',wl.map(w=>'W'+w),[{v:wl.map(w=>pc(T,w)),c:'#3b86e8'},{v:wl.map(w=>pc(A,w)),c:'#d08a00'}],{h:230});
+ LC('s6',26,33,0,100,[{c:'#3b86e8',p:wl.map(w=>[w,T.cum(w)]),dot:1},{c:'#d08a00',p:wl.map(w=>[w,A.cum(w)]),dot:1}],{vx:D,sx:1,ref:50,h:230});
+ $('mk').innerHTML=[['Tren historis',`P50 W${T.P(.5)}`,`P80 W${T.P(.8)} · P90 W${T.P(.9)} · ≤W${D}: ${Math.round(pT)}%`],['Capaian Action Plan',`P50 W${A.P(.5)}`,`P80 W${A.P(.8)} · P90 W${A.P(.9)} · ≤W${D}: ${Math.round(pA)}%`],['Nilai eksekusi AP',`+${Math.round(pA-pT)} poin`,'peluang tepat waktu bila Action Plan berjalan']].map(k=>`<div><span>${k[0]}</span><b>${k[1]}</b><span>${k[2]}</span></div>`).join('');
+ // recovery table & deviasi
+ const dv=[];for(let w=21;w<=28;w++)dv.push(w==21?a-R3[21]:rec[w]-R3[w]);
+ BC('s7',[21,22,23,24,25,26,27,28].map(w=>'W'+w),[{v:dv,c:v=>v<0?'#e86a6a':'#3b86e8',d:2}],{h:210});
+ const close=[22,23,24,25,26,27,28].find(w=>rec[w]>=R3[w]);$('cl').textContent=close?'W'+close:'—';
+ $('rc').innerHTML='<tr><th>Minggu</th>'+[22,23,24,25,26,27,28].map(w=>`<th>W${w}</th>`).join('')+'</tr><tr><td>Kenaikan target (% bobot)</td>'+[22,23,24,25,26,27,28].map(w=>`<td>+${n(REC[w])}</td>`).join('')+'</tr><tr><td>Target kumulatif</td>'+[22,23,24,25,26,27,28].map(w=>`<td>${n(rec[w])}</td>`).join('')+`</tr><tr><td>Action Plan Rev0 (% mgg)</td>`+[22,23,24,25,26,27,28].map(w=>`<td>${n(AP[w])}</td>`).join('')+'</tr>';
+ BC('s8',[22,23,24,25,26,27,28].map(w=>'W'+w),[{v:NEED,c:'#1fa46d'},{v:PLAN,c:'#d08a00'}],{ref:cap,h:250});
+}
+run();
+</script></body></html>

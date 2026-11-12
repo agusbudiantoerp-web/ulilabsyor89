@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laboratorium Interaktif Pengujian Material Sipil</title>
+<meta name="description" content="Teori, rumus, kalkulator, dan studi kasus pengujian beton, tanah dan jalan, baja, lereng, serta pondasi tiang. Acuan SNI, ASTM, ISO.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
+<style>
+:root{--bg:#f3f5f2;--sf:#fff;--tx:#1d2420;--mu:#5d6a62;--ac:#0f6b4f;--ac2:#b4540a;--bd:#d5dcd6}
+@media(prefers-color-scheme:dark){:root{--bg:#141a17;--sf:#1d2521;--tx:#e8eee9;--mu:#9aa89f;--ac:#4cc69a;--ac2:#f0a05a;--bd:#33413a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 Georgia,'Times New Roman',serif}
+header{padding:44px 6vw 28px;border-bottom:4px solid var(--ac)}
+h1{font-size:clamp(1.8rem,4.5vw,3rem);line-height:1.1;margin:0 0 10px;max-width:20ch}
+header p{max-width:70ch;color:var(--mu);margin:6px 0}
+nav{display:flex;flex-wrap:wrap;gap:6px;padding:14px 6vw;position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--bd)}
+nav button,.go,.alt{font:600 14px system-ui,sans-serif;border:1px solid var(--bd);background:var(--sf);color:var(--tx);padding:8px 13px;border-radius:6px;cursor:pointer}
+nav button.on,.go{background:var(--ac);color:#fff;border-color:var(--ac)}.alt{border-color:var(--ac2);color:var(--ac2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ac2);outline-offset:2px}
+main{padding:24px 6vw 60px;max-width:1100px}
+h2{margin:0 0 6px;font-size:1.7rem}.chip{display:inline-block;font:13px system-ui,sans-serif;color:var(--ac);border:1px solid var(--ac);padding:2px 9px;border-radius:20px;margin-bottom:12px}
+.th{background:var(--sf);border-left:4px solid var(--ac);padding:10px 16px;margin:8px 0 16px}.th code,.out code{font:14px ui-monospace,monospace;background:var(--bg);padding:1px 5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:12px}
+label{font:13px system-ui,sans-serif;color:var(--mu);display:flex;flex-direction:column;gap:3px}
+input,select{font:15px system-ui,sans-serif;padding:7px;border:1px solid var(--bd);border-radius:5px;background:var(--sf);color:var(--tx)}
+.cs{font-size:14px;color:var(--mu);margin:10px 0}.out{background:var(--sf);border:1px solid var(--bd);padding:12px 16px;margin-top:10px;font-family:system-ui,sans-serif;font-size:15px}.out:empty{display:none}
+table{border-collapse:collapse;margin:8px 0;font-size:14px;display:block;overflow-x:auto}td,th{border:1px solid var(--bd);padding:4px 10px;text-align:right}th{background:var(--bg)}
+canvas{width:100%;max-width:640px;background:var(--sf);border:1px solid var(--bd);margin-top:10px}
+.ok{color:var(--ac);font-weight:700}.no{color:#c92a2a;font-weight:700}
+.me{margin:0 0 14px;background:var(--sf);border:1px solid var(--bd);padding:8px 14px}.me summary{cursor:pointer;font:600 15px system-ui,sans-serif}.me li{margin:4px 0}
+footer{padding:20px 6vw;color:var(--mu);font:13px system-ui,sans-serif;border-top:1px solid var(--bd)}
+@media print{nav,.go,.alt{display:none}section[hidden]{display:block!important}}
+</style></head><body>
+<header><h1>Laboratorium Interaktif Pengujian Material Sipil</h1>
+<p>Teori, rumus, kalkulator dan studi kasus untuk pengujian beton, tanah &amp; jalan, baja, lereng, dan pondasi tiang. Acuan: SNI, ASTM, dan ISO. Pilih pengujian di bawah, isi data (pisahkan dengan koma), lalu tekan Hitung.</p>
+<p>Alat bantu hitung untuk pembelajaran dan pra-evaluasi. Hasil resmi tetap mengikuti edisi terbaru standar dan laporan laboratorium terakreditasi.</p>
+<button class="alt" onclick="print()">Cetak / simpan PDF</button></header>
+<nav id="nav"></nav><main id="main"></main>
+<footer>Satu file HTML mandiri: simpan (Ctrl+S) dan buka kapan saja tanpa internet.</footer>
+<script>
+const $=i=>document.getElementById(i),L=s=>s.split(/[,;\s]+/).filter(x=>x!=='').map(Number),avg=a=>a.reduce((x,y)=>x+y,0)/a.length,f=(x,d=2)=>isFinite(x)?x.toFixed(d):'–';
+const tb=(h,r)=>'<table><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr>'+r.map(a=>'<tr>'+a.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join('')+'</table>';
+const v=(b,t)=>b?`<span class=ok>${t||'MEMENUHI'}</span>`:`<span class=no>${t?'TIDAK':'TIDAK MEMENUHI'}</span>`;
+const col=['#2b7fff','#e8590c','#2f9e44','#9c36b5'];
+const cf=r=>{if(r>=1.75)return 1;if(r<=1)return .87;const p=[[1,.87],[1.25,.93],[1.5,.96],[1.75,.98]];for(let i=0;i<3;i++)if(r<=p[i+1][0])return p[i][1]+(r-p[i][0])/(p[i+1][0]-p[i][0])*(p[i+1][1]-p[i][1])};
+const lin=(x,y)=>{const mx=avg(x),my=avg(y);let a=0,b=0;x.forEach((q,i)=>{a+=(q-mx)*(y[i]-my);b+=(q-mx)**2});const m=a/b;return[m,my-m*mx]};
+function chart(id,ls,xl,yl,inv,eq,y0=0,x0=0){const c=$(id),g=c.getContext('2d'),W=c.width,H=c.height,m=55;c.hidden=false;g.clearRect(0,0,W,H);
+const tc=getComputedStyle(document.body).color;g.fillStyle=tc;g.strokeStyle=tc;g.font='13px sans-serif';
+let x1=Math.max(...ls.flatMap(l=>l.x))*1.05,y1=Math.max(...ls.flatMap(l=>l.y))*1.05;if(eq)x1=y1=Math.max(x1,y1);
+const pw=W-m-15,ph=H-m-15,X=q=>m+(q-x0)/(x1-x0)*pw,Y=q=>inv?15+(q-y0)/(y1-y0)*ph:H-m-(q-y0)/(y1-y0)*ph;
+g.globalAlpha=.35;g.strokeRect(m,15,pw,ph);for(let i=1;i<5;i++){g.beginPath();g.moveTo(m+pw*i/5,15);g.lineTo(m+pw*i/5,15+ph);g.moveTo(m,15+ph*i/5);g.lineTo(m+pw,15+ph*i/5);g.stroke()}g.globalAlpha=1;
+for(let i=0;i<=5;i++){g.fillText(f(x0+(x1-x0)*i/5,x1>20?0:1),m+pw*i/5-8,H-m+16);g.fillText(f(y0+(y1-y0)*(inv?i:5-i)/5,y1>20?0:1),6,15+ph*i/5+4)}
+g.fillText(xl,m+pw/2-40,H-8);g.fillText(yl,6,11);
+ls.forEach((l,k)=>{g.strokeStyle=l.c||col[k%4];g.lineWidth=2;g.beginPath();l.x.forEach((q,i)=>i?g.lineTo(X(q),Y(l.y[i])):g.moveTo(X(q),Y(l.y[i])));g.stroke();if(l.p)l.x.forEach((q,i)=>{g.fillStyle=g.strokeStyle;g.fillRect(X(q)-3,Y(l.y[i])-3,6,6)})})}
+const M=[
+{id:'fc',t:'Kuat tekan beton',std:'SNI 1974:2011 · ASTM C39 · SNI 2847:2019 (kriteria penerimaan)',
+th:'Kuat tekan <code>f = P/A</code> (MPa = N/mm²). Silinder Ø150×300 mm, A = πd²/4. Bila h/d &lt; 1,75 dikalikan faktor koreksi (ASTM C39: 1,75→0,98; 1,5→0,96; 1,25→0,93; 1,0→0,87). Kubus 150 mm dikonversi ke silinder ≈ ×0,83. Penerimaan (SNI 2847): rata-rata tiap 3 hasil uji berurutan ≥ f′c dan tidak ada hasil individu &lt; f′c − 3,5 MPa (f′c ≤ 35) atau &lt; 0,90 f′c (f′c &gt; 35).',
+f:[['P','Beban maksimum tiap benda uji (kN)','455,470,445'],['d','Diameter silinder / sisi kubus (mm)','150'],['h','Tinggi benda uji (mm)','300'],['sh','Bentuk',0,[['c','Silinder'],['k','Kubus (konversi 0,83)']]],['fc','f′c rencana (MPa)','25']],
+ca:{P:'455,470,445',d:'150',h:'300',sh:'c',fc:'25'},cs:'Studi kasus: 3 silinder umur 28 hari pada pengecoran pelat jembatan f′c 25 MPa.',
+r:(g,s)=>{const P=L(s('P')),d=g('d'),h=g('h'),fc=g('fc'),cu=s('sh')=='k',A=cu?d*d:Math.PI*d*d/4,k=cu?1:cf(h/d),q=cu?.83:1,fs=P.map(p=>p*1000/A*k*q),lim=fc<=35?fc-3.5:.9*fc,m=avg(fs),mn=Math.min(...fs);
+return tb(['Benda uji','P (kN)','f terkoreksi (MPa)'],P.map((p,i)=>[i+1,p,f(fs[i])]))+`A = ${f(A,1)} mm²; faktor koreksi = ${f(k*q,3)}<br>Rata-rata = <b>${f(m)} MPa</b>; minimum = ${f(mn)} MPa; batas individu = ${f(lim)} MPa<br>Rata-rata ≥ f′c: ${v(m>=fc)} · Individu ≥ batas: ${v(mn>=lim)}`}},
+{id:'hm',t:'Hammer test beton',std:'SNI 03-4804-1998 · ASTM C805',
+th:'Bilangan pantul (R) Schmidt Hammer. Minimal 10 pembacaan per titik; buang pembacaan yang berbeda &gt; 6 dari rata-rata (ASTM C805). Bila &gt; 2 pembacaan dibuang, seluruh set ditolak. Perkiraan mutu <code>f ≈ a·R<sup>b</sup></code>. Default a = 0,0183 dan b = 2 hanya pendekatan untuk pukulan horizontal; koreksi arah pukulan mengikuti kurva alat dan sebaiknya dikalibrasi dengan core drill (±15–20 %).',
+f:[['R','Bilangan pantul (R)','38,40,42,39,41,37,40,43,36,45,40,39'],['a','Koefisien a','0.0183'],['b','Eksponen b','2']],ca:{R:'38,40,42,39,41,37,40,43,36,45,40,39',a:'0.0183',b:'2'},cs:'Studi kasus: kolom lantai 3 gedung, 12 titik pukulan horizontal.',
+r:(g,s)=>{const R=L(s('R')),m=avg(R),ok=R.filter(x=>Math.abs(x-m)<=6),m2=avg(ok),sd=Math.sqrt(avg(ok.map(x=>(x-m2)**2))),dc=R.length-ok.length;
+return `Rata-rata awal = ${f(m)}; dibuang = ${dc} pembacaan; rata-rata akhir R = <b>${f(m2)}</b> (CoV ${f(sd/m2*100,1)} %)<br>Set data: ${v(dc<=2&&R.length>=10,'VALID')}<br>Perkiraan f ≈ <b>${f(g('a')*Math.pow(m2,g('b')))} MPa</b> (indikatif)`}},
+{id:'dcp',t:'DCP',std:'Pd T-04-2004-B (Bina Marga) · ASTM D6951',
+th:'DCP (palu 8 kg, jatuh 575 mm, konus 60°). DN = Δpenetrasi / Δpukulan (mm/pukulan). Semua tanah kecuali CL &amp; CH: <code>log₁₀CBR = 2,465 − 1,12 log₁₀DN</code>. CL (CBR &lt; 10): <code>CBR = 1/(0,017019·DN)²</code>. CH: <code>CBR = 1/(0,002871·DN)</code>.',
+f:[['N','Pukulan kumulatif','0,5,10,15,20,25,30,35,40'],['D','Penetrasi kumulatif (mm)','0,40,85,135,195,265,335,410,490'],['sa','Jenis tanah',0,[['a','Umum (selain CL/CH)'],['cl','CL (lempung lanau)'],['ch','CH (lempung plastisitas tinggi)']]]],
+ca:{N:'0,5,10,15,20,25,30,35,40',D:'0,40,85,135,195,265,335,410,490',sa:'a'},cs:'Studi kasus: subgrade jalan akses tambang, 40 pukulan mencapai 490 mm.',
+r:(g,s,c)=>{const n=L(s('N')),D=L(s('D')),t=s('sa'),R=[];for(let i=1;i<n.length;i++){const dn=(D[i]-D[i-1])/(n[i]-n[i-1]);let cb=Math.pow(10,2.465-1.12*Math.log10(dn));if(t=='cl'){const q=1/Math.pow(.017019*dn,2);if(q<10)cb=q}if(t=='ch')cb=1/(.002871*dn);R.push([D[i-1]+'–'+D[i],f(dn,1),f(cb,1)])}
+chart(c,[{x:n,y:D,p:1}],'Pukulan kumulatif','Penetrasi (mm)',true);const cs=R.map(x=>+x[2]);
+return tb(['Lapisan (mm)','DN (mm/pukulan)','CBR (%)'],R)+`CBR rata-rata = <b>${f(avg(cs),1)} %</b>; minimum = ${f(Math.min(...cs),1)} %`}},
+{id:'sc',t:'Sandcone',std:'SNI 2828:2011 · ASTM D1556',
+th:'Kalibrasi: <code>γs = Ws/V<sub>cetakan</sub></code>. Volume lubang <code>V = (W<sub>pasir terpakai</sub> − W<sub>kerucut</sub>)/γs</code>. Berat isi basah <code>γ = W<sub>tanah</sub>/V</code>; kering <code>γd = γ/(1+w)</code>; derajat pemadatan <code>= γd/γd<sub>maks</sub>×100 %</code> (γd maks dari Proctor SNI 1742 / 1743).',
+f:[['ws','Massa pasir mengisi cetakan (g)','1380'],['vm','Volume cetakan kalibrasi (cm³)','944'],['wc','Massa pasir dalam kerucut (g)','1520'],['b1','Massa botol+pasir awal (g)','6000'],['b2','Massa botol+pasir akhir (g)','3200'],['wt','Massa tanah basah dari lubang (g)','1850'],['w','Kadar air w (%)','12.5'],['dm','γd maks Proctor (g/cm³)','1.95'],['sp','Syarat pemadatan (%)','95']],
+ca:{ws:'1380',vm:'944',wc:'1520',b1:'6000',b2:'3200',wt:'1850',w:'12.5',dm:'1.95',sp:'95'},cs:'Studi kasus: lapis pondasi agregat/timbunan pilihan, syarat ≥ 95 % γd maks.',
+r:g=>{const gs=g('ws')/g('vm'),V=(g('b1')-g('b2')-g('wc'))/gs,gw=g('wt')/V,gd=gw/(1+g('w')/100),cp=gd/g('dm')*100;
+return `γs pasir = ${f(gs,3)} g/cm³<br>Volume lubang = ${f(V,1)} cm³<br>γ basah = ${f(gw,3)} g/cm³; γd = <b>${f(gd,3)} g/cm³</b><br>Derajat pemadatan = <b>${f(cp,1)} %</b> → ${v(cp>=g('sp'))}`}},
+{id:'cbr',t:'CBR lapangan',std:'SNI 1731:1989 · ASTM D4429 · SNI 1744 (lab)',
+th:'CBR = beban uji / beban standar × 100. Beban standar piston 1935 mm²: 13,44 kN (3000 lbf) pada penetrasi 2,54 mm dan 20,03 kN (4500 lbf) pada 5,08 mm. Dilaporkan CBR 2,54 mm; bila CBR 5,08 mm lebih besar, uji diulang dan dipakai nilai 5,08 mm bila hasil konsisten. Modulus resilien perkiraan (AASHTO, CBR ≤ 10): <code>Mr ≈ 10,34·CBR</code> MPa.',
+f:[['p1','Beban pada penetrasi 2,54 mm (kN)','2.9'],['p2','Beban pada penetrasi 5,08 mm (kN)','4.1'],['sp','CBR minimum desain (%)','6']],ca:{p1:'2.9',p2:'4.1',sp:'6'},cs:'Studi kasus: tanah dasar jalan, CBR minimum 6 % (Bina Marga).',
+r:g=>{const a=g('p1')/13.44*100,b=g('p2')/20.03*100,cb=Math.max(a,b);
+return `CBR 2,54 mm = ${f(a,1)} %; CBR 5,08 mm = ${f(b,1)} %<br>${b>a?'<span class=no>CBR 5,08 mm lebih besar: ulangi pengujian</span><br>':''}CBR desain = <b>${f(cb,1)} %</b> → ${v(cb>=g('sp'))}<br>Mr perkiraan = ${f(10.34*cb,0)} MPa${cb>10?' (korelasi hanya untuk CBR ≤ 10)':''}`}},
+{id:'st',t:'Kuat tarik baja',std:'SNI 07-2529-1991 · SNI 2052:2017 · ASTM A370 · ISO 6892-1',
+th:'Luas <code>A₀ = πd²/4</code>; tegangan leleh <code>σy = Fy/A₀</code>; kuat tarik <code>σu = Fmaks/A₀</code>; regangan patah <code>ε = (Lu − L₀)/L₀ × 100</code> (L₀ = 5d umumnya). Pembanding mutu tulangan SNI 2052:2017 (verifikasi dengan edisi terbaru): BjTS 280 fy 280–405, fu ≥ 350; 420B fy 420–545, fu ≥ 525; 520 fy 520–645, fu ≥ 650; 550 fy 550–675, fu ≥ 687 MPa.',
+f:[['d','Diameter nominal (mm)','16'],['l0','Panjang awal L₀ (mm)','80'],['fy','Beban leleh Fy (kN)','95'],['fm','Beban maksimum (kN)','118'],['lu','Panjang akhir Lu (mm)','92'],['gr','Mutu',0,[['BjTS 280','BjTS 280'],['BjTS 420B','BjTS 420B'],['BjTS 520','BjTS 520'],['BjTS 550','BjTS 550']]]],
+ca:{d:'16',l0:'80',fy:'95',fm:'118',lu:'92',gr:'BjTS 420B'},cs:'Studi kasus: baja ulir D16 mutu BjTS 420B dari proyek gedung.',
+r:(g,s,c)=>{const G={'BjTS 280':[280,405,350],'BjTS 420B':[420,545,525],'BjTS 520':[520,645,650],'BjTS 550':[550,675,687]}[s('gr')],A=Math.PI*g('d')**2/4,sy=g('fy')*1000/A,su=g('fm')*1000/A,e=(g('lu')-g('l0'))/g('l0')*100,ey=sy/2e5*100;
+chart(c,[{x:[0,ey,2,e*.6,e],y:[0,sy,sy,su,su*.85]}],'Regangan (%) – skematik','Tegangan (MPa)');
+return `A₀ = ${f(A,1)} mm²<br>σy = <b>${f(sy,0)} MPa</b> (batas ${G[0]}–${G[1]}): ${v(sy>=G[0]&&sy<=G[1])}<br>σu = <b>${f(su,0)} MPa</b> (min ${G[2]}): ${v(su>=G[2])}<br>σu/σy = ${f(su/sy,2)}; regangan patah = ${f(e,1)} %`}},
+{id:'tx',t:'Triaxial',std:'SNI 2455 (UU) · ASTM D2850 (UU) · ASTM D4767 (CU)',
+th:'Luas terkoreksi <code>Ac = A₀/(1−ε)</code>, <code>ε = ΔL/H₀</code>. Tegangan deviator <code>σd = P/Ac</code>; <code>σ1 = σ3 + σd</code>. Titik p = (σ1+σ3)/2, q = (σ1−σ3)/2. Regresi <code>q = a + p·tanα</code> → <code>φ = asin(tanα)</code>, <code>c = a/cosφ</code>. Untuk uji CU/CD masukkan σ3 efektif. Pada UU jenuh φu ≈ 0 dan cu = σd/2.',
+f:[['D','Diameter benda uji (mm)','50'],['H','Tinggi awal H₀ (mm)','100'],['s3','Tekanan sel σ3 (kPa)','100,200,300'],['P','Beban aksial saat runtuh (N)','470,665,863'],['dl','Penurunan aksial ΔL saat runtuh (mm)','8,8.5,9']],
+ca:{D:'50',H:'100',s3:'100,200,300',P:'470,665,863',dl:'8,8.5,9'},cs:'Studi kasus: 3 benda uji lempung lanau pada lereng galian, parameter untuk analisis stabilitas.',
+r:(g,s,c)=>{const S=L(s('s3')),P=L(s('P')),dl=L(s('dl')),A0=Math.PI*g('D')**2/4,R=S.map((s3,i)=>{const e=dl[i]/g('H'),sd=P[i]/(A0/(1-e))*1000;return{s3,e,sd,s1:s3+sd,p:s3+sd/2,q:sd/2}}),[m,a]=lin(R.map(r=>r.p),R.map(r=>r.q));
+const ph=Math.asin(m),cc=a/Math.cos(ph),ls=R.map(r=>{const x=[],y=[];for(let t=0;t<=Math.PI;t+=.05){x.push(r.p+r.q*Math.cos(t));y.push(r.q*Math.sin(t))}return{x,y}}),xm=Math.max(...R.map(r=>r.s1));ls.push({x:[0,xm],y:[cc,cc+Math.tan(ph)*xm],c:'#c92a2a'});
+chart(c,ls,'σ (kPa)','τ (kPa) – lingkaran Mohr + selubung',false,true);
+return tb(['σ3','ε (%)','σd','σ1','p','q'],R.map(r=>[r.s3,f(r.e*100,1),f(r.sd,1),f(r.s1,1),f(r.p,1),f(r.q,1)]))+(isFinite(ph)?`φ = <b>${f(ph*180/Math.PI,1)}°</b>; c = <b>${f(cc,1)} kPa</b>`:'Satu nilai σ3 saja (UU): cu = '+f(R[0].q,1)+' kPa, φu ≈ 0')}},
+{id:'pit',t:'PIT tiang bor',std:'ASTM D5882 (Low Strain Integrity)',
+th:'Gelombang tegangan rendah dari palu kecil. Kecepatan gelombang <code>c = 2L/Δt</code> (Δt = waktu pantulan ujung tiang). Kedalaman cacat <code>x = c·Δt<sub>cacat</sub>/2</code>. Pantulan searah pukulan = penyempitan/retak; berlawanan = pembesaran. Beton normal c ≈ 3500–4500 m/s.',
+f:[['L','Panjang tiang diketahui (m)','12'],['dt','Waktu pantulan ujung tiang (ms)','6'],['dd','Waktu pantulan anomali (ms)','3.1']],ca:{L:'12',dt:'6',dd:'3.1'},cs:'Studi kasus: bore pile Ø800 mm, ada pantulan menengah pada 3,1 ms.',
+r:g=>{const c=2000*g('L')/g('dt'),x=c*g('dd')/2000;return `c = <b>${f(c,0)} m/s</b> ${v(c>=3500&&c<=4500,'WAJAR')}<br>Kedalaman anomali = <b>${f(x,2)} m</b> (${f(x/g('L')*100,0)} % panjang tiang) — verifikasi dengan CSL/core drill.`}},
+{id:'upv',t:'UPV beton',std:'ASTM C597 · EN 12504-4',
+th:'Kecepatan rambat gelombang ultrasonik <code>v = L/t</code> (mm/µs = km/s). Klasifikasi umum: &gt; 4,5 sangat baik; 3,5–4,5 baik; 3,0–3,5 meragukan; 2,0–3,0 buruk; &lt; 2,0 sangat buruk.',
+f:[['L','Jarak transduser (mm)','300'],['t','Waktu tempuh (µs)','70']],ca:{L:'300',t:'70'},cs:'Studi kasus: dinding beton 300 mm.',
+r:g=>{const x=g('L')/g('t'),k=x>4.5?'Sangat baik':x>3.5?'Baik':x>3?'Meragukan':x>2?'Buruk':'Sangat buruk';return `v = <b>${f(x,2)} km/s</b> → ${k}`}},
+{id:'pr',t:'Proctor',std:'SNI 1742:2008 · SNI 1743:2008 · ASTM D698 / D1557',
+th:'Berat isi basah <code>γ = (W cetakan+tanah − W cetakan)/V</code>; kering <code>γd = γ/(1+w)</code>. Kurva γd–w dihampiri parabola (regresi kuadrat) sehingga diperoleh w optimum dan γd maks. Garis ZAV (Sr = 100 %): <code>γd = Gs/(1+w·Gs)</code>. Standar: palu 2,5 kg, jatuh 305 mm, 3 lapis × 25 pukulan; modifikasi: 4,54 kg, 457 mm, 5 lapis × 25 pukulan (cetakan 944 cm³).',
+f:[['vm','Volume cetakan (cm³)','944'],['wm','Massa cetakan (g)','4200'],['W','Massa cetakan + tanah basah tiap titik (g)','6015,6120,6185,6190,6150'],['w','Kadar air tiap titik (%)','8,10,12,14,16'],['gs','Gs tanah (garis ZAV)','2.65']],
+ca:{vm:'944',wm:'4200',W:'6015,6120,6185,6190,6150',w:'8,10,12,14,16',gs:'2.65'},cs:'Studi kasus: lempung berpasir untuk timbunan badan jalan, 5 titik kadar air.',
+r:(g,s,c)=>{const W=L(s('W')),w=L(s('w')),V=g('vm'),gd=W.map((x,i)=>(x-g('wm'))/V/(1+w[i]/100)),[a,b,k]=qf(w,gd),wo=-b/(2*a),gm=k-b*b/(4*a),mn=Math.min(...w),mx=Math.max(...w),xs=[],ys=[],zs=[];
+for(let i=0;i<=20;i++){const x=mn+(mx-mn)*i/20;xs.push(x);ys.push(a*x*x+b*x+k);zs.push(g('gs')/(1+x/100*g('gs')))}
+chart(c,[{x:w,y:gd,p:1},{x:xs,y:ys},{x:xs,y:zs,c:'#868e96'}],'w (%) – titik, parabola, garis ZAV (abu-abu)','γd (g/cm³)',false,false,Math.min(...gd)*.95);
+return tb(['w (%)','γ basah','γd'],w.map((x,i)=>[x,f((W[i]-g('wm'))/V,3),f(gd[i],3)]))+`w optimum = <b>${f(wo,1)} %</b>; γd maks = <b>${f(gm,3)} g/cm³</b>`+(a>=0?'<br><span class=no>Kurva tidak berpuncak: tambah titik kadar air</span>':'')}},
+{id:'at',t:'Atterberg',std:'SNI 1967:2008 (LL) · SNI 1966:2008 (PL) · ASTM D4318',
+th:'LL = kadar air pada 25 pukulan dari regresi <code>w = a + m·log N</code> (indeks alir = −m). PL = rata-rata w saat benang Ø3 mm retak. <code>PI = LL − PL</code>; <code>LI = (wn − PL)/PI</code>. Garis-A: <code>PI = 0,73(LL − 20)</code>. Klasifikasi USCS ringkas untuk tanah berbutir halus (&gt; 50 % lolos #200).',
+f:[['N','Jumlah pukulan (batas alur menutup)','35,28,22,16'],['wl','Kadar air tiap titik LL (%)','42.4,44.2,46.0,48.5'],['wp','Kadar air batas plastis (%)','24.1,23.6,24.4'],['wn','Kadar air asli wn (%)','30']],
+ca:{N:'35,28,22,16',wl:'42.4,44.2,46.0,48.5',wp:'24.1,23.6,24.4',wn:'30'},cs:'Studi kasus: lempung tanah dasar, 4 titik LL dan 3 titik PL.',
+r:(g,s,c)=>{const N=L(s('N')),w=L(s('wl')),p=L(s('wp')),lg=N.map(Math.log10),[m,a]=lin(lg,w),LL=a+m*Math.log10(25),PL=avg(p),PI=LL-PL,wn=g('wn'),A=.73*(LL-20),k=PI>=A?(LL>=50?'CH':PI>7?'CL':PI>=4?'CL-ML':'ML'):(LL>=50?'MH':'ML'),pl=PI<7?'rendah':PI<=17?'sedang':'tinggi',l0=Math.min(...lg),l1=Math.max(...lg);
+chart(c,[{x:lg,y:w,p:1},{x:[l0,l1],y:[a+m*l0,a+m*l1]}],'log10 N (pukulan)','w (%)',false,false,Math.min(...w)*.9,l0*.95);
+return `LL = <b>${f(LL,1)} %</b>; PL = <b>${f(PL,1)} %</b>; PI = <b>${f(PI,1)}</b> (plastisitas ${pl}); indeks alir = ${f(-m,1)}<br>Garis-A: PI = ${f(A,1)} → klasifikasi <b>${k}</b>`+(isFinite(wn)?`<br>LI = ${f((wn-PL)/PI,2)}`:'')}},
+{id:'sv',t:'Analisis saringan',std:'SNI 3423:2008 · ASTM D6913 / D422',
+th:'% tertahan = massa tertahan/total × 100; % lolos = 100 − % tertahan kumulatif. D10, D30, D60 dengan interpolasi log. <code>Cu = D60/D10</code>, <code>Cc = D30²/(D10·D60)</code>. Gradasi baik: kerikil Cu ≥ 4 dan sedang pasir Cu ≥ 6, keduanya dengan 1 ≤ Cc ≤ 3. Kerikil &gt; 4,75 mm; pasir 0,075–4,75 mm; halus &lt; 0,075 mm.',
+f:[['sz','Ukuran saringan, besar ke kecil (mm)','19,9.5,4.75,2.36,1.18,0.6,0.3,0.15,0.075'],['rt','Massa tertahan tiap saringan (g)','0,120,260,340,280,210,150,90,45'],['pan','Massa tertahan di pan (g)','5']],
+ca:{sz:'19,9.5,4.75,2.36,1.18,0.6,0.3,0.15,0.075',rt:'0,120,260,340,280,210,150,90,45',pan:'5'},cs:'Studi kasus: agregat pasir-kerikil untuk lapis pondasi, total 1500 g.',
+r:(g,s,c)=>{const z=L(s('sz')),t=L(s('rt')),pn=g('pan'),T=t.reduce((a,b)=>a+b,0)+pn,fn=[];let cu=0;t.forEach(x=>{cu+=x;fn.push(100-cu/T*100)});
+const lg=z.map(Math.log10),D=p=>{for(let i=0;i<z.length-1;i++)if(fn[i]>=p&&fn[i+1]<=p&&fn[i]>fn[i+1]){const q=(fn[i]-p)/(fn[i]-fn[i+1]);return Math.pow(10,lg[i]+q*(lg[i+1]-lg[i]))}return NaN},d10=D(10),d30=D(30),d60=D(60),Cu=d60/d10,Cc=d30*d30/(d10*d60),fi=pn/T*100,i4=z.indexOf(4.75),gr=100-fn[i4],sa=fn[i4]-fi;let k;
+if(fi>50)k='Butir halus: gunakan Atterberg';else if(fi>12)k=(gr>sa?'G':'S')+'M / '+(gr>sa?'G':'S')+'C (perlu Atterberg)';else{const G=gr>sa,wg=G?(Cu>=4&&Cc>=1&&Cc<=3):(Cu>=6&&Cc>=1&&Cc<=3);k=(G?'G':'S')+(wg?'W':'P')+(fi>=5?' (simbol ganda, tambah -M/-C)':'')}
+chart(c,[{x:lg,y:fn,p:1}],'log10 ukuran (mm)','% lolos',false,false,0,-1.3);
+return tb(['Saringan (mm)','Tertahan (g)','Lolos (%)'],z.map((x,i)=>[x,t[i],f(fn[i],1)]))+`Total = ${f(T,0)} g; kerikil ${f(gr,1)} %, pasir ${f(sa,1)} %, halus ${f(fi,1)} %<br>D10 = ${f(d10,3)}; D30 = ${f(d30,3)}; D60 = ${f(d60,3)} mm<br>Cu = <b>${f(Cu,2)}</b>; Cc = <b>${f(Cc,2)}</b> → USCS <b>${k}</b>`}},
+{id:'ds',t:'Geser langsung',std:'SNI 2813:2015 · ASTM D3080',
+th:'<code>σn = N/A</code>, <code>τ = Fs/A</code> (kPa = N/mm² × 1000). Selubung Mohr-Coulomb <code>τ = c + σn·tanφ</code> dari regresi 3 titik. Luas koreksi akibat pergeseran tidak dimasukkan (benda uji kecil).',
+f:[['b','Sisi kotak geser (mm)','60'],['N','Gaya normal tiap benda uji (N)','180,360,720'],['F','Gaya geser puncak (N)','140,244,452']],ca:{b:'60',N:'180,360,720',F:'140,244,452'},cs:'Studi kasus: tanah lereng timbunan, 3 beban normal ≈ 50, 100, 200 kPa.',
+r:(g,s,c)=>{const A=g('b')**2,N=L(s('N')),F=L(s('F')),sg=N.map(n=>n/A*1000),ta=F.map(x=>x/A*1000),[m,a]=lin(sg,ta),mx=Math.max(...sg);
+chart(c,[{x:sg,y:ta,p:1},{x:[0,mx],y:[a,a+m*mx]}],'σn (kPa)','τ (kPa)');
+return tb(['σn (kPa)','τ puncak (kPa)'],sg.map((x,i)=>[f(x,1),f(ta[i],1)]))+`φ = <b>${f(Math.atan(m)*180/Math.PI,1)}°</b>; c = <b>${f(a,1)} kPa</b>`}},
+{id:'cd',t:'Core drill beton',std:'SNI 2492:2018 · ASTM C42 · SNI 2847:2019',
+th:'<code>f core = P/A × faktor koreksi L/D</code> (sama dengan silinder). Penerimaan struktur (SNI 2847 / ACI 318): rata-rata 3 core ≥ 0,85 f′c dan tidak ada core &lt; 0,75 f′c.',
+f:[['P','Beban hancur tiap core (kN)','170,158,182'],['d','Diameter core (mm)','100'],['h','Panjang core setelah capping (mm)','200'],['fc','f′c rencana (MPa)','25']],ca:{P:'170,158,182',d:'100',h:'200',fc:'25'},cs:'Studi kasus: kolom yang hasil hammer test-nya rendah, diverifikasi dengan 3 core.',
+r:(g,s)=>{const P=L(s('P')),d=g('d'),h=g('h'),fc=g('fc'),A=Math.PI*d*d/4,k=cf(h/d),fs=P.map(p=>p*1000/A*k),m=avg(fs),mn=Math.min(...fs);
+return tb(['Core','P (kN)','f core (MPa)'],P.map((p,i)=>[i+1,p,f(fs[i])]))+`L/D = ${f(h/d)}; faktor koreksi = ${f(k,3)}<br>Rata-rata = <b>${f(m)} MPa</b> (syarat ≥ ${f(.85*fc)}): ${v(m>=.85*fc)}<br>Minimum = ${f(mn)} MPa (syarat ≥ ${f(.75*fc)}): ${v(mn>=.75*fc)}`}},
+{id:'sd',t:'Sondir (CPT)',std:'SNI 2827:2008 · ASTM D3441',
+th:'Konus Begemann (konus 10 cm², selubung gesek 150 cm²). Hambatan gesek <code>fs = (Cw − qc)×10/150</code>; rasio gesek <code>FR = fs/qc×100 %</code> (&lt; 1 pasir; 1–3 lanau; &gt; 3 lempung). <code>JHP = Σ fs × interval</code>. Daya dukung izin tiang (Begemann, Indonesia): <code>Qa = qc·A/3 + JHP·K/5</code> (K = keliling). Perhitungan awal; desain akhir wajib dikonfirmasi uji beban.',
+f:[['z','Kedalaman (m)','2,4,6,8,10'],['qc','qc konus (kg/cm²)','15,25,40,70,150'],['cw','Bacaan total Cw (kg/cm²)','25,43,64,100,200'],['iv','Interval pembacaan (cm)','200'],['D','Diameter tiang (cm)','40']],ca:{z:'2,4,6,8,10',qc:'15,25,40,70,150',cw:'25,43,64,100,200',iv:'200',D:'40'},cs:'Studi kasus: tiang pancang Ø40 cm sampai 10 m, tanah lempung berubah ke pasir padat.',
+r:(g,s,c)=>{const z=L(s('z')),q=L(s('qc')),w=L(s('cw')),iv=g('iv'),fs=w.map((x,i)=>(x-q[i])*10/150),fr=fs.map((x,i)=>x/q[i]*100),J=fs.reduce((a,b)=>a+b*iv,0),D=g('D'),Ap=Math.PI*D*D/4,K=Math.PI*D,Qa=(q[q.length-1]*Ap/3+J*K/5)/1000;
+chart(c,[{x:q,y:z,p:1}],'qc (kg/cm²)','Kedalaman (m)',true);
+return tb(['z (m)','qc','fs','FR (%)','Jenis'],z.map((x,i)=>[x,q[i],f(fs[i],2),f(fr[i],1),fr[i]<1?'Pasir':fr[i]<3?'Lanau':'Lempung']))+`JHP = ${f(J,0)} kg/cm<br>Qa = <b>${f(Qa,1)} ton</b> (Ø${D} cm, ujung di ${z[z.length-1]} m)`}},
+{id:'lt',t:'Uji beban tiang',std:'ASTM D1143 · ASTM D4945 (PDA) · kriteria Davisson',
+th:'Batas ultimit Davisson: perpotongan kurva beban–penurunan dengan garis <code>δ = P·L/(A·E) + 4 + D/120</code> (mm). <code>Q izin = Q ultimit/SF</code> (SF umumnya 2,5). Tahap beban 25 % sampai 200 % beban rencana.',
+f:[['P','Beban tiap tahap (kN)','0,500,1000,1500,2000,2500,3000'],['S','Penurunan kepala tiang (mm)','0,2.0,4.2,7.0,11.5,18.5,30.0'],['D','Diameter tiang (mm)','600'],['L','Panjang tiang (m)','20'],['E','Modulus elastisitas tiang (MPa)','25700'],['sf','Faktor keamanan','2.5']],ca:{P:'0,500,1000,1500,2000,2500,3000',S:'0,2.0,4.2,7.0,11.5,18.5,30.0',D:'600',L:'20',E:'25700',sf:'2.5'},cs:'Studi kasus: bore pile Ø600 mm, panjang 20 m, f′c 30 MPa (E ≈ 4700√f′c).',
+r:(g,s,c)=>{const P=L(s('P')),S=L(s('S')),D=g('D'),A=Math.PI*D*D/4,k=g('L')*1e6/(A*g('E')),o=4+D/120,d=P.map((p,i)=>S[i]-(k*p+o));let Pf=NaN;for(let i=1;i<P.length;i++)if(d[i-1]<0&&d[i]>=0){Pf=P[i-1]-d[i-1]/(d[i]-d[i-1])*(P[i]-P[i-1]);break}
+const mx=Math.max(...P);chart(c,[{x:P,y:S,p:1},{x:[0,mx],y:[o,k*mx+o],c:'#c92a2a'}],'Beban (kN) – garis merah: Davisson','Penurunan (mm)',true);
+return `Penurunan elastis = ${f(k,5)} mm/kN; offset 4 + D/120 = ${f(o,2)} mm<br>`+(isFinite(Pf)?`Q ultimit (Davisson) = <b>${f(Pf,0)} kN</b><br>Q izin = <b>${f(Pf/g('sf'),0)} kN</b> (SF ${g('sf')})`:'Kurva belum memotong garis Davisson: beban uji belum mencapai batas ultimit')}}
+];
+const ME={
+fc:['Cetak silinder Ø150×300 mm dalam 3 lapis, tiap lapis ditusuk 25 kali (SNI 2493); simpan 24 jam.','Lepas cetakan, rendam dalam air jenuh kapur 23 ± 2 °C sampai umur uji.','Ukur diameter (2 arah) dan tinggi; capping bila permukaan tidak rata.','Letakkan sentris pada mesin tekan; beban naik kontinu 0,25 ± 0,05 MPa/detik (ASTM C39).','Catat beban maksimum dan pola retak; hitung f = P/A.'],
+hm:['Pilih permukaan halus, kering, tanpa keropos; gosok dengan batu asah.','Tegakkan palu tegak lurus permukaan, catat arah pukulan.','Tekan palu sampai terpukul; baca R, minimal 10 pembacaan per titik dengan jarak ≥ 25 mm.','Buang pembacaan yang menyimpang &gt; 6 dari rata-rata; hitung R rata-rata.','Cek kalibrasi pada anvil uji (R ≈ 80); konversi dengan kurva kalibrasi.'],
+dcp:['Pasang alat tegak: palu 8 kg, tinggi jatuh 575 mm, batang Ø16 mm, konus 60° Ø20 mm.','Catat pembacaan awal dengan konus menempel permukaan.','Jatuhkan palu dan catat penetrasi setiap sejumlah pukulan tetap (mis. tiap 5 pukulan).','Lanjutkan sampai kedalaman desain (±800–1000 mm).','Hitung DN tiap interval dan konversi ke CBR.'],
+sc:['Kalibrasi pasir standar: γs dan massa pasir pengisi kerucut.','Ratakan permukaan, letakkan pelat dasar.','Gali lubang Ø100–150 mm sedalam lapisan; kumpulkan seluruh tanah galian.','Letakkan botol sandcone, buka kran sampai pasir berhenti mengalir, tutup kran, timbang sisa.','Timbang tanah galian, ambil sampel kadar air, hitung γd dan % pemadatan.'],
+cbr:['Siapkan permukaan; pasang beban reaksi (truk atau gandar).','Pasang piston Ø49,6 mm (1935 mm²) dan dial penetrasi.','Beri beban awal kecil, nolkan dial.','Tekan piston 1,27 mm/menit; catat beban pada 0,64–12,7 mm.','Koreksi kurva bila perlu, hitung CBR pada 2,54 dan 5,08 mm.'],
+st:['Siapkan benda uji dan tandai panjang ukur L0 (umumnya 5d).','Ukur diameter di 3 titik atau hitung luas dari massa per panjang.','Jepit pada mesin uji tarik (UTM).','Beri beban kontinu sesuai laju ISO 6892-1 / ASTM A370; catat Fy dan Fmaks.','Rapatkan dua potongan setelah putus, ukur Lu, hitung σy, σu, ε.'],
+tx:['Siapkan contoh tak terganggu Ø38–50 mm, tinggi ±2×diameter; ukur dan timbang.','Pasang dengan membran karet, kertas saring, dan batu pori; isi sel dengan air.','UU: beri σ3 tanpa konsolidasi. CU: jenuhkan (B ≥ 0,95), konsolidasi, lalu geser sambil ukur tekanan pori.','Geser regangan terkendali (UU sekitar 1 %/menit; CU lebih lambat); catat beban dan ΔL.','Ulangi untuk 3 nilai σ3, gambar lingkaran Mohr, tentukan c dan φ.'],
+pit:['Pastikan umur beton ≥ 7 hari; bersihkan kepala tiang sampai beton sehat dan rata.','Pasang akselerometer pada permukaan kepala tiang.','Pukul dengan palu kecil; rekam dan rata-ratakan 5–10 pukulan.','Terapkan filter dan amplifikasi; baca pantulan ujung dan anomali.','Hitung c dan kedalaman anomali; konfirmasi dengan uji lain bila ada.'],
+upv:['Kalibrasi alat dengan batang referensi.','Beri gel pada transduser; pakai cara langsung (berhadapan) bila memungkinkan.','Ukur jarak transduser dengan teliti.','Baca waktu tempuh, ulangi 3 kali.','Hitung v dan klasifikasikan.'],
+pr:['Keringkan contoh udara, ayak lolos #4 (metode A), bagi 5 porsi.','Tambah air tiap porsi dengan selisih kadar air ±2 %; peram.','Padatkan dalam cetakan 944 cm³ (standar: 3 lapis × 25 pukulan, palu 2,5 kg, jatuh 305 mm).','Ratakan, timbang cetakan + tanah, ambil sampel kadar air.','Hitung γd tiap titik, gambar kurva, tentukan w optimum dan γd maks.'],
+at:['Ayak contoh lolos #40, aduk dengan air jadi pasta homogen, peram 24 jam.','LL: isi mangkuk Casagrande, buat alur standar, putar 2 putaran/detik sampai alur menutup 13 mm; catat N (15–35, 3–4 titik).','Ambil sampel kadar air tiap titik.','PL: gulung benang Ø3 mm sampai retak; ambil kadar air (minimal 2–3 kali).','Hitung LL, PL, PI, lalu klasifikasi.'],
+sv:['Oven contoh pada 110 ± 5 °C, timbang total.','Susun saringan dari besar ke kecil di atas pan.','Ayak dengan mesin ±10–15 menit.','Timbang massa tertahan tiap saringan dan pan.','Hitung % lolos, gambar kurva gradasi, tentukan D10, D30, D60, Cu, Cc.'],
+ds:['Siapkan contoh dalam cincin 60×60 mm (atau 63,5 mm).','Pasang dalam kotak geser dengan batu pori; beri beban normal dan konsolidasikan.','Pisahkan kotak, geser dengan laju sesuai kondisi drainase.','Catat gaya geser sampai puncak atau perpindahan 10–15 % ukuran contoh.','Ulangi 3 beban normal, plot τ–σ, tentukan c dan φ.'],
+cd:['Tentukan lokasi dengan rebar scanner; bor tegak lurus dengan mata bor intan Ø100 mm.','Ambil inti, beri tanda arah, catat letak tulangan.','Potong dan ratakan ujung; ukur L/D (ideal 1,9–2,1).','Kondisikan kelembaban sesuai standar sebelum ditekan.','Tekan seperti silinder, koreksi L/D, bandingkan dengan kriteria 0,85 dan 0,75 f′c.'],
+sd:['Pasang konus Begemann pada rangka tekan dan jangkar.','Tekan konus 4 cm, baca qc; lanjut tekan konus + selubung, baca Cw.','Ulangi tiap 20 cm kedalaman.','Hentikan bila qc ≥ 150 kg/cm² dua kali berturut-turut atau mencapai kapasitas alat.','Hitung fs, FR, JHP, dan perkiraan daya dukung tiang.'],
+lt:['Siapkan tiang uji, ratakan kepala tiang, pasang rangka reaksi (kentledge atau angker).','Pasang dongkrak hidrolik, load cell, dan 4 dial gauge.','Beri beban bertahap 25 % sampai 200 % beban rencana.','Tahan tiap tahap sampai laju penurunan ≤ 0,25 mm/jam (maksimal 2 jam).','Bongkar bertahap, gambar kurva P–δ, tentukan Q ultimit (Davisson).']};
+M.forEach(m=>m.me=ME[m.id]);
+const qf=(x,y)=>{const n=x.length,S=k=>x.reduce((a,b)=>a+b**k,0),T=k=>x.reduce((a,b,i)=>a+b**k*y[i],0),A=[[S(4),S(3),S(2),T(2)],[S(3),S(2),S(1),T(1)],[S(2),S(1),n,T(0)]];
+for(let i=0;i<3;i++){let p=i;for(let j=i+1;j<3;j++)if(Math.abs(A[j][i])>Math.abs(A[p][i]))p=j;[A[i],A[p]]=[A[p],A[i]];for(let j=0;j<3;j++)if(j!=i){const k=A[j][i]/A[i][i];for(let c=i;c<4;c++)A[j][c]-=k*A[i][c]}}return[A[0][3]/A[0][0],A[1][3]/A[1][1],A[2][3]/A[2][2]]};
+function xl(i){const m=M[i],h='<html><meta charset=utf-8><body><h3>'+m.t+'</h3><p>'+m.std+'</p><table border=1><tr><th>Input</th><th>Nilai</th></tr>'+m.f.map(([id,l])=>'<tr><td>'+l+'</td><td>'+$(i+'_'+id).value+'</td></tr>').join('')+'</table><br>'+$('o'+i).innerHTML+'</body></html>',a=document.createElement('a');a.href=URL.createObjectURL(new Blob([h],{type:'application/vnd.ms-excel'}));a.download='Lembar_Hitung_'+m.t.replace(/\W+/g,'_')+'.xls';a.click()}
+let N='',S='';
+M.forEach((m,i)=>{N+=`<button data-i=${i}>${m.t}</button>`;S+=`<section id=s${i} hidden><h2>${m.t}</h2><span class=chip>${m.std}</span><div class=th>${m.th}</div><details class=me><summary>Metode pengujian</summary><ol>${(m.me||[]).map(x=>'<li>'+x+'</li>').join('')}</ol></details>`+(m.f.length?`<div class=grid>${m.f.map(([id,l,d,o])=>`<label>${l}`+(o?`<select id=${i}_${id}>${o.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select>`:`<input id=${i}_${id} value="${d}">`)+'</label>').join('')}</div><button class=go data-r=${i}>Hitung</button> <button class=alt data-c=${i}>Muat studi kasus</button> <button class=alt data-x=${i}>Unduh lembar hitung (Excel)</button><div class=cs>${m.cs}</div><div id=o${i} class=out></div><canvas id=c${i} width=640 height=320 hidden></canvas>`:'')+'</section>'});
+$('nav').innerHTML=N;$('main').innerHTML=S;
+function show(i){M.forEach((_,k)=>{$('s'+k).hidden=k!=i;$('nav').children[k].classList.toggle('on',k==i)});if(M[i].f.length)run(i)}
+function run(i){try{const m=M[i];$('o'+i).innerHTML=m.r(id=>parseFloat($(i+'_'+id).value),id=>$(i+'_'+id).value,'c'+i)}catch(e){$('o'+i).innerHTML='<span class=no>Periksa input: jumlah data tiap daftar harus sama dan berupa angka.</span>'}}
+document.addEventListener('click',e=>{const b=e.target;if(b.dataset.i)show(+b.dataset.i);if(b.dataset.r)run(+b.dataset.r);if(b.dataset.x)xl(+b.dataset.x);if(b.dataset.c){const i=+b.dataset.c;Object.entries(M[i].ca).forEach(([k,x])=>$(i+'_'+k).value=x);run(i)}});
+show(0);
+</script></body></html>
