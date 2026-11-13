@@ -399,8 +399,16 @@ def calculate_portfolio(
             if flow_type == "DEPOSIT":
                 cash_balance += amount
             elif flow_type == "WITHDRAWAL":
+                if amount > cash_balance:
+                    raise PortfolioValidationError(
+                        f"CASH_FLOW baris {excel_row}: saldo kas tidak cukup untuk WITHDRAWAL {amount:,.2f}; saldo tersedia {cash_balance:,.2f}."
+                    )
                 cash_balance -= amount
             elif flow_type in {"DIVIDEND", "INTEREST"}:
+                if tax > amount:
+                    raise PortfolioValidationError(
+                        f"CASH_FLOW baris {excel_row}: Tax tidak boleh melebihi Amount untuk {flow_type}."
+                    )
                 cash_balance += amount - tax
             elif flow_type == "OTHER":
                 warnings.append(
@@ -478,7 +486,9 @@ def calculate_portfolio(
             "Cost_Basis": cost_basis,
             "Unrealized_PnL": unrealized,
             "Unrealized_PnL_Pct": (
-                unrealized / cost_basis * 100 if unrealized is not None and cost_basis > 0 else None
+                unrealized / cost_basis * 100
+                if unrealized is not None and cost_basis > 0
+                else None
             ),
             "Realized_PnL": p["Realized_PnL"],
             "Weight_Pct": None,
@@ -488,7 +498,9 @@ def calculate_portfolio(
     result_df = pd.DataFrame(rows)
     total_market_value = result_df["Market_Value"].sum(min_count=1)
     if pd.notna(total_market_value) and total_market_value > 0:
-        result_df["Weight_Pct"] = result_df["Market_Value"] / total_market_value * 100
+        result_df["Weight_Pct"] = (
+            result_df["Market_Value"] / total_market_value * 100
+        )
     priced = int(result_df["Market_Value"].notna().sum())
     if priced < len(result_df):
         warnings.append(
@@ -683,6 +695,63 @@ def export_analysis_to_excel(
                     sheet_name="SECTOR_STRESS",
                     index=False,
                 )
+
+        # 12. FORMAT ALL EXPORTED WORKSHEETS
+        from openpyxl.styles import Font, PatternFill, Alignment
+
+        date_columns = {'As_Of_Date', 'Price_Date', 'First_Date', 'Last_Date'}
+        percent_columns = {
+            'Unrealized_PnL_Pct', 'Weight_Pct', 'Annualized_Return_Pct',
+            'Annualized_Volatility_Pct', 'Maximum_Drawdown_Pct',
+            'Risk_Contribution_Pct', 'Actual_Weight_Pct',
+            'Target_Weight_Pct', 'Weight_Difference_Pct',
+            'Portfolio_Impact_Pct', 'Shock_Pct'
+        }
+        integer_columns = {
+            'Quantity_Shares', 'Priced_Positions', 'Stock_Count', 'Observations'
+        }
+        money_columns = {
+            'Average_Cost', 'Last_Price', 'Market_Value', 'Cost_Basis',
+            'Realized_PnL', 'Unrealized_PnL', 'Opening_and_Updated_Cash',
+            'Total_Market_Value', 'Total_Cost_Basis', 'Total_Unrealized_PnL',
+            'Target_Value', 'Value_Difference', 'Equity_Market_Value_Before',
+            'Cash_Balance', 'Total_Portfolio_Value_Before', 'Estimated_PnL',
+            'Equity_Market_Value_After', 'Stressed_Portfolio_Value',
+            'Stressed_Market_Value'
+        }
+
+        for ws in writer.book.worksheets:
+            ws.freeze_panes = 'A2'
+            if ws.max_row >= 1 and ws.max_column >= 1:
+                ws.auto_filter.ref = ws.dimensions
+
+            for cell in ws[1]:
+                cell.font = Font(bold=True, color='FFFFFF')
+                cell.fill = PatternFill(fill_type='solid', fgColor='1F4E78')
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+            for col_idx, header_cell in enumerate(ws[1], start=1):
+                header = str(header_cell.value or '')
+                for row_idx in range(2, ws.max_row + 1):
+                    cell = ws.cell(row=row_idx, column=col_idx)
+
+                    if header in percent_columns and cell.value is not None:
+                        cell.value = cell.value / 100.0
+
+                    if header in date_columns and cell.value is not None:
+                        cell.number_format = 'yyyy-mm-dd'
+                    elif header in percent_columns and cell.value is not None:
+                        cell.number_format = '0.00%;[Red](0.00%);-'
+                    elif header in integer_columns and cell.value is not None:
+                        cell.number_format = '#,##0;[Red](#,##0);-'
+                    elif header in money_columns and cell.value is not None:
+                        cell.number_format = '#,##0;[Red](#,##0);-'
+
+                values = [str(header_cell.value or '')]
+                values.extend(str(ws.cell(row=r, column=col_idx).value or '') for r in range(2, ws.max_row + 1))
+                ws.column_dimensions[header_cell.column_letter].width = min(max(max(map(len, values)) + 2, 12), 40)
+
+            ws.row_dimensions[1].height = 30
 
     output.seek(0)
 

@@ -24,3 +24,13 @@ patch_*.py
 # Private portfolio workbooks and exports
 *My_Portfolio*.xlsx
 *Portfolio*Analysis*.xlsx
+
+
+# Local TSFA test artifacts and private backups
+/projects_BACKUP.json
+/time-series/TSFA_FORMAT_TEST_OUTPUT.xlsx
+/time-series/TSFA_FULL_FORMAT_TEST_OUTPUT.xlsx
+/time-series/TSFA_TEST_UPLOAD.xlsx
+/time-series/TSFA_TEST_UPLOAD_V2.xlsx
+/time-series/tsfa_portfolio_engine_pre_percent_fix.py
+/time-series/tsfa_portfolio_engine_pre_format_backup.py
