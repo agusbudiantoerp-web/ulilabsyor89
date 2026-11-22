@@ -100,11 +100,17 @@ def render_portfolio_risk() -> None:
             positions = []
             return_series = {}
             for _, row in edited.iterrows():
-                ticker = str(row.get("Ticker", "")).strip().upper()
-                market = str(row.get("Market", "IDX")).upper()
-                shares = float(row.get("Shares", 0) or 0)
-                avg_cost = float(row.get("Average Cost", 0) or 0)
-                if not ticker or shares <= 0:
+                raw_ticker = row.get("Ticker", "")
+                if pd.isna(raw_ticker) or not str(raw_ticker).strip():
+                    continue
+                ticker = str(raw_ticker).strip().upper()
+                raw_market = row.get("Market", "IDX")
+                market = "IDX" if pd.isna(raw_market) else str(raw_market).upper()
+                raw_shares = row.get("Shares", 0)
+                raw_cost = row.get("Average Cost", 0)
+                shares = 0.0 if pd.isna(raw_shares) else float(raw_shares)
+                avg_cost = 0.0 if pd.isna(raw_cost) else float(raw_cost)
+                if shares <= 0:
                     continue
                 bars, meta = load_daily_history(ticker, market, "1y")
                 close = float(bars["Close"].iloc[-1])
