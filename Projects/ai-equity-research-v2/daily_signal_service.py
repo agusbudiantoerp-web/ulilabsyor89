@@ -4,8 +4,14 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pandas as pd
+
 from daily_signal_scanner import scan_universe
-from daily_signal_storage import save_scan, latest_scan, signal_history
+from daily_signal_storage import (
+    save_scan, latest_scan, signal_history, get_pending_outcomes,
+    record_outcome, outcome_summary,
+)
+from daily_signal_engine import load_daily_history
 
 REPORT_TZ = ZoneInfo("Asia/Singapore")
 
@@ -20,7 +26,42 @@ def get_dashboard_data(limit=100, db_path=None):
     return {
         "latest": latest_scan(db_path=db_path),
         "history": signal_history(limit=limit, db_path=db_path),
+        "outcomes": outcome_summary(db_path=db_path),
     }
+
+
+def refresh_forward_outcomes(db_path=None, limit=500):
+    """Record observed 1/3/5-session forward returns once future daily closes exist."""
+    pending = get_pending_outcomes(limit=limit, db_path=db_path)
+    grouped = {}
+    for item in pending:
+        key = (item.get("market"), item.get("ticker"))
+        grouped.setdefault(key, []).append(item)
+
+    updated = 0
+    errors = []
+    for (market, ticker), signals in grouped.items():
+        try:
+            bars, _ = load_daily_history(ticker, market, "1y")
+            index = pd.to_datetime(bars.index).tz_localize(None) if getattr(bars.index, "tz", None) is not None else pd.to_datetime(bars.index)
+            bars = bars.copy()
+            bars.index = index.normalize()
+            for signal in signals:
+                signal_date = pd.Timestamp(signal["bar_date"]).normalize()
+                future = bars.loc[bars.index > signal_date]
+                missing = signal.get("missing_horizons", [])
+                for horizon in missing:
+                    if len(future) >= horizon:
+                        observed = future.iloc[horizon - 1]
+                        observed_date = future.index[horizon - 1].date().isoformat()
+                        record_outcome(
+                            int(signal["id"]), int(horizon), observed_date,
+                            float(observed["Close"]), db_path=db_path,
+                        )
+                        updated += 1
+        except Exception as exc:
+            errors.append({"market": market, "ticker": ticker, "error": f"{type(exc).__name__}: {exc}"})
+    return {"pending_signals": len(pending), "updated_outcomes": updated, "errors": errors}
 
 
 def _price(value, currency=""):
@@ -89,7 +130,6 @@ def format_report(scan: dict) -> str:
                 f"RelVol {_number(item.get('relative_volume'))}x | bar {item.get('bar_date', 'N/A')}"
             )
 
-    # Keep TPIA visible even when its deterministic status is NO_TRADE.
     tpia = _find_tpia(results)
     if tpia:
         currency = tpia.get("currency") or "IDR"
