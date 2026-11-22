@@ -1,50 +1,272 @@
-"""SQLite storage for scans, daily signals and forward returns."""
+"""SQLite for local automation and PostgreSQL for persistent cloud performance history.
+
+Set DATABASE_URL in Streamlit Cloud secrets to use PostgreSQL. Local runs continue
+using DAILY_SIGNAL_DB (SQLite), so Telegram/Ollama automation remains independent.
+"""
 from __future__ import annotations
-import sqlite3, json, os
+
+import json
+import os
+import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
 
-def connect(db_path: str | None = None):
-    path = db_path or os.getenv("DAILY_SIGNAL_DB","data/daily_signals.sqlite3")
+
+def _database_url() -> str | None:
+    value = os.getenv("DATABASE_URL") or os.getenv("CLOUD_DATABASE_URL")
+    if value:
+        return value.strip()
+    try:
+        import streamlit as st
+        value = st.secrets.get("DATABASE_URL") or st.secrets.get("CLOUD_DATABASE_URL")
+        return str(value).strip() if value else None
+    except Exception:
+        return None
+
+
+def backend_name(db_path: str | None = None) -> str:
+    return "SQLite" if db_path is not None or not _database_url() else "PostgreSQL"
+
+
+def _connect_sqlite(db_path: str | None = None):
+    path = db_path or os.getenv("DAILY_SIGNAL_DB", "data/daily_signals.sqlite3")
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path, timeout=30); db.row_factory = sqlite3.Row
+    db = sqlite3.connect(path, timeout=30)
+    db.row_factory = sqlite3.Row
     db.execute("PRAGMA journal_mode=WAL")
     return db
+
+
+def _connect_postgres():
+    url = _database_url()
+    if not url:
+        raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+    except ImportError as exc:
+        raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg2-binary.") from exc
+    conn = psycopg2.connect(url, cursor_factory=RealDictCursor, connect_timeout=15)
+    return conn
+
+
+def connect(db_path: str | None = None):
+    """Backward-compatible SQLite connection for local tools and tests."""
+    return _connect_sqlite(db_path)
+
+
 def initialize(db_path: str | None = None):
-    with connect(db_path) as db:
+    if backend_name(db_path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS scans (
+                        id BIGSERIAL PRIMARY KEY,
+                        created_at TEXT NOT NULL,
+                        scanned INTEGER,
+                        failed INTEGER,
+                        payload JSONB NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS signals (
+                        id BIGSERIAL PRIMARY KEY,
+                        scan_id BIGINT NOT NULL REFERENCES scans(id) ON DELETE CASCADE,
+                        market TEXT,
+                        ticker TEXT,
+                        bar_date TEXT,
+                        signal TEXT,
+                        score INTEGER,
+                        close DOUBLE PRECISION,
+                        entry_low DOUBLE PRECISION,
+                        entry_high DOUBLE PRECISION,
+                        stop_loss DOUBLE PRECISION,
+                        target DOUBLE PRECISION,
+                        reward_risk DOUBLE PRECISION,
+                        payload JSONB NOT NULL,
+                        UNIQUE(market, ticker, bar_date)
+                    );
+                    CREATE TABLE IF NOT EXISTS outcomes (
+                        id BIGSERIAL PRIMARY KEY,
+                        signal_id BIGINT NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
+                        horizon INTEGER NOT NULL CHECK (horizon IN (1, 3, 5)),
+                        observed_date TEXT,
+                        close DOUBLE PRECISION,
+                        return_pct DOUBLE PRECISION,
+                        UNIQUE(signal_id, horizon)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(bar_date DESC);
+                    CREATE INDEX IF NOT EXISTS idx_outcomes_horizon ON outcomes(horizon);
+                """)
+        return
+    with _connect_sqlite(db_path) as db:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS scans(id INTEGER PRIMARY KEY, created_at TEXT NOT NULL, scanned INTEGER, failed INTEGER, payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS signals(id INTEGER PRIMARY KEY, scan_id INTEGER NOT NULL, market TEXT, ticker TEXT, bar_date TEXT, signal TEXT, score INTEGER, close REAL, entry_low REAL, entry_high REAL, stop_loss REAL, target REAL, reward_risk REAL, payload TEXT NOT NULL, UNIQUE(market,ticker,bar_date));
         CREATE TABLE IF NOT EXISTS outcomes(id INTEGER PRIMARY KEY, signal_id INTEGER NOT NULL, horizon INTEGER NOT NULL, observed_date TEXT, close REAL, return_pct REAL, UNIQUE(signal_id,horizon));
         CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(bar_date DESC);
         """)
+
+
 def save_scan(scan: dict, db_path: str | None = None) -> int:
     initialize(db_path)
-    with connect(db_path) as db:
-        cur = db.execute("INSERT INTO scans(created_at,scanned,failed,payload) VALUES(?,?,?,?)",
-          (datetime.now(timezone.utc).isoformat(),scan.get("counts",{}).get("scanned",0),scan.get("counts",{}).get("failed",0),json.dumps(scan,default=str)))
+    created_at = datetime.now(timezone.utc).isoformat()
+    counts = scan.get("counts", {})
+    if backend_name(db_path) == "PostgreSQL":
+        from psycopg2.extras import Json
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO scans(created_at,scanned,failed,payload) VALUES(%s,%s,%s,%s) RETURNING id",
+                    (created_at, counts.get("scanned", 0), counts.get("failed", 0), Json(scan)),
+                )
+                scan_id = cur.fetchone()["id"]
+                for item in scan.get("results", []):
+                    cur.execute("""
+                        INSERT INTO signals(scan_id,market,ticker,bar_date,signal,score,close,entry_low,entry_high,stop_loss,target,reward_risk,payload)
+                        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT(market,ticker,bar_date) DO NOTHING
+                    """, (scan_id, item.get("market"), item.get("ticker"), item.get("bar_date"),
+                          item.get("signal"), item.get("score"), item.get("close"), item.get("entry_low"),
+                          item.get("entry_high"), item.get("stop_loss"), item.get("target"),
+                          item.get("reward_risk"), Json(item)))
+                return int(scan_id)
+    with _connect_sqlite(db_path) as db:
+        cur = db.execute(
+            "INSERT INTO scans(created_at,scanned,failed,payload) VALUES(?,?,?,?)",
+            (created_at, counts.get("scanned", 0), counts.get("failed", 0), json.dumps(scan, default=str)),
+        )
         scan_id = cur.lastrowid
-        for s in scan.get("results",[]):
+        for item in scan.get("results", []):
             db.execute("""INSERT OR IGNORE INTO signals(scan_id,market,ticker,bar_date,signal,score,close,entry_low,entry_high,stop_loss,target,reward_risk,payload)
               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-              (scan_id,s.get("market"),s.get("ticker"),s.get("bar_date"),s.get("signal"),s.get("score"),s.get("close"),s.get("entry_low"),s.get("entry_high"),s.get("stop_loss"),s.get("target"),s.get("reward_risk"),json.dumps(s,default=str)))
+              (scan_id, item.get("market"), item.get("ticker"), item.get("bar_date"), item.get("signal"),
+               item.get("score"), item.get("close"), item.get("entry_low"), item.get("entry_high"),
+               item.get("stop_loss"), item.get("target"), item.get("reward_risk"), json.dumps(item, default=str)))
         return int(scan_id)
+
+
+def _decode_payload(value):
+    if isinstance(value, str):
+        return json.loads(value)
+    return value
+
+
 def latest_scan(db_path: str | None = None):
     initialize(db_path)
-    with connect(db_path) as db:
+    if backend_name(db_path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute("SELECT payload FROM scans ORDER BY id DESC LIMIT 1")
+                row = cur.fetchone()
+                return _decode_payload(row["payload"]) if row else None
+    with _connect_sqlite(db_path) as db:
         row = db.execute("SELECT payload FROM scans ORDER BY id DESC LIMIT 1").fetchone()
-        return json.loads(row["payload"]) if row else None
+        return _decode_payload(row["payload"]) if row else None
+
+
 def signal_history(limit: int = 100, db_path: str | None = None):
     initialize(db_path)
-    with connect(db_path) as db:
-        rows = db.execute("SELECT * FROM signals ORDER BY bar_date DESC,id DESC LIMIT ?",(max(1,min(int(limit),1000)),)).fetchall()
-        return [dict(r) for r in rows]
-def record_outcome(signal_id: int, horizon: int, observed_date: str, close: float, db_path: str | None = None):
-    if horizon not in (1,3,5): raise ValueError("Horizon hanya 1, 3, atau 5 sesi.")
+    limit = max(1, min(int(limit), 1000))
+    query = """
+        SELECT s.*,
+          o1.return_pct AS outcome_1d_return_pct,
+          o3.return_pct AS outcome_3d_return_pct,
+          o5.return_pct AS outcome_5d_return_pct
+        FROM signals s
+        LEFT JOIN outcomes o1 ON o1.signal_id=s.id AND o1.horizon=1
+        LEFT JOIN outcomes o3 ON o3.signal_id=s.id AND o3.horizon=3
+        LEFT JOIN outcomes o5 ON o5.signal_id=s.id AND o5.horizon=5
+        ORDER BY s.bar_date DESC,s.id DESC LIMIT {}
+    """.format("%s" if backend_name(db_path) == "PostgreSQL" else "?")
+    if backend_name(db_path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(query, (limit,))
+                rows = cur.fetchall()
+    else:
+        with _connect_sqlite(db_path) as db:
+            rows = db.execute(query, (limit,)).fetchall()
+    output = []
+    for row in rows:
+        item = dict(row)
+        item["payload"] = _decode_payload(item.get("payload"))
+        output.append(item)
+    return output
+
+
+def get_pending_outcomes(limit: int = 500, db_path: str | None = None):
     initialize(db_path)
-    with connect(db_path) as db:
-        row = db.execute("SELECT close FROM signals WHERE id=?",(signal_id,)).fetchone()
-        if not row or not row["close"]: raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
-        ret = (float(close)/float(row["close"])-1)*100
+    if backend_name(db_path) == "PostgreSQL":
+        sql = """
+            SELECT s.id,s.market,s.ticker,s.bar_date,s.close,
+                   ARRAY(SELECT o.horizon FROM outcomes o WHERE o.signal_id=s.id) AS recorded
+            FROM signals s ORDER BY s.bar_date DESC LIMIT %s
+        """
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(sql, (max(1, min(int(limit), 2000)),))
+                rows = cur.fetchall()
+    else:
+        with _connect_sqlite(db_path) as db:
+            rows = db.execute("""
+                SELECT s.id,s.market,s.ticker,s.bar_date,s.close,
+                       GROUP_CONCAT(o.horizon) AS recorded
+                FROM signals s LEFT JOIN outcomes o ON o.signal_id=s.id
+                GROUP BY s.id ORDER BY s.bar_date DESC LIMIT ?
+            """, (max(1, min(int(limit), 2000)),)).fetchall()
+    pending = []
+    for row in rows:
+        item = dict(row)
+        recorded = item.get("recorded")
+        if isinstance(recorded, str):
+            recorded = [int(x) for x in recorded.split(",") if x]
+        recorded = set(recorded or [])
+        missing = [h for h in (1, 3, 5) if h not in recorded]
+        if missing and item.get("bar_date") and item.get("close"):
+            item["missing_horizons"] = missing
+            pending.append(item)
+    return pending
+
+
+def record_outcome(signal_id: int, horizon: int, observed_date: str, close: float, db_path: str | None = None):
+    if horizon not in (1, 3, 5):
+        raise ValueError("Horizon hanya 1, 3, atau 5 sesi.")
+    initialize(db_path)
+    if backend_name(db_path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute("SELECT close FROM signals WHERE id=%s", (signal_id,))
+                row = cur.fetchone()
+                if not row or not row["close"]:
+                    raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
+                ret = (float(close) / float(row["close"]) - 1) * 100
+                cur.execute("""
+                    INSERT INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
+                    VALUES(%s,%s,%s,%s,%s)
+                    ON CONFLICT(signal_id,horizon) DO UPDATE SET
+                    observed_date=EXCLUDED.observed_date,close=EXCLUDED.close,return_pct=EXCLUDED.return_pct
+                """, (signal_id, horizon, observed_date, float(close), ret))
+        return ret
+    with _connect_sqlite(db_path) as db:
+        row = db.execute("SELECT close FROM signals WHERE id=?", (signal_id,)).fetchone()
+        if not row or not row["close"]:
+            raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
+        ret = (float(close) / float(row["close"]) - 1) * 100
         db.execute("INSERT OR REPLACE INTO outcomes(signal_id,horizon,observed_date,close,return_pct) VALUES(?,?,?,?,?)",
-          (signal_id,horizon,observed_date,float(close),ret))
+                   (signal_id, horizon, observed_date, float(close), ret))
+        return ret
+
+
+def outcome_summary(db_path: str | None = None):
+    initialize(db_path)
+    query = """
+        SELECT horizon, COUNT(*) AS observations, AVG(return_pct) AS avg_forward_return_pct,
+               SUM(CASE WHEN return_pct > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS positive_rate_pct
+        FROM outcomes GROUP BY horizon ORDER BY horizon
+    """
+    if backend_name(db_path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(query)
+                return [dict(row) for row in cur.fetchall()]
+    with _connect_sqlite(db_path) as db:
+        return [dict(row) for row in db.execute(query).fetchall()]
