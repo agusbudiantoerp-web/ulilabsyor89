@@ -148,27 +148,32 @@ def render_portfolio_risk() -> None:
         summary.append({"Currency": currency, "Market Value": value, "Cost Basis": cost, "Unrealized P/L": value-cost})
     st.dataframe(pd.DataFrame(summary), use_container_width=True, hide_index=True)
     returns = result["returns"]
-    if len(returns) >= 1:
-        daily = pd.concat(returns.values(), axis=1).sort_index().dropna(how="all")
-        weights = frame.set_index("Ticker")["Market Value"]
-        # Normalize each position's weight within its currency group for a currency-consistent proxy.
-        tickers = [c for c in daily.columns if c in weights.index]
-        if tickers:
-            w = weights.reindex(tickers).fillna(0)
-            w = w / w.sum() if w.sum() else w
-            portfolio_returns = daily[tickers].fillna(0).mul(w, axis=1).sum(axis=1)
-            if len(portfolio_returns) >= 20:
-                annual_vol = float(portfolio_returns.std(ddof=1) * math.sqrt(252) * 100)
-                hist_var = float(-portfolio_returns.quantile(0.05) * 100)
-                st.subheader("Risk indicators (portfolio proxy)")
-                a, b, c = st.columns(3)
-                a.metric("Annualized volatility", f"{annual_vol:.2f}%")
-                b.metric("Historical VaR 95% (1 day)", f"{hist_var:.2f}%")
-                c.metric("Observasi harian", f"{len(portfolio_returns):,}")
-                st.line_chart((1 + portfolio_returns).cumprod().rename("Growth of 1 unit"))
-                st.caption("Risiko dihitung dari irisan return harian yang tersedia. Jika portofolio multi-mata-uang, bobot risiko adalah proxy berbasis nilai nominal dan belum dikonversi ke satu mata uang.")
-            else:
-                st.info("Belum cukup observasi return bersama untuk estimasi risiko (minimal 20 hari).")
+    st.subheader("Risk indicators by currency")
+    for currency, currency_positions in frame.groupby("Currency"):
+        tickers = currency_positions["Ticker"].tolist()
+        available = [returns[t] for t in tickers if t in returns]
+        if not available:
+            continue
+        daily = pd.concat(available, axis=1).sort_index().dropna(how="all")
+        weights = currency_positions.set_index("Ticker")["Market Value"]
+        tickers = [t for t in daily.columns if t in weights.index]
+        if not tickers:
+            continue
+        w = weights.reindex(tickers).fillna(0)
+        w = w / w.sum() if w.sum() else w
+        portfolio_returns = daily[tickers].fillna(0).mul(w, axis=1).sum(axis=1)
+        if len(portfolio_returns) >= 20:
+            annual_vol = float(portfolio_returns.std(ddof=1) * math.sqrt(252) * 100)
+            hist_var = float(-portfolio_returns.quantile(0.05) * 100)
+            st.markdown(f"**{currency} portfolio**")
+            a, b, c = st.columns(3)
+            a.metric("Annualized volatility", f"{annual_vol:.2f}%")
+            b.metric("Historical VaR 95% (1 day)", f"{hist_var:.2f}%")
+            c.metric("Observasi harian", f"{len(portfolio_returns):,}")
+            st.line_chart((1 + portfolio_returns).cumprod().rename(f"{currency} growth of 1 unit"))
+        else:
+            st.info(f"Belum cukup observasi return bersama untuk {currency} (minimal 20 hari).")
+    st.caption("Risiko dihitung terpisah per mata uang agar return IDR dan USD tidak tercampur tanpa konversi FX.")
 
 
 def render_backtesting() -> None:
