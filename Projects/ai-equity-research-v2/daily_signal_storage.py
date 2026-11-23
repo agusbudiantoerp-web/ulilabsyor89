@@ -228,6 +228,8 @@ def signal_history(limit: int = 100, db_path: str | None = None):
     for row in rows:
         item = dict(row)
         item["payload"] = _decode_payload(item.get("payload"))
+        payload = item.get("payload")
+        item["ruleset_version"] = payload.get("ruleset_version") if isinstance(payload, dict) else None
         output.append(item)
     return output
 
