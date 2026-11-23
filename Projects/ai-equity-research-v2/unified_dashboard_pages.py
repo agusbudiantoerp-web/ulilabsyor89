@@ -11,7 +11,9 @@ from daily_signal_service import (
 )
 from daily_signal_engine import load_daily_history
 from daily_signal_storage import backend_name
-from daily_signal_backtest import backtest
+from daily_signal_backtest import backtest, walk_forward_backtest
+from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
+from portfolio_intelligence import analyze_portfolio, scenario_analysis
 
 
 def _show_scan(scan: dict) -> None:
@@ -44,232 +46,367 @@ def _show_scan(scan: dict) -> None:
 
 
 def render_daily_signal() -> None:
-    st.header("Daily Stock Signal")
-    st.caption("Pemindaian teknikal IDX dan US berdasarkan watchlist sistem. Data harga harian Yahoo Finance, bukan harga live.")
-    st.info("Pemindaian dashboard menyimpan hasil ke database aktif. Telegram dan Ollama hanya dijalankan oleh otomasi lokal.")
-    left, right = st.columns([1, 3])
-    with left:
-        run = st.button("Jalankan pemindaian sekarang", type="primary", use_container_width=True)
-    with right:
-        st.caption("Universe awal: 15 saham IDX dan 10 instrumen US. Ini watchlist terpilih, bukan seluruh bursa.")
-    if run:
-        try:
-            with st.spinner("Memindai watchlist IDX dan US..."):
-                scan = run_daily_scan(max_workers=3)
-            st.session_state["unified_latest_scan"] = scan
-            st.success(f"Scan tersimpan. Scan ID: {scan.get('scan_id', 'N/A')}")
-        except Exception as exc:
-            st.error(f"Pemindaian gagal: {type(exc).__name__}: {exc}")
-    scan = st.session_state.get("unified_latest_scan")
-    if scan is None:
-        try:
-            scan = get_dashboard_data().get("latest")
-        except Exception as exc:
-            st.warning(f"Riwayat scan belum dapat dibaca: {exc}")
-    if scan:
-        _show_scan(scan)
-    else:
-        st.info("Belum ada hasil pemindaian tersimpan. Klik tombol pemindaian untuk memulai.")
-
+    st.header("Daily Stock Signal & Advanced Screener")
+    st.caption("Data harian Yahoo Finance; hasil adalah kandidat riset, bukan harga live atau instruksi transaksi.")
+    daily_tab, advanced_tab = st.tabs(["Daily Signal", "Advanced Screener + AI Stock Scoring"])
+    with daily_tab:
+        st.caption("Pemindaian watchlist operasional: 15 saham IDX dan 10 instrumen US.")
+        st.info("Hasil pemindaian dashboard disimpan ke database aktif. Telegram dan Ollama tetap berjalan melalui otomasi lokal.")
+        left, right = st.columns([1, 3])
+        with left:
+            run = st.button("Jalankan pemindaian sekarang", type="primary", use_container_width=True)
+        with right:
+            st.caption("Untuk universe lebih luas, gunakan tab Advanced Screener.")
+        if run:
+            try:
+                with st.spinner("Memindai watchlist IDX dan US..."):
+                    scan = run_daily_scan(max_workers=3)
+                st.session_state["unified_latest_scan"] = scan
+                st.success(f"Scan tersimpan. Scan ID: {scan.get('scan_id', 'N/A')}")
+            except Exception as exc:
+                st.error(f"Pemindaian gagal: {type(exc).__name__}: {exc}")
+        scan = st.session_state.get("unified_latest_scan")
+        if scan is None:
+            try:
+                scan = get_dashboard_data().get("latest")
+            except Exception as exc:
+                st.warning(f"Riwayat scan belum dapat dibaca: {exc}")
+        if scan:
+            _show_scan(scan)
+        else:
+            st.info("Belum ada hasil pemindaian tersimpan. Klik tombol pemindaian untuk memulai.")
+    with advanced_tab:
+        st.subheader("Screening fundamental, teknikal, dan ranking kuantitatif")
+        st.caption("Preset berisi 40 ticker IDX dan 40 ticker US yang dipilih untuk likuiditas/coverage. Ini bukan seluruh emiten bursa.")
+        markets = st.multiselect("Market", ["IDX", "US"], default=["IDX", "US"], key="adv_markets")
+        use_preset = st.checkbox("Gunakan universe preset (40 IDX + 40 US)", value=True, key="adv_preset")
+        symbols_by_market = {m: list(ADVANCED_UNIVERSE[m]) for m in markets}
+        if not use_preset:
+            st.caption("Ticker dipisahkan koma atau baris baru. IDX tanpa .JK; US gunakan simbol Yahoo Finance seperti BRK.B.")
+            col_idx, col_us = st.columns(2)
+            with col_idx:
+                idx_text = st.text_area("Ticker IDX", value=", ".join(ADVANCED_UNIVERSE["IDX"][:15]), height=110, key="adv_idx_tickers")
+            with col_us:
+                us_text = st.text_area("Ticker US", value=", ".join(ADVANCED_UNIVERSE["US"][:15]), height=110, key="adv_us_tickers")
+            import re
+            symbols_by_market = {
+                "IDX": [x.strip().upper() for x in re.split(r"[,\n; ]+", idx_text) if x.strip()],
+                "US": [x.strip().upper() for x in re.split(r"[,\n; ]+", us_text) if x.strip()],
+            }
+        f1, f2, f3 = st.columns(3)
+        min_score = f1.slider("Skor AI minimum", 0, 100, 0, 5, key="adv_min_score")
+        period = f2.selectbox("Riwayat teknikal", ["1y", "2y", "5y"], index=0, key="adv_period")
+        workers = f3.selectbox("Parallel workers", [2, 3, 4, 5, 6], index=2, key="adv_workers")
+        st.caption("Market cap menggunakan mata uang asli: IDR untuk IDX dan USD untuk US.")
+        cap_idx, cap_us = st.columns(2)
+        min_cap = {
+            "IDX": cap_idx.number_input("Market cap minimum IDX (IDR)", min_value=0.0, value=0.0, step=100000000000.0, key="adv_cap_idx"),
+            "US": cap_us.number_input("Market cap minimum US (USD)", min_value=0.0, value=0.0, step=1000000000.0, key="adv_cap_us"),
+        }
+        sector_text = st.text_input("Filter sektor (opsional, pisahkan koma)", key="adv_sectors")
+        sectors = [x.strip() for x in sector_text.split(",") if x.strip()]
+        if st.button("Jalankan Advanced Screener", type="primary", key="run_advanced_screener"):
+            if not markets:
+                st.warning("Pilih minimal satu market.")
+            elif not any(symbols_by_market.get(m) for m in markets):
+                st.warning("Masukkan minimal satu ticker.")
+            else:
+                try:
+                    with st.spinner("Mengambil data harga dan fundamental; proses dapat memerlukan beberapa menit..."):
+                        result = run_advanced_screener(
+                            markets=markets, symbols_by_market=symbols_by_market,
+                            min_score=min_score, sectors=sectors,
+                            min_market_cap=min_cap, period=period, max_workers=workers,
+                        )
+                    st.session_state["advanced_screener_result"] = result
+                except Exception as exc:
+                    st.error(f"Advanced Screener gagal: {type(exc).__name__}: {exc}")
+        result = st.session_state.get("advanced_screener_result")
+        if result:
+            a, b, d = st.columns(3)
+            a.metric("Berhasil dianalisis", result.get("raw_success", 0))
+            b.metric("Lolos filter", len(result.get("results", [])))
+            d.metric("Gagal mengambil data", result.get("failed", 0))
+            st.info(result.get("coverage_note", ""))
+            rows = result.get("results", [])
+            if rows:
+                frame = pd.DataFrame(rows)
+                columns = [
+                    "market", "ticker", "company", "sector", "close", "currency",
+                    "ai_score", "score_coverage_pct", "score_label", "trailingPE",
+                    "priceToBook", "returnOnEquity", "returnOnAssets", "debtToEquity",
+                    "revenueGrowth", "earningsGrowth", "marketCap", "rsi14",
+                    "macd", "macd_signal", "ema20", "ema50", "ema200",
+                    "relative_volume", "breakout_20d", "bar_date",
+                ]
+                visible = frame[[name for name in columns if name in frame.columns]]
+                st.dataframe(visible, use_container_width=True, hide_index=True)
+                st.download_button("Unduh ranking screener CSV", visible.to_csv(index=False).encode("utf-8-sig"), "advanced_stock_screener.csv", "text/csv")
+                with st.expander("Penjelasan skor AI dan coverage data"):
+                    for item in rows[:10]:
+                        st.markdown(f"**{item['ticker']} — {item.get('ai_score')} / 100 ({item.get('score_label')})**")
+                        st.json(item.get("factor_scores", {}))
+                        st.caption(f"Coverage faktor: {item.get('score_coverage_pct')}%. {item.get('score_method')}")
+            else:
+                st.warning("Tidak ada saham yang memenuhi filter. Turunkan skor minimum atau periksa coverage data.")
+            if result.get("errors"):
+                with st.expander(f"Ticker gagal ({len(result['errors'])})"):
+                    st.dataframe(pd.DataFrame(result["errors"]), use_container_width=True, hide_index=True)
+        st.caption("Skor 0–100 adalah model kuantitatif berbasis aturan yang transparan, bukan model machine learning terlatih atau jaminan return. Data fundamental Yahoo Finance dapat kosong/berbeda mata uang; nilai kosong tidak diisi dengan perkiraan.")
 
 def render_portfolio_risk() -> None:
     st.header("Portfolio & Risk Management")
-    st.caption("Masukkan posisi yang dimiliki untuk menghitung nilai pasar, P/L, bobot, volatilitas, dan Value at Risk historis.")
+    st.caption("Analisis posisi, konsentrasi, korelasi, risiko per mata uang, dan skenario harga. Tidak mengirim order.")
     if "portfolio_input" not in st.session_state:
-        st.session_state["portfolio_input"] = pd.DataFrame([
-            {"Market": "IDX", "Ticker": "TPIA", "Shares": 0.0, "Average Cost": 0.0}
-        ])
+        st.session_state["portfolio_input"] = pd.DataFrame([{"Market":"IDX","Ticker":"TPIA","Shares":0.0,"Average Cost":0.0}])
     edited = st.data_editor(
-        st.session_state["portfolio_input"], num_rows="dynamic",
-        use_container_width=True, hide_index=True,
+        st.session_state["portfolio_input"], num_rows="dynamic", use_container_width=True, hide_index=True,
         column_config={
-            "Market": st.column_config.SelectboxColumn("Market", options=["IDX", "US"], required=True),
-            "Ticker": st.column_config.TextColumn("Ticker", help="Contoh IDX: TPIA, BBCA. US: NVDA, AAPL."),
+            "Market": st.column_config.SelectboxColumn("Market", options=["IDX","US"], required=True),
+            "Ticker": st.column_config.TextColumn("Ticker", help="IDX: TPIA, BBCA. US: NVDA, AAPL."),
             "Shares": st.column_config.NumberColumn("Shares", min_value=0.0, step=1.0),
             "Average Cost": st.column_config.NumberColumn("Average Cost", min_value=0.0, step=1.0),
         }, key="portfolio_editor",
     )
     st.session_state["portfolio_input"] = edited
-    if st.button("Hitung portofolio & risiko", type="primary"):
-        try:
-            positions, return_series = [], {}
-            for _, row in edited.iterrows():
-                raw_ticker = row.get("Ticker", "")
-                if pd.isna(raw_ticker) or not str(raw_ticker).strip():
-                    continue
-                ticker = str(raw_ticker).strip().upper()
-                raw_market = row.get("Market", "IDX")
-                market = "IDX" if pd.isna(raw_market) else str(raw_market).upper()
-                shares = 0.0 if pd.isna(row.get("Shares", 0)) else float(row.get("Shares", 0))
-                avg_cost = 0.0 if pd.isna(row.get("Average Cost", 0)) else float(row.get("Average Cost", 0))
-                if shares <= 0:
-                    continue
+    if st.button("Hitung portfolio intelligence", type="primary"):
+        positions, return_series, errors = [], {}, []
+        for _, row in edited.iterrows():
+            raw_ticker = row.get("Ticker", "")
+            if pd.isna(raw_ticker) or not str(raw_ticker).strip():
+                continue
+            ticker = str(raw_ticker).strip().upper()
+            raw_market = row.get("Market", "IDX")
+            market = "IDX" if pd.isna(raw_market) else str(raw_market).upper()
+            shares = 0.0 if pd.isna(row.get("Shares", 0)) else float(row.get("Shares", 0))
+            avg_cost = 0.0 if pd.isna(row.get("Average Cost", 0)) else float(row.get("Average Cost", 0))
+            if shares <= 0:
+                continue
+            try:
                 bars, meta = load_daily_history(ticker, market, "1y")
                 close = float(bars["Close"].iloc[-1])
                 currency = meta.get("currency", "IDR" if market == "IDX" else "USD")
-                value, cost = shares * close, shares * avg_cost
                 resolved = meta.get("ticker", ticker)
+                try:
+                    import yfinance as yf
+                    info = yf.Ticker(resolved).get_info()
+                    sector = info.get("sector", "Unknown") if isinstance(info, dict) else "Unknown"
+                except Exception:
+                    sector = "Unknown"
+                value, cost = shares * close, shares * avg_cost
                 positions.append({
-                    "Market": market, "Ticker": resolved, "Shares": shares,
-                    "Average Cost": avg_cost, "Latest Close": close, "Currency": currency,
-                    "Market Value": value, "Cost Basis": cost, "Unrealized P/L": value-cost,
-                    "Return %": ((close / avg_cost)-1)*100 if avg_cost > 0 else None,
+                    "Market":market,"Ticker":resolved,"Sector":sector or "Unknown","Shares":shares,
+                    "Average Cost":avg_cost,"Latest Close":close,"Currency":currency,
+                    "Market Value":value,"Cost Basis":cost,"Unrealized P/L":value-cost,
+                    "Return %":((close/avg_cost)-1)*100 if avg_cost>0 else None,
                 })
                 return_series[resolved] = bars["Close"].pct_change().dropna().rename(resolved)
-            if not positions:
-                st.warning("Isi minimal satu posisi dengan jumlah saham lebih dari nol.")
-                return
-            st.session_state["portfolio_result"] = {"positions": pd.DataFrame(positions), "returns": return_series}
-        except Exception as exc:
-            st.error(f"Gagal menghitung portofolio: {type(exc).__name__}: {exc}")
+            except Exception as exc:
+                errors.append({"market":market,"ticker":ticker,"error":f"{type(exc).__name__}: {exc}"})
+        if not positions:
+            st.warning("Isi minimal satu posisi valid dengan jumlah saham lebih dari nol.")
+            if errors:
+                st.dataframe(pd.DataFrame(errors), use_container_width=True, hide_index=True)
+        else:
+            st.session_state["portfolio_result"] = {"positions":pd.DataFrame(positions),"returns":return_series,"errors":errors}
     result = st.session_state.get("portfolio_result")
     if not result:
-        st.info("Data posisi hanya disimpan dalam sesi browser ini. Belum ada order broker atau transaksi yang dilakukan.")
+        st.info("Posisi disimpan dalam sesi browser. Masukkan saham dan jumlah kepemilikan untuk memulai.")
         return
     frame = result["positions"].copy()
-    total_value_by_currency = frame.groupby("Currency")["Market Value"].sum().to_dict()
-    total_cost_by_currency = frame.groupby("Currency")["Cost Basis"].sum().to_dict()
-    frame["Weight within currency"] = frame.apply(
-        lambda r: r["Market Value"] / total_value_by_currency.get(r["Currency"], 1) * 100
-        if total_value_by_currency.get(r["Currency"], 0) else 0, axis=1
-    )
     st.subheader("Posisi & valuasi")
     st.dataframe(frame, use_container_width=True, hide_index=True)
-    st.caption("Nilai agregat dipisahkan menurut mata uang; IDR dan USD tidak dijumlahkan tanpa konversi FX.")
-    summary = [{"Currency": c, "Market Value": v, "Cost Basis": total_cost_by_currency.get(c, 0),
-                "Unrealized P/L": v-total_cost_by_currency.get(c, 0)} for c, v in total_value_by_currency.items()]
-    st.dataframe(pd.DataFrame(summary), use_container_width=True, hide_index=True)
-    st.subheader("Risk indicators by currency")
-    for currency, currency_positions in frame.groupby("Currency"):
-        tickers = currency_positions["Ticker"].tolist()
-        available = [result["returns"][t] for t in tickers if t in result["returns"]]
-        if not available:
-            continue
-        daily = pd.concat(available, axis=1).sort_index().dropna(how="all")
-        weights = currency_positions.set_index("Ticker")["Market Value"]
-        tickers = [t for t in daily.columns if t in weights.index]
-        if not tickers:
-            continue
-        w = weights.reindex(tickers).fillna(0)
-        w = w/w.sum() if w.sum() else w
-        portfolio_returns = daily[tickers].fillna(0).mul(w, axis=1).sum(axis=1)
-        if len(portfolio_returns) >= 20:
-            annual_vol = float(portfolio_returns.std(ddof=1)*math.sqrt(252)*100)
-            hist_var = float(-portfolio_returns.quantile(0.05)*100)
-            st.markdown(f"**{currency} portfolio**")
-            a,b,c = st.columns(3)
-            a.metric("Annualized volatility", f"{annual_vol:.2f}%")
-            b.metric("Historical VaR 95% (1 day)", f"{hist_var:.2f}%")
-            c.metric("Observasi harian", f"{len(portfolio_returns):,}")
-            st.line_chart((1+portfolio_returns).cumprod().rename(f"{currency} growth of 1 unit"))
-        else:
-            st.info(f"Belum cukup observasi return bersama untuk {currency} (minimal 20 hari).")
-    st.caption("Risiko dihitung terpisah per mata uang agar return IDR dan USD tidak tercampur tanpa konversi FX.")
-
+    if result.get("errors"):
+        with st.expander(f"Posisi yang gagal dimuat ({len(result['errors'])})"):
+            st.dataframe(pd.DataFrame(result["errors"]), use_container_width=True, hide_index=True)
+    st.caption("Nilai IDR dan USD tidak dijumlahkan tanpa kurs FX. Bobot dan risiko dihitung per mata uang.")
+    analysis = analyze_portfolio(frame, result["returns"])
+    ccy = pd.DataFrame([{"Currency":k,"Market Value":v} for k,v in analysis["currency_exposure"].items()])
+    market = pd.DataFrame([{"Market":k,"Market Value":v} for k,v in analysis["market_exposure"].items()])
+    col_a,col_b = st.columns(2)
+    with col_a:
+        st.subheader("Eksposur per mata uang")
+        st.dataframe(ccy,use_container_width=True,hide_index=True)
+    with col_b:
+        st.subheader("Eksposur per pasar")
+        st.dataframe(market,use_container_width=True,hide_index=True)
+    if not analysis["sector_exposure"].empty:
+        sector = analysis["sector_exposure"].copy()
+        sector["Weight within currency %"] = sector["Market Value"] / sector.groupby("Currency")["Market Value"].transform("sum") * 100
+        st.subheader("Konsentrasi sektor")
+        st.dataframe(sector,use_container_width=True,hide_index=True)
+    if not analysis["risk"].empty:
+        st.subheader("Risk metrics per mata uang")
+        st.dataframe(analysis["risk"],use_container_width=True,hide_index=True)
+        for currency, series in analysis["returns"].items():
+            st.line_chart((1+series).cumprod().rename(f"{currency} portfolio growth"))
+    if analysis["correlations"]:
+        st.subheader("Matriks korelasi")
+        for currency,matrix in analysis["correlations"].items():
+            with st.expander(f"Korelasi {currency}"):
+                st.dataframe(matrix,use_container_width=True)
+    st.subheader("Simulasi skenario harga")
+    st.caption("Masukkan perubahan harga hipotetis per saham. Ini analisis sensitivitas, bukan prediksi.")
+    scenario_input = frame[["Ticker","Currency","Market Value"]].copy()
+    scenario_input["Shock %"] = 0.0
+    scenario_edited = st.data_editor(
+        scenario_input,use_container_width=True,hide_index=True,
+        column_config={"Shock %":st.column_config.NumberColumn("Shock %",min_value=-100.0,max_value=300.0,step=1.0)},
+        key="portfolio_scenario_editor",
+    )
+    scenario = scenario_analysis(frame,dict(zip(scenario_edited["Ticker"],scenario_edited["Shock %"])))
+    st.dataframe(scenario,use_container_width=True,hide_index=True)
+    st.dataframe(scenario.groupby("Currency")[["Estimated P/L","Scenario Value"]].sum().reset_index(),use_container_width=True,hide_index=True)
+    st.caption(analysis["limitations"])
 
 def render_backtesting() -> None:
-    st.header("Backtesting")
-    st.caption("Uji historis strategi Daily Stock Signal dengan biaya dan slippage yang dapat diubah.")
-    with st.form("backtest_form"):
-        c1,c2,c3 = st.columns(3)
-        market = c1.selectbox("Pasar", ["IDX","US"], key="bt_market")
-        ticker = c2.text_input("Ticker", "TPIA" if market=="IDX" else "NVDA", key="bt_ticker")
-        period = c3.selectbox("Periode data", ["2y","5y","10y"], index=1, key="bt_period")
-        c4,c5,c6 = st.columns(3)
-        fee = c4.number_input("Fee (bps per sisi)",0.0,500.0,10.0,1.0)
-        slippage = c5.number_input("Slippage (bps per sisi)",0.0,500.0,10.0,1.0)
-        risk = c6.number_input("Risk budget per trade (%)",0.1,5.0,1.0,0.1)
-        c7,c8 = st.columns(2)
-        allocation = c7.slider("Maksimum alokasi posisi (%)",1,100,100)/100
-        holding = c8.slider("Holding maksimum (sesi)",1,5,5)
-        submitted = st.form_submit_button("Jalankan backtest", type="primary")
-    if submitted:
-        try:
-            with st.spinner(f"Mengunduh data historis {ticker.upper()}..."):
-                bars,meta = load_daily_history(ticker,market,period)
-                result = backtest(bars,fee_bps=fee,slippage_bps=slippage,risk_fraction=risk/100,
-                                  max_allocation=allocation,max_holding_sessions=holding)
-            st.session_state["backtest_result"]={"ticker":meta.get("ticker",ticker.upper()),"market":market,"result":result}
-        except Exception as exc:
-            st.error(f"Backtest gagal: {type(exc).__name__}: {exc}")
-    saved = st.session_state.get("backtest_result")
-    if saved:
-        r = saved["result"]
-        st.subheader(f"{saved['ticker']} · {saved['market']}")
-        cols=st.columns(5)
-        cols[0].metric("Total return",f"{r['total_return_pct']:.2f}%")
-        cols[1].metric("CAGR",f"{r['cagr_pct']:.2f}%")
-        cols[2].metric("Max drawdown",f"{r['max_drawdown_pct']:.2f}%")
-        cols[3].metric("Win rate",f"{r['win_rate_pct']:.1f}%")
-        cols[4].metric("Trades",r["trades"])
-        cols2=st.columns(4)
-        cols2[0].metric("Profit factor",f"{r['profit_factor']:.2f}" if math.isfinite(r["profit_factor"]) else "∞")
-        cols2[1].metric("Sharpe ratio",f"{r['sharpe_ratio']:.2f}")
-        cols2[2].metric("Benchmark buy & hold",f"{r['benchmark_buy_hold_pct']:.2f}%")
-        cols2[3].metric("Round-trip cost",f"{r['cost_bps_round_trip']:.0f} bps")
-        curve=pd.DataFrame(r["equity_curve"])
-        if not curve.empty:
-            curve["date"]=pd.to_datetime(curve["date"])
-            st.line_chart(curve.set_index("date")["equity"])
-        trades=pd.DataFrame(r["trades_detail"])
-        if not trades.empty:
-            st.subheader("Detail transaksi")
-            st.dataframe(trades,use_container_width=True,hide_index=True)
-            st.download_button("Unduh transaksi CSV",trades.to_csv(index=False).encode("utf-8-sig"),"backtest_trades.csv","text/csv")
-        else:
-            st.info("Tidak ada transaksi yang memenuhi seluruh aturan strategi pada periode ini.")
-        st.warning(r["limitations"])
-
+    st.header("Advanced Backtesting")
+    st.caption("Simulasi historis dengan fee, slippage, risk sizing, dan evaluasi walk-forward kronologis.")
+    single_tab,wf_tab = st.tabs(["Single ticker backtest","Walk-forward out-of-sample"])
+    with single_tab:
+        with st.form("backtest_form"):
+            c1,c2,c3=st.columns(3)
+            market=c1.selectbox("Pasar",["IDX","US"],key="bt_market")
+            ticker=c2.text_input("Ticker","TPIA" if market=="IDX" else "NVDA",key="bt_ticker")
+            period=c3.selectbox("Periode data",["2y","5y","10y"],index=1,key="bt_period")
+            c4,c5,c6=st.columns(3)
+            fee=c4.number_input("Fee (bps per sisi)",0.0,500.0,10.0,1.0,key="bt_fee")
+            slippage=c5.number_input("Slippage (bps per sisi)",0.0,500.0,10.0,1.0,key="bt_slippage")
+            risk=c6.number_input("Risk budget per trade (%)",0.1,5.0,1.0,0.1,key="bt_risk")
+            c7,c8=st.columns(2)
+            allocation=c7.slider("Maksimum alokasi posisi (%)",1,100,100,key="bt_alloc")/100
+            holding=c8.slider("Holding maksimum (sesi)",1,5,5,key="bt_holding")
+            submitted=st.form_submit_button("Jalankan backtest",type="primary")
+        if submitted:
+            try:
+                with st.spinner(f"Mengunduh data historis {ticker.upper()}..."):
+                    bars,meta=load_daily_history(ticker,market,period)
+                    result=backtest(bars,fee_bps=fee,slippage_bps=slippage,risk_fraction=risk/100,max_allocation=allocation,max_holding_sessions=holding)
+                st.session_state["backtest_result"]={"ticker":meta.get("ticker",ticker.upper()),"market":market,"result":result}
+            except Exception as exc:
+                st.error(f"Backtest gagal: {type(exc).__name__}: {exc}")
+        saved=st.session_state.get("backtest_result")
+        if saved:
+            r=saved["result"]
+            st.subheader(f"{saved['ticker']} · {saved['market']}")
+            cols=st.columns(5)
+            cols[0].metric("Total return",f"{r['total_return_pct']:.2f}%")
+            cols[1].metric("CAGR",f"{r['cagr_pct']:.2f}%")
+            cols[2].metric("Max drawdown",f"{r['max_drawdown_pct']:.2f}%")
+            cols[3].metric("Win rate",f"{r['win_rate_pct']:.1f}%")
+            cols[4].metric("Trades",r["trades"])
+            cols2=st.columns(4)
+            cols2[0].metric("Profit factor",f"{r['profit_factor']:.2f}" if math.isfinite(r["profit_factor"]) else "∞")
+            cols2[1].metric("Sharpe ratio",f"{r['sharpe_ratio']:.2f}")
+            cols2[2].metric("Benchmark buy & hold",f"{r['benchmark_buy_hold_pct']:.2f}%")
+            cols2[3].metric("Round-trip cost",f"{r['cost_bps_round_trip']:.0f} bps")
+            curve=pd.DataFrame(r["equity_curve"])
+            if not curve.empty:
+                curve["date"]=pd.to_datetime(curve["date"])
+                st.line_chart(curve.set_index("date")["equity"])
+            trades=pd.DataFrame(r["trades_detail"])
+            if not trades.empty:
+                st.subheader("Detail transaksi")
+                st.dataframe(trades,use_container_width=True,hide_index=True)
+                st.download_button("Unduh transaksi CSV",trades.to_csv(index=False).encode("utf-8-sig"),"backtest_trades.csv","text/csv")
+            else:
+                st.info("Tidak ada transaksi yang memenuhi aturan strategi pada periode ini.")
+            st.warning(r["limitations"])
+    with wf_tab:
+        st.caption("Expanding-history chronological walk-forward. Periode test selalu berada setelah histori training; parameter strategi tetap dan tidak dioptimalkan pada test.")
+        with st.form("walk_forward_form"):
+            w1,w2,w3=st.columns(3)
+            wf_market=w1.selectbox("Pasar",["IDX","US"],key="wf_market")
+            wf_ticker=w2.text_input("Ticker","BBCA" if wf_market=="IDX" else "MSFT",key="wf_ticker")
+            wf_period=w3.selectbox("Riwayat",["5y","10y"],index=0,key="wf_period")
+            w4,w5=st.columns(2)
+            train_months=w4.selectbox("Training history (bulan)",[12,18,24,36],index=2,key="wf_train")
+            test_months=w5.selectbox("Test window (bulan)",[3,6,12],index=1,key="wf_test")
+            w6,w7,w8=st.columns(3)
+            wf_fee=w6.number_input("Fee per sisi (bps)",0.0,500.0,10.0,key="wf_fee")
+            wf_slippage=w7.number_input("Slippage per sisi (bps)",0.0,500.0,10.0,key="wf_slippage")
+            wf_risk=w8.number_input("Risk per trade (%)",0.1,5.0,1.0,key="wf_risk")
+            wf_submit=st.form_submit_button("Jalankan walk-forward",type="primary")
+        if wf_submit:
+            try:
+                with st.spinner("Menjalankan evaluasi out-of-sample per fold..."):
+                    bars,meta=load_daily_history(wf_ticker,wf_market,wf_period)
+                    result=walk_forward_backtest(bars,train_months=train_months,test_months=test_months,fee_bps=wf_fee,slippage_bps=wf_slippage,risk_fraction=wf_risk/100)
+                st.session_state["walk_forward_result"]={"ticker":meta.get("ticker",wf_ticker),"market":wf_market,"result":result}
+            except Exception as exc:
+                st.error(f"Walk-forward gagal: {type(exc).__name__}: {exc}")
+        saved=st.session_state.get("walk_forward_result")
+        if saved:
+            r=saved["result"]
+            st.subheader(f"{saved['ticker']} · {saved['market']}")
+            m1,m2,m3,m4,m5=st.columns(5)
+            m1.metric("OOS return gabungan",f"{r['combined_oos_return_pct']:.2f}%")
+            m2.metric("Win rate tertimbang",f"{r['weighted_win_rate_pct']:.1f}%")
+            m3.metric("Total trade",r["total_trades"])
+            m4.metric("Fold positif",f"{r['profitable_folds_pct']:.1f}%")
+            m5.metric("Worst fold DD",f"{r['worst_fold_drawdown_pct']:.2f}%")
+            st.dataframe(pd.DataFrame(r["folds"]),use_container_width=True,hide_index=True)
+            st.caption(r["method"])
+            st.warning(r["limitations"])
 
 def render_performance_dashboard() -> None:
-    st.header("Performance Dashboard")
-    st.caption("Kinerja scan, histori sinyal, dan outcome forward 1/3/5 sesi dari harga penutupan yang benar-benar tersedia.")
-    backend = backend_name()
-    if backend == "PostgreSQL":
+    st.header("Performance & Learning Dashboard")
+    st.caption("Histori scan, kualitas sinyal, dan forward return aktual setelah 1/3/5/10/20 sesi perdagangan.")
+    backend=backend_name()
+    if backend=="PostgreSQL":
         st.success("Database cloud PostgreSQL aktif. Histori scan disimpan secara persisten.")
     else:
-        st.warning("Database aktif masih SQLite. Pada Streamlit Cloud, penyimpanan lokal dapat hilang saat instance dibuat ulang. Konfigurasikan DATABASE_URL untuk histori cloud persisten.")
-    if st.button("Perbarui outcome 1/3/5 sesi", type="primary"):
+        st.warning("Database aktif masih SQLite. Konfigurasikan DATABASE_URL untuk histori cloud persisten.")
+    if st.button("Perbarui outcome 1/3/5/10/20 sesi",type="primary"):
         try:
-            with st.spinner("Memeriksa harga penutupan harian setelah tanggal sinyal..."):
-                refresh = refresh_forward_outcomes(limit=500)
+            with st.spinner("Memeriksa harga penutupan setelah tanggal sinyal..."):
+                refresh=refresh_forward_outcomes(limit=1000)
             st.success(f"{refresh['updated_outcomes']} outcome baru tercatat dari {refresh['pending_signals']} sinyal tertunda.")
             if refresh["errors"]:
-                with st.expander(f"Ticker yang belum berhasil diperbarui ({len(refresh['errors'])})"):
-                    st.dataframe(pd.DataFrame(refresh["errors"]), use_container_width=True, hide_index=True)
+                with st.expander(f"Ticker belum berhasil diperbarui ({len(refresh['errors'])})"):
+                    st.dataframe(pd.DataFrame(refresh["errors"]),use_container_width=True,hide_index=True)
         except Exception as exc:
             st.error(f"Pembaruan outcome gagal: {type(exc).__name__}: {exc}")
     try:
-        data = get_dashboard_data(limit=500)
-        latest, history, outcomes = data.get("latest"), data.get("history") or [], data.get("outcomes") or []
+        data=get_dashboard_data(limit=1000)
+        latest,history,outcomes=data.get("latest"),data.get("history") or [],data.get("outcomes") or []
     except Exception as exc:
         st.error(f"Database performa tidak dapat dibaca: {type(exc).__name__}: {exc}")
         return
     if latest:
         counts=latest.get("counts",{})
-        cols=st.columns(4)
+        cols=st.columns(5)
         cols[0].metric("Saham dipindai terakhir",counts.get("scanned",0))
         cols[1].metric("BUY candidate",counts.get("buy_candidate",0))
         cols[2].metric("WATCH",counts.get("watch",0))
-        cols[3].metric("Gagal ambil data",counts.get("failed",0))
-        st.caption(f"Scan ID: {latest.get('scan_id','N/A')} · Data tiap ticker menggunakan tanggal bar masing-masing.")
+        cols[3].metric("NO TRADE",counts.get("no_trade",0))
+        cols[4].metric("Gagal ambil data",counts.get("failed",0))
+        st.caption(f"Scan ID: {latest.get('scan_id','N/A')} · Data tiap ticker memakai tanggal bar masing-masing.")
     else:
-        st.info("Belum ada scan tersimpan pada database aktif. Jalankan Daily Stock Signal untuk membuat data.")
+        st.info("Belum ada scan tersimpan. Jalankan Daily Stock Signal.")
     if history:
         frame=pd.DataFrame(history)
-        cols=[c for c in ["bar_date","market","ticker","signal","score","close","outcome_1d_return_pct","outcome_3d_return_pct","outcome_5d_return_pct"] if c in frame.columns]
+        cols=[c for c in ["bar_date","market","ticker","signal","score","close","outcome_1d_return_pct","outcome_3d_return_pct","outcome_5d_return_pct","outcome_10d_return_pct","outcome_20d_return_pct"] if c in frame.columns]
         st.subheader("Riwayat sinyal dan forward outcome")
         st.dataframe(frame[cols],use_container_width=True,hide_index=True)
         st.download_button("Unduh histori sinyal CSV",frame[cols].to_csv(index=False).encode("utf-8-sig"),"signal_history.csv","text/csv")
-        counts=frame["signal"].value_counts().rename_axis("Signal").reset_index(name="Count")
-        st.bar_chart(counts.set_index("Signal"))
+        st.bar_chart(frame["signal"].value_counts().rename_axis("Signal").reset_index(name="Count").set_index("Signal"))
+        st.subheader("Evaluasi hasil berdasarkan sinyal")
+        for horizon,column in [(1,"outcome_1d_return_pct"),(3,"outcome_3d_return_pct"),(5,"outcome_5d_return_pct"),(10,"outcome_10d_return_pct"),(20,"outcome_20d_return_pct")]:
+            if column in frame:
+                valid=frame[frame[column].notna()]
+                if not valid.empty:
+                    grouped=valid.groupby("signal")[column].agg(["count","mean"])
+                    st.markdown(f"**Forward {horizon} sesi**")
+                    st.dataframe(grouped.rename(columns={"count":"Observasi","mean":"Rata-rata return %"}),use_container_width=True)
     else:
         st.info("Histori sinyal belum tersedia.")
     if outcomes:
         st.subheader("Forward outcome (observasi aktual)")
         outcome_frame=pd.DataFrame(outcomes)
-        outcome_frame["Horizon"] = outcome_frame["horizon"].astype(str) + " sesi"
+        outcome_frame["Horizon"]=outcome_frame["horizon"].astype(str)+" sesi"
         outcome_frame=outcome_frame.rename(columns={"observations":"Observasi","avg_forward_return_pct":"Rata-rata return (%)","positive_rate_pct":"Outcome positif (%)"})
         st.dataframe(outcome_frame[["Horizon","Observasi","Rata-rata return (%)","Outcome positif (%)"]],use_container_width=True,hide_index=True)
     else:
-        st.info("Outcome 1/3/5 sesi belum tercatat. Sistem hanya mencatat return setelah harga penutupan untuk horizon tersebut tersedia.")
+        st.info("Outcome forward belum tercatat. Sistem menunggu harga penutupan untuk setiap horizon tersedia.")
+    st.caption("Return historis adalah hasil observasi setelah tanggal sinyal, bukan prediksi. Evaluasi per sinyal belum menghilangkan seluruh bias survivorship dan data vendor.")
