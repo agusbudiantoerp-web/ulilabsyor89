@@ -21,7 +21,7 @@ Never commit the real connection URI, database password, or service credentials.
 
 ## Forward outcome recording
 
-The Performance Dashboard's **Perbarui outcome 1/3/5/10/20 sesi** action checks Yahoo Finance daily closes after each stored signal's bar date. It records a horizon only when the corresponding future trading-session close exists. Existing outcomes are refreshed idempotently; unavailable future observations remain blank.
+The Performance Dashboard's **Perbarui outcome 1/3/5/10/20 sesi** action checks Yahoo Finance daily closes after each stored signal's bar date. It records a missing horizon only when the corresponding future trading-session close exists. Existing outcome rows are retained and not re-counted; unavailable future observations remain blank.
 
 Returns are close-to-close percentage changes from the signal bar close. They do not include dividends, fees, or slippage and are not a simulated trading P/L.
 
