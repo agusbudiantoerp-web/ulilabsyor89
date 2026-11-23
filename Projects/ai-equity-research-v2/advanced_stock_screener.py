@@ -89,7 +89,7 @@ def run_advanced_screener(
     symbols_by_market: dict[str, list[str]] | None = None,
     min_score: float = 0,
     sectors: list[str] | None = None,
-    min_market_cap: float = 0,
+    min_market_cap: float | dict[str, float] = 0,
     max_market_cap: float | dict[str, float | None] | None = None,
     period: str = "1y",
     max_workers: int = 4,
