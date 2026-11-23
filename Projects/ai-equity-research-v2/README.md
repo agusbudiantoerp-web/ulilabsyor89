@@ -4,14 +4,13 @@ Integrated Streamlit research platform for IDX and US markets. The workspace com
 
 The application is research support only. It does not connect to a broker or execute orders. Market and fundamental data from Yahoo Finance may be delayed, incomplete, revised, or unavailable. Verify material financial data against issuer filings.
 
-## Workspace modules
+## Workspace navigation — 5 main menus
 
 1. **Equity Research** — financial statements, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
-2. **Daily Stock Signal** — IDX/US technical scan, entry/stop/target levels, candidate/watch/no-trade states.
-3. **Advanced Screener + Stock Scoring** — curated editable 40 IDX + 40 US universe; fundamentals, RSI, MACD, EMA20/50/200, relative volume, breakout, sector and market-cap filters; transparent 0–100 factor score.
-4. **Portfolio & Risk Management** — market/currency/sector exposure, position weights, correlations, volatility, historical VaR, drawdown, price and FX scenarios, indicative position sizing.
-5. **Backtesting** — fee/slippage-aware historical simulation and chronological walk-forward evaluation.
-6. **Performance & Learning** — PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal/ruleset.
+2. **Daily Stock Signal** — IDX/US technical scan, entry/stop/target levels, candidate/watch/no-trade states, plus a nested **Advanced Screener + AI Stock Scoring** tab with curated editable 40 IDX + 40 US universe, fundamentals, RSI, MACD, EMA20/50/200, relative volume, breakout, sector and market-cap filters.
+3. **Portfolio & Risk Management** — market/currency/sector exposure, position weights, correlations, volatility, historical VaR, drawdown, price and FX scenarios, indicative position sizing.
+4. **Backtesting** — fee/slippage-aware historical simulation and chronological walk-forward evaluation.
+5. **Performance & Learning** — PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal/ruleset.
 
 The screener universe is a starter list, not the complete IDX or US exchanges. The stock score is a deterministic weighted model, not a trained predictive ML model. Read [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for methodology and limitations.
 
