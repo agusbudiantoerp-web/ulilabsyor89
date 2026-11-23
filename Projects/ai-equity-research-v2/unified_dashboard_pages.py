@@ -145,7 +145,7 @@ def render_daily_signal() -> None:
                     "priceToBook", "returnOnEquity", "returnOnAssets", "debtToEquity",
                     "revenueGrowth", "earningsGrowth", "marketCap", "rsi14",
                     "macd", "macd_signal", "ema20", "ema50", "ema200",
-                    "relative_volume", "breakout_20d", "bar_date",
+                    "average_turnover", "relative_volume", "atr_pct", "breakout_20d", "bar_date",
                 ]
                 visible = frame[[name for name in columns if name in frame.columns]]
                 st.dataframe(visible, use_container_width=True, hide_index=True)
@@ -153,7 +153,10 @@ def render_daily_signal() -> None:
                 with st.expander("Penjelasan skor AI dan coverage data"):
                     for item in rows[:10]:
                         st.markdown(f"**{item['ticker']} — {item.get('ai_score')} / 100 ({item.get('score_label')})**")
-                        st.json(item.get("factor_scores", {}))
+                        st.json({
+                            "factor_scores": item.get("factor_scores", {}),
+                            "factor_coverage_pct": item.get("factor_coverage_pct", {}),
+                        })
                         st.caption(f"Coverage faktor: {item.get('score_coverage_pct')}%. {item.get('score_method')}")
             else:
                 st.warning("Tidak ada saham yang memenuhi filter. Turunkan skor minimum atau periksa coverage data.")
@@ -247,6 +250,7 @@ def render_portfolio_risk() -> None:
         st.dataframe(sector,use_container_width=True,hide_index=True)
     if not analysis["risk"].empty:
         st.subheader("Risk metrics per mata uang")
+        st.caption("Coverage di bawah 100% berarti risk metrics hanya mewakili posisi yang memiliki histori return.")
         st.dataframe(analysis["risk"],use_container_width=True,hide_index=True)
         for currency, series in analysis["returns"].items():
             st.line_chart((1+series).cumprod().rename(f"{currency} portfolio growth"))
