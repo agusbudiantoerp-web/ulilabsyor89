@@ -30,3 +30,17 @@ def test_scenario_analysis_calculates_shock_pl_by_currency():
     result = scenario_analysis(positions, {"BBCA.JK":-10,"NVDA":20})
     assert result.loc[0,"Estimated P/L"] == -100_000
     assert result.loc[1,"Estimated P/L"] == 100
+
+
+def test_idx_candidate_allocation_rounds_down_to_board_lot():
+    from daily_signal_portfolio import allocate_candidates
+
+    candidates = [{
+        "market":"IDX", "ticker":"BBCA.JK", "signal":"BUY_CANDIDATE",
+        "score":85, "close":100.0, "atr14":10.0,
+    }]
+    result = allocate_candidates(candidates, 1_000_000, risk_pct=1.0)
+    plan = result["positions"][0]["plan"]
+    assert plan["lot_size"] == 100
+    assert plan["shares"] % 100 == 0
+    assert plan["lots"] == plan["shares"] // 100
