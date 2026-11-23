@@ -1,3 +1,11 @@
+# TSFA shared market-data cache is local/runtime data
 datahub/
 __pycache__/
 *.pyc
+
+# Private portfolio workbooks and local exports — do not commit to GitHub
+TSFA_V14_INTEGRATION_TEST*.xlsx
+TSFA_V1_4_Historical_Analysis*.xlsx
+TSFA_My_Portfolio_Analysis*.xlsx
+uploads/
+exports/

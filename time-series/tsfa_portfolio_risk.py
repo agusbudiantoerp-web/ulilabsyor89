@@ -199,10 +199,12 @@ def calculate_portfolio_risk(
     if observation_count < min_observations:
         return insufficient(
             (
-                f"Data return lengkap hanya {observation_count} hari. "
-                f"Minimal diperlukan {min_observations} hari."
+                f"Tersedia {observation_count} observasi return harian lengkap "
+                f"dari harga saham (bukan return portofolio berbasis NAV). "
+                f"Minimal diperlukan {min_observations} observasi return harian."
             ),
             observations=observation_count,
+            observation_type="complete_asset_daily_returns",
             minimum_required=min_observations,
             tickers=tickers,
         )

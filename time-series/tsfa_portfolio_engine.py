@@ -121,7 +121,7 @@ def _read_workbook(source: Any) -> tuple[dict[str, pd.DataFrame], dict[str, Any]
             if not any(not _is_blank(v) for v in row):
                 continue
             records.append(dict(zip(headers, row)))
-        frames[sheet_name] = pd.DataFrame(records)
+        frames[sheet_name] = pd.DataFrame(records, columns=headers)
     wb.close()
     return frames, {}
 
