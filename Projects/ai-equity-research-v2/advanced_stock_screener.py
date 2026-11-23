@@ -65,6 +65,10 @@ def screen_symbol(symbol: str, market: str, period: str = "1y") -> dict[str, Any
         "earningsGrowth": _safe_info(info, "earningsGrowth"),
         "marketCap": _safe_info(info, "marketCap"),
         "averageVolume": _safe_info(info, "averageVolume"),
+        "average_turnover": (
+            _safe_info(info, "averageVolume") * close
+            if _safe_info(info, "averageVolume") is not None else None
+        ),
         "rsi14": _safe_info({"v": row.get("RSI14")}, "v"),
         "macd": _safe_info({"v": row.get("MACD")}, "v"),
         "macd_signal": _safe_info({"v": row.get("MACD_SIGNAL")}, "v"),
