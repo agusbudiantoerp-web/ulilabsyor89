@@ -1,28 +1,35 @@
 # AI Equity Research V2 — Unified Workspace
 
-Integrated Streamlit research platform for IDX and US markets. The workspace combines Equity Research and DCF, Daily Stock Signal with Advanced Screener and explainable 0–100 scoring, Portfolio & Risk Management, single-ticker and walk-forward backtesting, and persistent Performance & Learning.
+Integrated Streamlit research platform for Indonesian (IDX) and US equities. The workspace is research support only: it does not connect to a broker, submit orders, or provide personalized investment advice.
 
-The application is research support only. It does not connect to a broker or execute orders. Market and fundamental data from Yahoo Finance may be delayed, incomplete, revised, or unavailable. Verify material financial data against issuer filings.
+Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, incomplete, revised, rate-limited, or unavailable. Verify material data against issuer filings and exchange disclosures.
 
-## Workspace navigation — 5 main menus
+## Five main menus
 
-1. **Equity Research** — financial statements, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
-2. **Daily Stock Signal** — IDX/US technical scan, entry/stop/target levels, candidate/watch/no-trade states, plus a nested **Advanced Screener + AI Stock Scoring** tab with curated editable 40 IDX + 40 US universe, fundamentals, RSI, MACD, EMA20/50/200, relative volume, breakout, sector and market-cap filters.
-3. **Portfolio & Risk Management** — market/currency/sector exposure, position weights, correlations, volatility, historical VaR, drawdown, price and FX scenarios, indicative position sizing.
-4. **Backtesting** — fee/slippage-aware historical simulation and chronological walk-forward evaluation.
-5. **Performance & Learning** — PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal/ruleset.
+1. **Equity Research** — company financials, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
+2. **Daily Stock Signal** — IDX/US daily technical signals, entry/stop/target levels and candidate/watch/no-trade states. Includes a nested **Advanced Screener + AI Stock Scoring** tab.
+3. **Portfolio & Risk Management** — position weights, sector/market/currency exposure, correlations, volatility, historical VaR, drawdown, price/FX scenarios and indicative candidate allocation.
+4. **Backtesting** — fee/slippage-aware single-ticker backtest and chronological walk-forward evaluation.
+5. **Performance & Learning** — PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
 
-The screener universe is a starter list, not the complete IDX or US exchanges. The stock score is a deterministic weighted model, not a trained predictive ML model. Read [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for methodology and limitations.
+## Advanced screener and scoring
 
-## Features
-- Market history, SMA 20/50/200, RSI 14 and historical annualized volatility.
-- Available financial statement fields and simplified illustrative DCF.
-- Excel and PDF reports.
-- Telegram /analyze command protected by a fail-closed chat-ID allowlist.
+- Editable preset universe of 40 IDX and 40 US symbols. This is a curated starter universe, not the complete exchange listings.
+- Fundamentals when supplied by Yahoo Finance: trailing/forward P/E, P/B, ROE, ROA, debt/equity, revenue/earnings growth, market capitalization and average turnover.
+- Technicals: RSI(14), MACD/signal, EMA20/50/200, relative volume, ATR percentage and 20-session breakout.
+- Filters: market, sector, score, native-currency market-cap range, RSI range, relative-volume minimum, breakout and price above EMA200.
+- Explainable 0–100 weighted scoring: fundamentals 30%, valuation 20%, momentum 25%, liquidity 10%, risk 15%.
+- Field-level data coverage is shown; scores are withheld below 35% weighted coverage. Missing data is not fabricated.
+- This is a deterministic scoring model, not a trained predictive ML model or a return guarantee.
+
+See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for methodology and limitations.
 
 ## Windows PowerShell setup
+
+Run these commands from the repository root:
+
 ~~~powershell
-cd Projects/ai-equity-research
+cd Projects/ai-equity-research-v2
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -30,71 +37,49 @@ pip install -r requirements.txt
 streamlit run app.py
 ~~~
 
-## Telegram local test
-1. Create a bot using Telegram BotFather; keep its token private.
-2. Obtain your numeric Telegram chat ID privately.
-3. Set both variables in PowerShell; never commit them to GitHub:
+If PowerShell blocks virtual-environment activation, use the project's interpreter directly:
+
 ~~~powershell
-$env:TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN"
-$env:TELEGRAM_ALLOWED_CHAT_IDS="123456789"
-python bot.py
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
 ~~~
-Replace the example ID with your own numeric chat ID. Multiple IDs may be comma-separated. Bot refuses to start without an allowlist and denies all other chats.
 
-## Live data smoke test (manual)
-After installing dependencies, run:
+## Automated tests
+
+After dependencies are installed, run:
+
 ~~~powershell
-python validate_live.py
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD="1"
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider .\tests
 ~~~
-This checks whether Yahoo Finance returns data for ANTM, BBCA and PTBA, and prints the latest price/report periods, statement values, DCF availability and automatic data warnings. It does not prove the financial statement mapping is correct. Compare each period and unit with the issuer's audited report before using the values.
 
-## Free deployment
-- Web: Streamlit Community Cloud; app root is this folder and entrypoint is app.py.
-- Telegram: local polling is for development; continuous free worker availability is not guaranteed.
-- GitHub Pages cannot host a continuously running Python bot. The calculation engine does not require a paid AI API.
+The test suite is intended to validate deterministic logic and local SQLite storage. It does not prove live Yahoo Finance availability, Streamlit Cloud deployment, PostgreSQL credentials/network access, or broker execution behavior.
 
-## Limitations
-Yahoo Finance is third-party data, not official IDX data. Coverage, timing and statement fields vary. Verify currency, units and accounting periods. Missing data is not zero. DCF is aggregate illustrative enterprise value, not per-share fair value; it does not yet normalize taxes, working capital, diluted shares, net debt, minority interests or segment forecasts. Technical indicators are not standalone trading signals. Not investment advice.
+## Cloud performance database
 
-## Next gates
-Validate live issuer data and statement units; then add per-share valuation, scenario analysis and source-quality flags. Deploy only after tests and manual review.
+Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates the scan, signal and outcome tables on first use. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
 
-## Final Daily Report + Gemma
+See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
-Daily report menyertakan kandidat prioritas, watchlist, data gagal, dan bagian khusus TPIA (termasuk ketika statusnya `NO_TRADE`). Ollama lokal memakai `gemma4:latest`; komentar AI diminta dalam Bahasa Indonesia dengan struktur ringkasan pasar, prioritas, risiko, TPIA, dan rencana sesi berikutnya.
+## Local Telegram and Ollama automation
 
-Pengaturan Ollama opsional di `.env`:
+The local Telegram/Ollama scheduler is separate from the Streamlit Cloud app. It continues using SQLite through its explicit local database path. Keep bot tokens and allowed chat IDs in local environment variables or a private `.env` file; never upload them to GitHub.
 
-```env
+Ollama settings can be supplied privately in `.env`:
+
+~~~env
 OLLAMA_URL=http://127.0.0.1:11434/api/generate
 OLLAMA_MODEL=gemma4:latest
 OLLAMA_TIMEOUT_SECONDS=300
 OLLAMA_NUM_PREDICT=650
-```
+~~~
 
-## Final backtest report
+## Research and model limitations
 
-```powershell
-python daily_signal_cli.py backtest BBCA IDX
-```
-
-Perintah menampilkan metrik backtest dalam format ringkas. Untuk seluruh detail transaksi dalam JSON:
-
-```powershell
-python daily_signal_cli.py backtest BBCA IDX --json
-```
-
-Parameter biaya dan pengelolaan risiko dapat diatur melalui opsi `--fee-bps`, `--slippage-bps`, `--risk-fraction`, `--max-allocation`, dan `--max-holding-sessions`.
-
-## Final validation
-
-Jalankan `FINAL_TESTS.bat` dari folder proyek setelah dependensi pada `requirements.txt` tersedia. Pengujian ini tidak mengirim Telegram dan tidak mengubah Task Scheduler.
-
-
-## Cloud performance storage
-
-Streamlit Cloud uses PostgreSQL when a `DATABASE_URL` secret is configured. The local Telegram/Ollama scheduler continues using SQLite unless a database URL is deliberately supplied to that local process. See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for setup and migration details.
-
-## Advanced workspace implementation
-
-See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for screener, scoring, walk-forward, portfolio intelligence, and forward-outcome methodology.
+- Backtests are historical simulations, not forecasts. Results depend on the data window, fees, slippage, liquidity and assumptions.
+- Walk-forward uses fixed documented rules and does not optimize parameters on test folds.
+- Portfolio risk metrics show data coverage; incomplete price history means partial risk estimates.
+- Forward outcomes are close-to-close observations and exclude dividends, fees and slippage.
+- Yahoo Finance financials can have reporting-currency, fiscal-period and unit differences.
+- Corporate actions, taxes, spreads, market impact, suspensions, survivorship bias and actual execution are not fully modeled.
+- No module places trades or connects to a broker.
