@@ -40,6 +40,7 @@ The displayed coverage percentage indicates how much of the weighted factor mode
 - Market, currency and sector exposure.
 - Correlation matrices and historical volatility, 95% one-day VaR and drawdown calculated separately by currency.
 - User-defined price-shock scenario analysis.
+- Optional USD/IDR translation-risk scenario using a manually supplied spot rate and FX shock; this isolates currency translation while holding share prices constant.
 - Indicative allocation from the latest BUY candidates, with separate IDR and USD capital budgets. IDX allocations are rounded down to 100-share board lots; US quantities use whole shares.
 
 IDR and USD are never summed without an explicit FX conversion. The allocation planner is not connected to a broker and does not place orders.
