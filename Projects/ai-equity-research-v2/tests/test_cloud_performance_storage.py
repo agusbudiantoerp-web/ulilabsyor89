@@ -9,7 +9,7 @@ def _scan():
         "counts": {"scanned": 1, "failed": 0, "success": 1, "buy_candidate": 1, "watch": 0},
         "results": [{
             "market": "IDX", "ticker": "TPIA.JK", "bar_date": "2026-11-20",
-            "signal": "BUY_CANDIDATE", "score": 80, "close": 1155.0,
+            "signal": "BUY_CANDIDATE", "score": 80, "ruleset_version": "1.0.0", "close": 1155.0,
             "entry_low": 1143.45, "entry_high": 1166.55, "stop_loss": 1100.0,
             "target": 1254.0, "reward_risk": 1.8,
         }],
@@ -28,6 +28,7 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
 
     history = signal_history(db_path=db_path)
     assert len(history) == 1
+    assert history[0]["ruleset_version"] == "1.0.0"
     signal_id = history[0]["id"]
 
     pending = get_pending_outcomes(db_path=db_path)
