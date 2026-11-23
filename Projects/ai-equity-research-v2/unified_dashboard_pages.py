@@ -13,7 +13,7 @@ from daily_signal_engine import load_daily_history
 from daily_signal_storage import backend_name
 from daily_signal_backtest import backtest, walk_forward_backtest
 from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
-from portfolio_intelligence import analyze_portfolio, scenario_analysis
+from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scenario_analysis
 from daily_signal_portfolio import allocate_candidates
 
 
@@ -304,6 +304,20 @@ def render_portfolio_risk() -> None:
     scenario = scenario_analysis(frame,dict(zip(scenario_edited["Ticker"],scenario_edited["Shock %"])))
     st.dataframe(scenario,use_container_width=True,hide_index=True)
     st.dataframe(scenario.groupby("Currency")[["Estimated P/L","Scenario Value"]].sum().reset_index(),use_container_width=True,hide_index=True)
+    with st.expander("Simulasi risiko kurs USD/IDR"):
+        st.caption("Simulasi translasi kurs secara terpisah; harga saham diasumsikan tetap.")
+        fx_col1, fx_col2 = st.columns(2)
+        usd_idr_spot = fx_col1.number_input("Kurs USD/IDR spot (input manual)", min_value=0.0, value=0.0, step=100.0, key="portfolio_usd_idr")
+        fx_shock = fx_col2.slider("Perubahan kurs USD/IDR (%)", -30, 30, 0, key="portfolio_fx_shock")
+        if usd_idr_spot > 0:
+            fx_result = fx_scenario_analysis(frame, usd_idr_spot, fx_shock)
+            fx_a, fx_b, fx_c = st.columns(3)
+            fx_a.metric("Nilai portfolio IDR", f"Rp {fx_result['current_portfolio_idr']:,.0f}")
+            fx_b.metric("Nilai skenario IDR", f"Rp {fx_result['scenario_portfolio_idr']:,.0f}")
+            fx_c.metric("Dampak translasi FX", f"Rp {fx_result['fx_translation_pnl_idr']:,.0f}")
+            st.caption(f"Kurs skenario: {fx_result['scenario_usd_idr']:,.2f} · {fx_result['note']}")
+        else:
+            st.info("Masukkan kurs USD/IDR yang ingin digunakan untuk mengaktifkan simulasi FX.")
     st.caption(analysis["limitations"])
 
 def render_backtesting() -> None:
