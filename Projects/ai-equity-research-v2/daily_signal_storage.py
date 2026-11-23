@@ -189,12 +189,22 @@ def latest_scan(db_path: str | None = None):
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute("SELECT payload FROM scans ORDER BY id DESC LIMIT 1")
+                cur.execute("SELECT id,payload FROM scans ORDER BY id DESC LIMIT 1")
                 row = cur.fetchone()
-                return _decode_payload(row["payload"]) if row else None
+                if not row:
+                    return None
+                payload = _decode_payload(row["payload"])
+                if isinstance(payload, dict):
+                    payload.setdefault("scan_id", int(row["id"]))
+                return payload
     with _connect_sqlite(db_path) as db:
-        row = db.execute("SELECT payload FROM scans ORDER BY id DESC LIMIT 1").fetchone()
-        return _decode_payload(row["payload"]) if row else None
+        row = db.execute("SELECT id,payload FROM scans ORDER BY id DESC LIMIT 1").fetchone()
+        if not row:
+            return None
+        payload = _decode_payload(row["payload"])
+        if isinstance(payload, dict):
+            payload.setdefault("scan_id", int(row["id"]))
+        return payload
 
 
 def signal_history(limit: int = 100, db_path: str | None = None):
