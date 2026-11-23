@@ -44,6 +44,8 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     macd_signal = _number(row, "macd_signal")
     market_cap = _number(row, "marketCap")
     avg_volume = _number(row, "averageVolume")
+    average_turnover = _number(row, "average_turnover")
+    market = str(row.get("market", "US")).upper()
     atr_pct = _number(row, "atr_pct")
 
     fundamental = []
@@ -83,8 +85,20 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
 
     liquidity = []
     if market_cap is not None and market_cap > 0:
-        liquidity.append(_band(market_cap, [(1e9,10),(1e10,25),(1e11,45),(1e12,65),(1e13,85),(float("inf"),100)]))
-    if avg_volume is not None:
+        cap_bands = (
+            [(1e11,10),(5e11,25),(1e12,45),(5e12,65),(1e13,85),(float("inf"),100)]
+            if market == "IDX" else
+            [(1e9,10),(1e10,25),(1e11,45),(1e12,65),(1e13,85),(float("inf"),100)]
+        )
+        liquidity.append(_band(market_cap, cap_bands))
+    if average_turnover is not None:
+        turnover_bands = (
+            [(1e8,10),(5e8,25),(1e9,45),(5e9,65),(2e10,85),(float("inf"),100)]
+            if market == "IDX" else
+            [(1e6,10),(5e6,25),(1e7,45),(5e7,65),(2e8,85),(float("inf"),100)]
+        )
+        liquidity.append(_band(average_turnover, turnover_bands))
+    elif avg_volume is not None:
         liquidity.append(_band(avg_volume, [(1e4,10),(1e5,25),(5e5,45),(1e6,65),(5e6,85),(float("inf"),100)]))
     components["liquidity"] = sum(liquidity) / len(liquidity) if liquidity else None
 
