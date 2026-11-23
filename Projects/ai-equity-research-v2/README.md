@@ -1,6 +1,19 @@
-# AI Equity Research V1
+# AI Equity Research V2 — Unified Workspace
 
-Shared Python research engine for Streamlit and Telegram, initially focused on IDX tickers (.JK).
+Integrated Streamlit research platform for IDX and US markets. The workspace combines Equity Research and DCF, Daily Stock Signal with Advanced Screener and explainable 0–100 scoring, Portfolio & Risk Management, single-ticker and walk-forward backtesting, and persistent Performance & Learning.
+
+The application is research support only. It does not connect to a broker or execute orders. Market and fundamental data from Yahoo Finance may be delayed, incomplete, revised, or unavailable. Verify material financial data against issuer filings.
+
+## Workspace modules
+
+1. **Equity Research** — financial statements, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
+2. **Daily Stock Signal** — IDX/US technical scan, entry/stop/target levels, candidate/watch/no-trade states.
+3. **Advanced Screener + Stock Scoring** — curated editable 40 IDX + 40 US universe; fundamentals, RSI, MACD, EMA20/50/200, relative volume, breakout, sector and market-cap filters; transparent 0–100 factor score.
+4. **Portfolio & Risk Management** — market/currency/sector exposure, position weights, correlations, volatility, historical VaR, drawdown, price and FX scenarios, indicative position sizing.
+5. **Backtesting** — fee/slippage-aware historical simulation and chronological walk-forward evaluation.
+6. **Performance & Learning** — PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal/ruleset.
+
+The screener universe is a starter list, not the complete IDX or US exchanges. The stock score is a deterministic weighted model, not a trained predictive ML model. Read [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for methodology and limitations.
 
 ## Features
 - Market history, SMA 20/50/200, RSI 14 and historical annualized volatility.
@@ -77,3 +90,12 @@ Parameter biaya dan pengelolaan risiko dapat diatur melalui opsi `--fee-bps`, `-
 ## Final validation
 
 Jalankan `FINAL_TESTS.bat` dari folder proyek setelah dependensi pada `requirements.txt` tersedia. Pengujian ini tidak mengirim Telegram dan tidak mengubah Task Scheduler.
+
+
+## Cloud performance storage
+
+Streamlit Cloud uses PostgreSQL when a `DATABASE_URL` secret is configured. The local Telegram/Ollama scheduler continues using SQLite unless a database URL is deliberately supplied to that local process. See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for setup and migration details.
+
+## Advanced workspace implementation
+
+See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for screener, scoring, walk-forward, portfolio intelligence, and forward-outcome methodology.
