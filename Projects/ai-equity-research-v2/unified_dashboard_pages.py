@@ -396,9 +396,11 @@ def render_performance_dashboard() -> None:
             if column in frame:
                 valid=frame[frame[column].notna()]
                 if not valid.empty:
-                    grouped=valid.groupby("signal")[column].agg(["count","mean"])
-                    st.markdown(f"**Forward {horizon} sesi**")
-                    st.dataframe(grouped.rename(columns={"count":"Observasi","mean":"Rata-rata return %"}),use_container_width=True)
+                    group_keys=[key for key in ["ruleset_version","signal"] if key in valid.columns]
+                    grouped=valid.groupby(group_keys, dropna=False)[column].agg(["count","mean","median",lambda values: (values > 0).mean()*100])
+                    grouped.columns=["Observasi","Rata-rata return %","Median return %","Win rate %"]
+                    st.markdown(f"**Forward {horizon} sesi — kualitas strategi/sinyal**")
+                    st.dataframe(grouped,use_container_width=True)
     else:
         st.info("Histori sinyal belum tersedia.")
     if outcomes:
