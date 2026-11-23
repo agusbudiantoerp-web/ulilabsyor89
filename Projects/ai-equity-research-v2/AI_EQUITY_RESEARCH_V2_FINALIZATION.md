@@ -53,3 +53,10 @@ The model is instructed to use only the deterministic report data, preserve sour
 - Backtests are simplified historical simulations. They do not fully model taxes, actual spread, market impact, suspensions, corporate actions, survivorship bias or intrabar execution ambiguity.
 - Validate with walk-forward analysis and paper trading before considering real-world use.
 - Never upload `.env`, Telegram tokens, chat IDs, or local SQLite data containing private operational details to public GitHub.
+
+
+## Advanced Equity Intelligence extension
+
+The follow-on extension is documented in [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md). It adds the editable 40+40 IDX/US advanced screener, explainable 0–100 factor scoring, portfolio concentration/correlation/scenario analysis, currency-separated candidate allocation with IDX board-lot rounding, chronological walk-forward evaluation, and 1/3/5/10/20-session forward outcome tracking.
+
+The scoring engine is deterministic and explainable; it is not a trained ML predictor. Walk-forward evaluation uses fixed rules and does not tune on test folds. Verify provider data, currency, sample size and execution assumptions before relying on results.
