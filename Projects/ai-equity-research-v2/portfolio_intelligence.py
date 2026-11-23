@@ -17,6 +17,10 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
 
     currency_exposure = frame.groupby("Currency")["Market Value"].sum().to_dict()
     market_exposure = frame.groupby("Market")["Market Value"].sum().to_dict()
+    frame["Weight within currency %"] = (
+        frame["Market Value"] / frame.groupby("Currency")["Market Value"].transform("sum") * 100
+    )
+    position_exposure = frame[["Ticker", "Market", "Sector", "Currency", "Market Value", "Weight within currency %"]].copy()
     sector_exposure = (
         frame.groupby(["Currency", "Sector"])["Market Value"].sum().reset_index()
         if "Sector" in frame.columns else pd.DataFrame()
@@ -47,6 +51,7 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
     return {
         "currency_exposure": currency_exposure,
         "market_exposure": market_exposure,
+        "position_exposure": position_exposure,
         "sector_exposure": sector_exposure,
         "risk": pd.DataFrame(risk_rows),
         "correlations": correlations,
