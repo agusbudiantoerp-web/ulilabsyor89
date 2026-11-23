@@ -77,3 +77,30 @@ def scenario_analysis(positions: pd.DataFrame, shocks: dict[str, float]) -> pd.D
             "Scenario Value": market_value * (1 + shock / 100),
         })
     return pd.DataFrame(rows)
+
+
+def fx_scenario_analysis(positions: pd.DataFrame, usd_idr: float, fx_shock_pct: float = 0.0) -> dict:
+    """Isolate USD/IDR translation risk using a user-supplied spot rate."""
+    if usd_idr <= 0 or fx_shock_pct <= -100:
+        raise ValueError("Kurs USD/IDR harus positif dan shock FX harus lebih besar dari -100%.")
+    grouped = positions.groupby("Currency")["Market Value"].sum().to_dict()
+    idr_value = float(grouped.get("IDR", 0.0))
+    usd_value = float(grouped.get("USD", 0.0))
+    unsupported = set(grouped) - {"IDR", "USD"}
+    if unsupported:
+        raise ValueError(f"Mata uang belum didukung untuk konversi IDR: {sorted(unsupported)}")
+    current_usd_idr = usd_value * float(usd_idr)
+    scenario_rate = float(usd_idr) * (1 + float(fx_shock_pct) / 100)
+    scenario_usd_idr = usd_value * scenario_rate
+    current_total = idr_value + current_usd_idr
+    scenario_total = idr_value + scenario_usd_idr
+    return {
+        "base_currency": "IDR",
+        "usd_idr_spot": float(usd_idr),
+        "fx_shock_pct": float(fx_shock_pct),
+        "scenario_usd_idr": scenario_rate,
+        "current_portfolio_idr": current_total,
+        "scenario_portfolio_idr": scenario_total,
+        "fx_translation_pnl_idr": scenario_total - current_total,
+        "note": "Simulasi translasi kurs saja; harga saham diasumsikan tetap. Kurs spot dimasukkan pengguna dan bukan kuotasi live.",
+    }
