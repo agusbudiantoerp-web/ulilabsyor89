@@ -57,3 +57,19 @@ def test_fx_scenario_is_separate_and_uses_manual_rate():
     assert result["current_portfolio_idr"] == 2_600_000
     assert result["scenario_portfolio_idr"] == 2_760_000
     assert result["fx_translation_pnl_idr"] == 160_000
+
+
+def test_portfolio_risk_reports_partial_data_coverage_and_aggregates_duplicates():
+    positions = pd.DataFrame([
+        {"Ticker":"AAA","Market":"IDX","Currency":"IDR","Market Value":100},
+        {"Ticker":"AAA","Market":"IDX","Currency":"IDR","Market Value":100},
+        {"Ticker":"BBB","Market":"IDX","Currency":"IDR","Market Value":200},
+    ])
+    idx = pd.bdate_range("2025-01-01", periods=30)
+    returns = {"AAA":pd.Series([0.01] * 30,index=idx,name="AAA")}
+    result = analyze_portfolio(positions, returns)
+    risk = result["risk"].iloc[0]
+    assert risk["Positions with data"] == 1
+    assert risk["Total positions"] == 2
+    assert risk["Market value coverage %"] == 50.0
+    assert risk["Coverage status"].startswith("Partial")
