@@ -9,7 +9,7 @@ This upgrade extends the existing unified Streamlit application. It does not rep
 - Users may replace the preset with their own ticker list.
 - Fundamental fields from Yahoo Finance when available: trailing/forward P/E, P/B, ROE, ROA, debt/equity, revenue growth, earnings growth, market capitalization, average volume and average daily turnover.
 - Technical fields from daily bars: RSI(14), MACD and signal, EMA20/50/200, relative volume, ATR percentage and 20-session breakout.
-- Filters for market, sector, score and market capitalization. IDX market-cap thresholds are in IDR; US thresholds are in USD.
+- Filters for market, sector, score, native-currency market-cap range, RSI range, relative volume, 20-session breakout and price above EMA200. IDX market-cap thresholds are in IDR; US thresholds are in USD.
 - Missing fundamental data stays missing. The screener never invents financial values.
 
 ## 2. Explainable AI Stock Scoring
