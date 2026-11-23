@@ -33,6 +33,9 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     earnings_growth = _number(row, "earningsGrowth")
     debt_equity = _number(row, "debtToEquity")
     pe = _number(row, "trailingPE")
+    forward_pe = _number(row, "forwardPE")
+    if pe is None:
+        pe = forward_pe
     pb = _number(row, "priceToBook")
     rsi = _number(row, "rsi14")
     rel_volume = _number(row, "relative_volume")
@@ -42,7 +45,6 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     ema200 = _number(row, "ema200")
     macd = _number(row, "macd")
     macd_signal = _number(row, "macd_signal")
-    market_cap = _number(row, "marketCap")
     avg_volume = _number(row, "averageVolume")
     average_turnover = _number(row, "average_turnover")
     market = str(row.get("market", "US")).upper()
@@ -84,13 +86,6 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     components["momentum"] = sum(momentum) / len(momentum) if momentum else None
 
     liquidity = []
-    if market_cap is not None and market_cap > 0:
-        cap_bands = (
-            [(1e11,10),(5e11,25),(1e12,45),(5e12,65),(1e13,85),(float("inf"),100)]
-            if market == "IDX" else
-            [(1e9,10),(1e10,25),(1e11,45),(1e12,65),(1e13,85),(float("inf"),100)]
-        )
-        liquidity.append(_band(market_cap, cap_bands))
     if average_turnover is not None:
         turnover_bands = (
             [(1e8,10),(5e8,25),(1e9,45),(5e9,65),(2e10,85),(float("inf"),100)]
@@ -124,5 +119,5 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
             "Neutral" if score is not None and score >= 50 else
             "Weak" if score is not None else "Insufficient data"
         ),
-        "score_method": "Explainable weighted rules; not a trained predictive ML model",
+        "score_method": "Explainable weighted rules; forward P/E substitutes for missing trailing P/E; market capitalization is a filter, not a liquidity proxy. Not a trained predictive ML model",
     }
