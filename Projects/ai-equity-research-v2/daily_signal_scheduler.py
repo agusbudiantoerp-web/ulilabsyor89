@@ -49,7 +49,8 @@ def run_once(force: bool=False, dry_run: bool=False):
         print(msg,flush=True); logging.info(msg)
         return {"skipped":True,"date":day}
     try:
-        result=run_daily_scan()
+        # Keep Windows Task Scheduler / Telegram / Ollama history isolated in local SQLite.
+        result=run_daily_scan(db_path=DB_PATH)
         report=format_report(result)
     except Exception as exc:
         logging.exception("Daily scan failed")
