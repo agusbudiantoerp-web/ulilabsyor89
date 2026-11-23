@@ -122,7 +122,10 @@ def run_advanced_screener(
         if sector_set and str(item.get("sector", "")).lower() not in sector_set:
             continue
         minimum = min_market_cap.get(item["market"], 0) if isinstance(min_market_cap, dict) else min_market_cap
-        if cap is not None and cap < float(minimum or 0):
+        minimum = float(minimum or 0)
+        if minimum > 0 and cap is None:
+            continue
+        if cap is not None and cap < minimum:
             continue
         if max_market_cap is not None and cap is not None and cap > float(max_market_cap):
             continue
