@@ -20,7 +20,8 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
     frame["Weight within currency %"] = (
         frame["Market Value"] / frame.groupby("Currency")["Market Value"].transform("sum") * 100
     )
-    position_exposure = frame[["Ticker", "Market", "Sector", "Currency", "Market Value", "Weight within currency %"]].copy()
+    exposure_columns = ["Ticker", "Market", "Sector", "Currency", "Market Value", "Weight within currency %"]
+    position_exposure = frame[[column for column in exposure_columns if column in frame.columns]].copy()
     sector_exposure = (
         frame.groupby(["Currency", "Sector"])["Market Value"].sum().reset_index()
         if "Sector" in frame.columns else pd.DataFrame()
