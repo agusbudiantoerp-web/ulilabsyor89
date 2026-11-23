@@ -84,12 +84,25 @@ def initialize(db_path: str | None = None):
             with db.cursor() as cur:
                 for statement in statements:
                     cur.execute(statement)
-                # Idempotent migration from the original 1/3/5-session constraint.
-                cur.execute("ALTER TABLE outcomes DROP CONSTRAINT IF EXISTS outcomes_horizon_check")
-                cur.execute(
-                    "ALTER TABLE outcomes ADD CONSTRAINT outcomes_horizon_check "
-                    "CHECK (horizon IN (1,3,5,10,20))"
-                )
+                # Migrate the old constraint once; avoid DDL on every dashboard read.
+                cur.execute("""
+                    SELECT pg_get_constraintdef(oid) AS definition
+                    FROM pg_constraint
+                    WHERE conrelid='outcomes'::regclass
+                      AND contype='c' AND conname='outcomes_horizon_check'
+                """)
+                constraint = cur.fetchone()
+                if constraint is None:
+                    cur.execute(
+                        "ALTER TABLE outcomes ADD CONSTRAINT outcomes_horizon_check "
+                        "CHECK (horizon IN (1,3,5,10,20))"
+                    )
+                elif "20" not in str(constraint["definition"]):
+                    cur.execute("ALTER TABLE outcomes DROP CONSTRAINT outcomes_horizon_check")
+                    cur.execute(
+                        "ALTER TABLE outcomes ADD CONSTRAINT outcomes_horizon_check "
+                        "CHECK (horizon IN (1,3,5,10,20))"
+                    )
         return
 
     with _connect_sqlite(db_path) as db:
