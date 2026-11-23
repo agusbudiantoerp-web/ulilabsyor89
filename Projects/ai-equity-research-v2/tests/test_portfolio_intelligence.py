@@ -44,3 +44,16 @@ def test_idx_candidate_allocation_rounds_down_to_board_lot():
     assert plan["lot_size"] == 100
     assert plan["shares"] % 100 == 0
     assert plan["lots"] == plan["shares"] // 100
+
+
+def test_fx_scenario_is_separate_and_uses_manual_rate():
+    from portfolio_intelligence import fx_scenario_analysis
+
+    positions = pd.DataFrame([
+        {"Currency":"IDR","Market Value":1_000_000},
+        {"Currency":"USD","Market Value":100},
+    ])
+    result = fx_scenario_analysis(positions, usd_idr=16000, fx_shock_pct=10)
+    assert result["current_portfolio_idr"] == 2_600_000
+    assert result["scenario_portfolio_idr"] == 2_760_000
+    assert result["fx_translation_pnl_idr"] == 160_000
