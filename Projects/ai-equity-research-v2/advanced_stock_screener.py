@@ -91,6 +91,11 @@ def run_advanced_screener(
     sectors: list[str] | None = None,
     min_market_cap: float | dict[str, float] = 0,
     max_market_cap: float | dict[str, float | None] | None = None,
+    min_rsi: float = 0,
+    max_rsi: float = 100,
+    min_relative_volume: float = 0,
+    require_breakout: bool = False,
+    require_above_ema200: bool = False,
     period: str = "1y",
     max_workers: int = 4,
 ) -> dict[str, Any]:
@@ -132,6 +137,22 @@ def run_advanced_screener(
             continue
         if maximum is not None and cap is not None and cap > float(maximum):
             continue
+        rsi = item.get("rsi14")
+        if (float(min_rsi) > 0 or float(max_rsi) < 100) and (
+            rsi is None or not float(min_rsi) <= float(rsi) <= float(max_rsi)
+        ):
+            continue
+        relative_volume = item.get("relative_volume")
+        if float(min_relative_volume) > 0 and (
+            relative_volume is None or float(relative_volume) < float(min_relative_volume)
+        ):
+            continue
+        if require_breakout and not bool(item.get("breakout_20d")):
+            continue
+        if require_above_ema200:
+            close, ema200 = item.get("close"), item.get("ema200")
+            if close is None or ema200 is None or float(close) <= float(ema200):
+                continue
         filtered.append(item)
     filtered.sort(key=lambda item: (item.get("ai_score") or -1, item.get("score_coverage_pct") or 0), reverse=True)
     return {
