@@ -64,4 +64,4 @@ def test_record_outcome_rejects_unsupported_horizon(tmp_path):
     except ValueError as exc:
         assert "1, 3, 5, 10, atau 20" in str(exc)
     else:
-        raise AssertionError("Horizon selain 1, 3, 5 seharusnya ditolak.")
+        raise AssertionError("Horizon selain 1, 3, 5, 10, atau 20 seharusnya ditolak.")
