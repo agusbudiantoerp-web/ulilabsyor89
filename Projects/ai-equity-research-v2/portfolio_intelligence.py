@@ -32,7 +32,11 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
     for currency, group in frame.groupby("Currency"):
         ticker_values = group.groupby("Ticker")["Market Value"].sum()
         total_value = float(ticker_values.sum())
-        available_tickers = [ticker for ticker in ticker_values.index if ticker in returns]
+        available_tickers = [
+            ticker for ticker in ticker_values.index
+            if ticker in returns and isinstance(returns[ticker], pd.Series)
+            and not returns[ticker].dropna().empty
+        ]
         covered_value = float(ticker_values.reindex(available_tickers).sum()) if available_tickers else 0.0
         coverage_pct = covered_value / total_value * 100 if total_value > 0 else 0.0
         if not available_tickers:
