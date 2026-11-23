@@ -48,6 +48,7 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     avg_volume = _number(row, "averageVolume")
     average_turnover = _number(row, "average_turnover")
     atr_pct = _number(row, "atr_pct")
+    market = str(row.get("market", "US")).upper()
 
     fundamental = []
     if roe is not None:
