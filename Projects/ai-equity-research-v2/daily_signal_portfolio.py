@@ -19,7 +19,7 @@ def allocate_candidates(candidates: list[dict], portfolio_value: float,
         lot_size = 100 if market == "IDX" else 1
         raw_shares = min(plan["shares"], allowed)
         plan["shares"] = (raw_shares // lot_size) * lot_size
-        plan["lots"] = plan["shares"] // lot_size if market == "IDX" else plan["shares"]
+        plan["lots"] = plan["shares"] // lot_size if market == "IDX" else None
         plan["lot_size"] = lot_size
         plan["position_value"]=plan["shares"]*float(item["close"])
         plan["planned_loss"]=plan["shares"]*plan["risk_per_share"]
