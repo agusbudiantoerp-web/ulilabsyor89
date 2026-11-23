@@ -8,7 +8,7 @@ import pandas as pd
 
 from daily_signal_scanner import scan_universe
 from daily_signal_storage import (
-    OUTCOME_HORIZONS, save_scan, latest_scan, signal_history, get_pending_outcomes,
+    save_scan, latest_scan, signal_history, get_pending_outcomes,
     record_outcome, outcome_summary,
 )
 from daily_signal_engine import load_daily_history
@@ -31,11 +31,13 @@ def get_dashboard_data(limit=100, db_path=None):
 
 
 def refresh_forward_outcomes(db_path=None, limit=500):
-    """Record 1/3/5/10/20-session returns only when future daily closes exist."""
+    """Record observed 1/3/5/10/20-session forward returns once future daily closes exist."""
+    from daily_signal_storage import OUTCOME_HORIZONS
     pending = get_pending_outcomes(limit=limit, db_path=db_path)
     grouped = {}
     for item in pending:
-        grouped.setdefault((item.get("market"), item.get("ticker")), []).append(item)
+        key = (item.get("market"), item.get("ticker"))
+        grouped.setdefault(key, []).append(item)
     updated = 0
     errors = []
     for (market, ticker), signals in grouped.items():
@@ -53,10 +55,8 @@ def refresh_forward_outcomes(db_path=None, limit=500):
                     if horizon in OUTCOME_HORIZONS and len(future) >= horizon:
                         observed = future.iloc[horizon - 1]
                         observed_date = future.index[horizon - 1].date().isoformat()
-                        record_outcome(
-                            int(signal["id"]), int(horizon), observed_date,
-                            float(observed["Close"]), db_path=db_path,
-                        )
+                        record_outcome(int(signal["id"]), int(horizon), observed_date,
+                                       float(observed["Close"]), db_path=db_path)
                         updated += 1
         except Exception as exc:
             errors.append({"market": market, "ticker": ticker, "error": f"{type(exc).__name__}: {exc}"})
@@ -80,7 +80,10 @@ def _number(value, digits=2):
 
 
 def _find_tpia(results):
-    return next((item for item in results if str(item.get("ticker", "")).upper() in {"TPIA", "TPIA.JK"}), None)
+    return next(
+        (item for item in results if str(item.get("ticker", "")).upper() in {"TPIA", "TPIA.JK"}),
+        None,
+    )
 
 
 def format_report(scan: dict) -> str:
@@ -89,6 +92,7 @@ def format_report(scan: dict) -> str:
     counts = scan.get("counts", {})
     results = scan.get("results", [])
     errors = scan.get("errors", [])
+
     lines = [
         "📊 AI EQUITY RESEARCH — DAILY MARKET BRIEF",
         f"Waktu laporan: {now:%A, %d %B %Y | %H:%M SGT}",
@@ -96,14 +100,44 @@ def format_report(scan: dict) -> str:
         "",
         f"Dipindai: {counts.get('scanned', 0)} | Data berhasil: {counts.get('success', 0)} | Gagal: {counts.get('failed', 0)}",
         f"BUY CANDIDATE: {counts.get('buy_candidate', 0)} | WATCH: {counts.get('watch', 0)} | NO TRADE: {counts.get('no_trade', 0)}",
+        "",
     ]
+
+    buys = [item for item in results if item.get("signal") == "BUY_CANDIDATE"]
+    watches = [item for item in results if item.get("signal") == "WATCH"]
+    if buys:
+        lines.append("🟢 KANDIDAT PRIORITAS (bukan instruksi beli)")
+        for item in buys[:5]:
+            currency = item.get("currency")
+            lines.extend([
+                f"• {item.get('market')} {item.get('ticker')} | skor {item.get('score')}/100 | penutupan {_price(item.get('close'), currency)}",
+                f"  Entry indikatif {_price(item.get('entry_low'), currency)} – {_price(item.get('entry_high'), currency)}",
+                f"  Stop {_price(item.get('stop_loss'), currency)} | Target {_price(item.get('target'), currency)} | R/R {_number(item.get('reward_risk'))}",
+                f"  Bar {item.get('bar_date', 'N/A')} | RSI {_number(item.get('rsi14'), 1)} | RelVol {_number(item.get('relative_volume'))}x",
+            ])
+            if item.get("warnings"):
+                lines.append("  Peringatan: " + "; ".join(map(str, item["warnings"])))
+    else:
+        lines.append("🟢 KANDIDAT PRIORITAS: Tidak ada saham yang lolos seluruh kriteria.")
+
+    if watches:
+        lines.extend(["", "🟡 WATCHLIST (perlu konfirmasi; bukan sinyal beli)"])
+        for item in watches[:5]:
+            lines.append(
+                f"• {item.get('market')} {item.get('ticker')} | skor {item.get('score')}/100 | "
+                f"close {_price(item.get('close'), item.get('currency'))} | RSI {_number(item.get('rsi14'), 1)} | "
+                f"RelVol {_number(item.get('relative_volume'))}x | bar {item.get('bar_date', 'N/A')}"
+            )
+
     tpia = _find_tpia(results)
     if tpia:
-        currency = tpia.get("currency", "IDR")
+        currency = tpia.get("currency") or "IDR"
         lines.extend([
-            "", "🔎 PANTAUAN KHUSUS TPIA",
-            f"Signal: {tpia.get('signal')} | Score: {tpia.get('score')} | Close: {_price(tpia.get('close'), currency)}",
-            f"RSI: {_number(tpia.get('rsi14'))} | Relative volume: {_number(tpia.get('relative_volume'))}x | Return 5 sesi: {_number(tpia.get('return5_pct'))}%",
+            "",
+            "🔎 PANTAUAN KHUSUS TPIA",
+            f"Status: {tpia.get('signal', 'N/A')} | Skor: {tpia.get('score', 'N/A')}/100",
+            f"Harga penutupan: {_price(tpia.get('close'), currency)} | Tanggal data: {tpia.get('bar_date', 'N/A')}",
+            f"RSI14: {_number(tpia.get('rsi14'), 2)} | Relative Volume: {_number(tpia.get('relative_volume'))}x | Return 5 sesi: {_number(tpia.get('return5_pct'))}%",
             f"Entry indikatif: {_price(tpia.get('entry_low'), currency)} – {_price(tpia.get('entry_high'), currency)}",
             f"Stop: {_price(tpia.get('stop_loss'), currency)} | Target: {_price(tpia.get('target'), currency)} | R/R: {_number(tpia.get('reward_risk'))}",
         ])
@@ -113,16 +147,23 @@ def format_report(scan: dict) -> str:
             lines.append("Interpretasi: belum memenuhi aturan sinyal; level harga bersifat indikatif, bukan instruksi transaksi.")
     else:
         lines.extend(["", "🔎 PANTAUAN KHUSUS TPIA", "TPIA tidak tersedia pada hasil pemindaian ini."])
+
     if errors:
         lines.extend(["", "⚠️ DATA TIDAK BERHASIL DIAMBIL"])
         for error in errors[:8]:
-            lines.append(f"• {error.get('market')} {error.get('symbol')}: {str(error.get('error', 'Unknown error'))[:180]}")
+            lines.append(
+                f"• {error.get('market')} {error.get('symbol')}: "
+                f"{str(error.get('error', 'Unknown error'))[:180]}"
+            )
         if len(errors) > 8:
             lines.append(f"• Dan {len(errors) - 8} error lainnya.")
+
     if not results and errors:
         lines.extend(["", "Tidak ada kesimpulan pasar yang dapat dibuat karena data gagal diambil."])
+
     lines.extend([
-        "", "SUMBER & BATASAN",
+        "",
+        "SUMBER & BATASAN",
         "• Data harga: Yahoo Finance; memakai bar harian terakhir yang tersedia, bukan harga live.",
         "• Watchlist awal terbatas; cakupan pasar tidak menyeluruh.",
         "• Sinyal teknikal dan level risiko adalah hipotesis riset; bukan rekomendasi atau instruksi transaksi.",
