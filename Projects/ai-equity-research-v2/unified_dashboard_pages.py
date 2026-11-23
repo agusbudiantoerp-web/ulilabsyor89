@@ -104,6 +104,12 @@ def render_daily_signal() -> None:
             "IDX": cap_idx.number_input("Market cap minimum IDX (IDR)", min_value=0.0, value=0.0, step=100000000000.0, key="adv_cap_idx"),
             "US": cap_us.number_input("Market cap minimum US (USD)", min_value=0.0, value=0.0, step=1000000000.0, key="adv_cap_us"),
         }
+        max_idx, max_us = st.columns(2)
+        max_cap_values = {
+            "IDX": max_idx.number_input("Market cap maximum IDX (IDR; 0 = no limit)", min_value=0.0, value=0.0, step=100000000000.0, key="adv_max_cap_idx"),
+            "US": max_us.number_input("Market cap maximum US (USD; 0 = no limit)", min_value=0.0, value=0.0, step=1000000000.0, key="adv_max_cap_us"),
+        }
+        max_cap = {market: (value if value > 0 else None) for market, value in max_cap_values.items()}
         sector_text = st.text_input("Filter sektor (opsional, pisahkan koma)", key="adv_sectors")
         sectors = [x.strip() for x in sector_text.split(",") if x.strip()]
         if st.button("Jalankan Advanced Screener", type="primary", key="run_advanced_screener"):
@@ -117,7 +123,8 @@ def render_daily_signal() -> None:
                         result = run_advanced_screener(
                             markets=markets, symbols_by_market=symbols_by_market,
                             min_score=min_score, sectors=sectors,
-                            min_market_cap=min_cap, period=period, max_workers=workers,
+                            min_market_cap=min_cap, max_market_cap=max_cap,
+                            period=period, max_workers=workers,
                         )
                     st.session_state["advanced_screener_result"] = result
                 except Exception as exc:
@@ -134,7 +141,7 @@ def render_daily_signal() -> None:
                 frame = pd.DataFrame(rows)
                 columns = [
                     "market", "ticker", "company", "sector", "close", "currency",
-                    "ai_score", "score_coverage_pct", "score_label", "trailingPE",
+                    "ai_score", "score_coverage_pct", "score_label", "trailingPE", "forwardPE",
                     "priceToBook", "returnOnEquity", "returnOnAssets", "debtToEquity",
                     "revenueGrowth", "earningsGrowth", "marketCap", "rsi14",
                     "macd", "macd_signal", "ema20", "ema50", "ema200",
