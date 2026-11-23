@@ -24,13 +24,14 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
 
     assert backend_name(db_path) == "SQLite"
     assert latest_scan(db_path=db_path)["counts"]["scanned"] == 1
+    assert latest_scan(db_path=db_path)["scan_id"] == scan_id
 
     history = signal_history(db_path=db_path)
     assert len(history) == 1
     signal_id = history[0]["id"]
 
     pending = get_pending_outcomes(db_path=db_path)
-    assert pending[0]["missing_horizons"] == [1, 3, 5]
+    assert pending[0]["missing_horizons"] == [1, 3, 5, 10, 20]
 
     record_outcome(signal_id, 1, "2026-11-23", 1178.1, db_path=db_path)
     record_outcome(signal_id, 3, "2026-11-25", 1190.0, db_path=db_path)
@@ -41,10 +42,16 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
     assert history[0]["outcome_5d_return_pct"] is None
 
     pending = get_pending_outcomes(db_path=db_path)
-    assert pending[0]["missing_horizons"] == [5]
+    assert pending[0]["missing_horizons"] == [5, 10, 20]
+
+    record_outcome(signal_id, 5, "2026-11-27", 1200.0, db_path=db_path)
+    record_outcome(signal_id, 10, "2026-12-04", 1210.0, db_path=db_path)
+    record_outcome(signal_id, 20, "2026-12-18", 1230.0, db_path=db_path)
+    pending = get_pending_outcomes(db_path=db_path)
+    assert pending == []
 
     summary = outcome_summary(db_path=db_path)
-    assert [row["horizon"] for row in summary] == [1, 3]
+    assert [row["horizon"] for row in summary] == [1, 3, 5, 10, 20]
 
 
 def test_record_outcome_rejects_unsupported_horizon(tmp_path):
@@ -54,6 +61,6 @@ def test_record_outcome_rejects_unsupported_horizon(tmp_path):
     try:
         record_outcome(signal_id, 2, "2026-11-24", 1160.0, db_path=db_path)
     except ValueError as exc:
-        assert "1, 3, atau 5" in str(exc)
+        assert "1, 3, 5, 10, atau 20" in str(exc)
     else:
         raise AssertionError("Horizon selain 1, 3, 5 seharusnya ditolak.")
