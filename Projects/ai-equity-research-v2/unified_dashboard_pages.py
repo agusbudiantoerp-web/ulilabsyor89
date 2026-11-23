@@ -374,14 +374,14 @@ def render_backtesting() -> None:
                 st.info("Tidak ada transaksi yang memenuhi aturan strategi pada periode ini.")
             st.warning(r["limitations"])
     with wf_tab:
-        st.caption("Expanding-history chronological walk-forward. Periode test selalu berada setelah histori training; parameter strategi tetap dan tidak dioptimalkan pada test.")
+        st.caption("Expanding-history chronological walk-forward. Histori sebelum periode test menjadi warm-up indikator; aturan tetap dan tidak dioptimalkan pada test.")
         with st.form("walk_forward_form"):
             w1,w2,w3=st.columns(3)
             wf_market=w1.selectbox("Pasar",["IDX","US"],key="wf_market")
             wf_ticker=w2.text_input("Ticker","BBCA" if wf_market=="IDX" else "MSFT",key="wf_ticker")
             wf_period=w3.selectbox("Riwayat",["5y","10y"],index=0,key="wf_period")
             w4,w5=st.columns(2)
-            train_months=w4.selectbox("Training history (bulan)",[12,18,24,36],index=2,key="wf_train")
+            train_months=w4.selectbox("Warm-up history (bulan)",[12,18,24,36],index=2,key="wf_train")
             test_months=w5.selectbox("Test window (bulan)",[3,6,12],index=1,key="wf_test")
             w6,w7,w8=st.columns(3)
             wf_fee=w6.number_input("Fee per sisi (bps)",0.0,500.0,10.0,key="wf_fee")
