@@ -25,3 +25,26 @@ def test_screener_applies_market_specific_native_currency_caps(monkeypatch):
     )
     assert result["raw_success"] == 2
     assert [item["market"] for item in result["results"]] == ["IDX"]
+
+
+def test_screener_applies_technical_filters(monkeypatch):
+    import advanced_stock_screener as screener
+
+    def fake_screen(symbol, market, period):
+        return {
+            "market":market, "ticker":symbol, "marketCap":1_000_000,
+            "ai_score":80, "score_coverage_pct":90, "sector":"Technology",
+            "rsi14":62 if symbol == "AAA" else 42,
+            "relative_volume":1.6 if symbol == "AAA" else 0.7,
+            "breakout_20d":symbol == "AAA",
+            "close":110 if symbol == "AAA" else 90,
+            "ema200":100,
+        }
+
+    monkeypatch.setattr(screener, "screen_symbol", fake_screen)
+    result = run_advanced_screener(
+        markets=["US"], symbols_by_market={"US":["AAA","BBB"]},
+        min_rsi=50, max_rsi=70, min_relative_volume=1.0,
+        require_breakout=True, require_above_ema200=True,
+    )
+    assert [item["ticker"] for item in result["results"]] == ["AAA"]
