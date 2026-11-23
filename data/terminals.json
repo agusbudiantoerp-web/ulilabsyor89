@@ -20,6 +20,11 @@
     "url": "https://ulilabsyor89-equity-research-v2.streamlit.app/"
   },
   {
+    "nama": "TSFA Dual Market V3",
+    "deskripsi": "Time Series Financial Analysis untuk analisis pasar saham Indonesia dan US. Buka terminal TSFA langsung dari AI Application Lab.",
+    "url": "https://tsfa-dual-market-v3.streamlit.app/"
+  },
+  {
     "nama": "AI Journal Finder V1.0",
     "deskripsi": "Multidisciplinary scholarly paper discovery and journal search using OpenAlex metadata, with CSV and Excel export. Verify journal scope, indexing, policies, and publication fees independently.",
     "url": "https://ai-journal-finder.streamlit.app/"
