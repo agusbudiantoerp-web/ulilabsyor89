@@ -47,7 +47,6 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     macd_signal = _number(row, "macd_signal")
     avg_volume = _number(row, "averageVolume")
     average_turnover = _number(row, "average_turnover")
-    market = str(row.get("market", "US")).upper()
     atr_pct = _number(row, "atr_pct")
 
     fundamental = []
@@ -103,15 +102,28 @@ def score_stock(row: dict[str, Any]) -> dict[str, Any]:
     components["risk"] = sum(risk) / len(risk) if risk else None
 
     weights = {"fundamental": 0.30, "valuation": 0.20, "momentum": 0.25, "liquidity": 0.10, "risk": 0.15}
-    available = [(name, value) for name, value in components.items() if value is not None]
-    coverage = sum(weights[name] for name, _ in available)
+    expected_fields = {"fundamental": 5, "valuation": 2, "momentum": 6, "liquidity": 1, "risk": 1}
+    observed_fields = {
+        "fundamental": len(fundamental), "valuation": len(valuation),
+        "momentum": len(momentum), "liquidity": len(liquidity), "risk": len(risk),
+    }
+    factor_coverage = {
+        name: min(1.0, observed_fields[name] / expected_fields[name])
+        for name in weights
+    }
+    effective_weights = {
+        name: weights[name] * factor_coverage[name]
+        for name in weights if components[name] is not None
+    }
+    coverage = sum(effective_weights.values())
     score = (
-        sum(float(value) * weights[name] for name, value in available) / coverage
+        sum(float(components[name]) * effective_weights[name] for name in effective_weights) / coverage
         if coverage >= 0.35 else None
     )
     return {
         "ai_score": round(score, 1) if score is not None else None,
         "score_coverage_pct": round(coverage * 100, 1),
+        "factor_coverage_pct": {k: round(v * 100, 1) for k, v in factor_coverage.items()},
         "factor_scores": {k: round(v, 1) if v is not None else None for k, v in components.items()},
         "score_label": (
             "Strong" if score is not None and score >= 80 else
