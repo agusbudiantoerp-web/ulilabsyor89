@@ -15,7 +15,12 @@ def allocate_candidates(candidates: list[dict], portfolio_value: float,
           risk_pct=risk_pct,max_position_pct=max_single_position_pct)
         remaining=portfolio_value*max_total_exposure_pct/100-used
         allowed=int(max(0,remaining)/float(item["close"]))
-        plan["shares"]=min(plan["shares"],allowed)
+        market = str(item.get("market", "IDX")).upper()
+        lot_size = 100 if market == "IDX" else 1
+        raw_shares = min(plan["shares"], allowed)
+        plan["shares"] = (raw_shares // lot_size) * lot_size
+        plan["lots"] = plan["shares"] // lot_size if market == "IDX" else plan["shares"]
+        plan["lot_size"] = lot_size
         plan["position_value"]=plan["shares"]*float(item["close"])
         plan["planned_loss"]=plan["shares"]*plan["risk_per_share"]
         plan["portfolio_weight_pct"]=plan["position_value"]/portfolio_value*100
