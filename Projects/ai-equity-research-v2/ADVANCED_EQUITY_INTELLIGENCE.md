@@ -24,7 +24,7 @@ The 0–100 score is a deterministic, explainable multi-factor model, not a trai
 | Liquidity | 10% |
 | Risk | 15% |
 
-The displayed coverage percentage indicates how much of the weighted factor model has usable input data. A score is withheld when coverage is below 35%. Valuation thresholds are broad screening heuristics; compare companies within similar industries and verify reported currencies/periods before making a decision.
+The displayed coverage percentage is calculated from the availability of individual inputs within each factor (not merely whether one field exists for a whole factor). A score is withheld when coverage is below 35%. Liquidity uses average daily turnover, or average volume as a fallback; market capitalization is a separate filter and is not treated as tradability. Valuation thresholds are broad screening heuristics; compare companies within similar industries and verify reported currencies/periods before making a decision.
 
 ## 3. Advanced Backtesting
 
@@ -38,7 +38,7 @@ The displayed coverage percentage indicates how much of the weighted factor mode
 
 - Position weights within each currency.
 - Market, currency and sector exposure.
-- Correlation matrices and historical volatility, 95% one-day VaR and drawdown calculated separately by currency.
+- Correlation matrices and historical volatility, 95% one-day VaR and drawdown calculated separately by currency. Risk tables show market-value coverage and explicitly flag partial price-history coverage; duplicate rows for the same ticker are aggregated for risk weighting.
 - User-defined price-shock scenario analysis.
 - Optional USD/IDR translation-risk scenario using a manually supplied spot rate and FX shock; this isolates currency translation while holding share prices constant.
 - Indicative allocation from the latest BUY candidates, with separate IDR and USD capital budgets. IDX allocations are rounded down to 100-share board lots; US quantities use whole shares.
