@@ -90,7 +90,7 @@ def run_advanced_screener(
     min_score: float = 0,
     sectors: list[str] | None = None,
     min_market_cap: float = 0,
-    max_market_cap: float | None = None,
+    max_market_cap: float | dict[str, float | None] | None = None,
     period: str = "1y",
     max_workers: int = 4,
 ) -> dict[str, Any]:
@@ -127,7 +127,10 @@ def run_advanced_screener(
             continue
         if cap is not None and cap < minimum:
             continue
-        if max_market_cap is not None and cap is not None and cap > float(max_market_cap):
+        maximum = max_market_cap.get(item["market"]) if isinstance(max_market_cap, dict) else max_market_cap
+        if maximum is not None and cap is None:
+            continue
+        if maximum is not None and cap is not None and cap > float(maximum):
             continue
         filtered.append(item)
     filtered.sort(key=lambda item: (item.get("ai_score") or -1, item.get("score_coverage_pct") or 0), reverse=True)
