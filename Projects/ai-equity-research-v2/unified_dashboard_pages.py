@@ -14,6 +14,7 @@ from daily_signal_storage import backend_name
 from daily_signal_backtest import backtest, walk_forward_backtest
 from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
 from portfolio_intelligence import analyze_portfolio, scenario_analysis
+from daily_signal_portfolio import allocate_candidates
 
 
 def _show_scan(scan: dict) -> None:
@@ -221,6 +222,8 @@ def render_portfolio_risk() -> None:
             st.dataframe(pd.DataFrame(result["errors"]), use_container_width=True, hide_index=True)
     st.caption("Nilai IDR dan USD tidak dijumlahkan tanpa kurs FX. Bobot dan risiko dihitung per mata uang.")
     analysis = analyze_portfolio(frame, result["returns"])
+    st.subheader("Bobot setiap posisi")
+    st.dataframe(analysis["position_exposure"], use_container_width=True, hide_index=True)
     ccy = pd.DataFrame([{"Currency":k,"Market Value":v} for k,v in analysis["currency_exposure"].items()])
     market = pd.DataFrame([{"Market":k,"Market Value":v} for k,v in analysis["market_exposure"].items()])
     col_a,col_b = st.columns(2)
@@ -245,6 +248,43 @@ def render_portfolio_risk() -> None:
         for currency,matrix in analysis["correlations"].items():
             with st.expander(f"Korelasi {currency}"):
                 st.dataframe(matrix,use_container_width=True)
+    st.subheader("Simulasi alokasi dari BUY candidate terbaru")
+    st.caption("Alokasi ini simulasi berdasarkan modal terpisah per mata uang. IDX dibulatkan ke lot 100 saham; US menggunakan satuan saham. Bukan instruksi order.")
+    try:
+        latest_scan = get_dashboard_data(limit=500).get("latest") or {}
+        candidates = [item for item in latest_scan.get("results", []) if item.get("signal") == "BUY_CANDIDATE"]
+    except Exception:
+        candidates = []
+    alloc1, alloc2, alloc3 = st.columns(3)
+    idx_capital = alloc1.number_input("Modal simulasi IDX (IDR)", min_value=0.0, value=0.0, step=10000000.0, key="alloc_idx_capital")
+    us_capital = alloc2.number_input("Modal simulasi US (USD)", min_value=0.0, value=0.0, step=1000.0, key="alloc_us_capital")
+    alloc_risk = alloc3.number_input("Risk budget per posisi (%)", min_value=0.1, max_value=5.0, value=1.0, step=0.1, key="alloc_risk")
+    if candidates and (idx_capital > 0 or us_capital > 0):
+        allocation_rows = []
+        for market_name, capital in [("IDX", idx_capital), ("US", us_capital)]:
+            if capital <= 0:
+                continue
+            market_candidates = [item for item in candidates if item.get("market") == market_name and item.get("atr14")]
+            if not market_candidates:
+                continue
+            allocation = allocate_candidates(
+                market_candidates, capital, risk_pct=alloc_risk,
+                max_total_exposure_pct=60, max_single_position_pct=15, max_positions=8,
+            )
+            for item in allocation["positions"]:
+                plan = item["plan"]
+                allocation_rows.append({
+                    "Market":market_name,"Ticker":item["ticker"],"Score":item["score"],
+                    "Shares":plan["shares"],"Lots":plan.get("lots"),
+                    "Lot size":plan.get("lot_size"),"Position value":plan["position_value"],
+                    "Weight %":plan["portfolio_weight_pct"],"Planned loss":plan["planned_loss"],
+                })
+        if allocation_rows:
+            st.dataframe(pd.DataFrame(allocation_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("Belum ada BUY candidate dengan ATR valid yang dapat dialokasikan.")
+    elif not candidates:
+        st.info("Belum ada BUY candidate tersimpan dari Daily Stock Signal. Jalankan pemindaian terlebih dahulu.")
     st.subheader("Simulasi skenario harga")
     st.caption("Masukkan perubahan harga hipotetis per saham. Ini analisis sensitivitas, bukan prediksi.")
     scenario_input = frame[["Ticker","Currency","Market Value"]].copy()
