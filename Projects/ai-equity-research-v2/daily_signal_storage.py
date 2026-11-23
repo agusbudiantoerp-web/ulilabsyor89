@@ -187,7 +187,8 @@ def latest_scan(db_path: str | None = None):
 def signal_history(limit: int = 100, db_path: str | None = None):
     initialize(db_path)
     limit = max(1, min(int(limit), 1000))
-    query = """
+    placeholder = "%s" if backend_name(db_path) == "PostgreSQL" else "?"
+    query = f"""
         SELECT s.*,
           o1.return_pct AS outcome_1d_return_pct,
           o3.return_pct AS outcome_3d_return_pct,
@@ -200,7 +201,7 @@ def signal_history(limit: int = 100, db_path: str | None = None):
         LEFT JOIN outcomes o5 ON o5.signal_id=s.id AND o5.horizon=5
         LEFT JOIN outcomes o10 ON o10.signal_id=s.id AND o10.horizon=10
         LEFT JOIN outcomes o20 ON o20.signal_id=s.id AND o20.horizon=20
-        ORDER BY s.bar_date DESC,s.id DESC LIMIT {"%s" if backend_name(db_path) == "PostgreSQL" else "?"}
+        ORDER BY s.bar_date DESC,s.id DESC LIMIT {placeholder}
     """
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
