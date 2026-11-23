@@ -112,6 +112,12 @@ def render_daily_signal() -> None:
         max_cap = {market: (value if value > 0 else None) for market, value in max_cap_values.items()}
         sector_text = st.text_input("Filter sektor (opsional, pisahkan koma)", key="adv_sectors")
         sectors = [x.strip() for x in sector_text.split(",") if x.strip()]
+        technical_col1, technical_col2, technical_col3 = st.columns(3)
+        rsi_range = technical_col1.slider("Rentang RSI(14)", 0, 100, (0, 100), key="adv_rsi_range")
+        min_relvol = technical_col2.number_input("Relative volume minimum (0 = tanpa filter)", min_value=0.0, max_value=10.0, value=0.0, step=0.1, key="adv_min_relvol")
+        with technical_col3:
+            require_breakout = st.checkbox("Wajib breakout 20 sesi", value=False, key="adv_breakout")
+            require_ema200 = st.checkbox("Harga di atas EMA200", value=False, key="adv_above_ema200")
         if st.button("Jalankan Advanced Screener", type="primary", key="run_advanced_screener"):
             if not markets:
                 st.warning("Pilih minimal satu market.")
@@ -124,6 +130,9 @@ def render_daily_signal() -> None:
                             markets=markets, symbols_by_market=symbols_by_market,
                             min_score=min_score, sectors=sectors,
                             min_market_cap=min_cap, max_market_cap=max_cap,
+                            min_rsi=rsi_range[0], max_rsi=rsi_range[1],
+                            min_relative_volume=min_relvol, require_breakout=require_breakout,
+                            require_above_ema200=require_ema200,
                             period=period, max_workers=workers,
                         )
                     st.session_state["advanced_screener_result"] = result
