@@ -96,28 +96,55 @@ def optimize_portfolio(
 
     n = len(tickers)
     budget = np.full(n, 1 / n)
-    weights = np.full(n, 1 / n)
-    # Equal risk contribution fixed-point iteration. Do not silently label
-    # equal-weight fallback as risk parity when negative covariance blocks convergence.
+    # Solve the convex risk-budgeting objective:
+    # 0.5*x'Σx - Σ(b_i*log(x_i)); its optimum satisfies x_i(Σx)_i=b_i.
+    # Normalize x to obtain equal-risk-contribution portfolio weights.
+    x = np.ones(n, dtype=float)
+    def _risk_budget_objective(candidate):
+        return 0.5 * float(candidate @ covariance @ candidate) - float(
+            np.dot(budget, np.log(candidate))
+        )
+
     converged = False
-    for _ in range(10000):
-        marginal = covariance @ weights
-        if np.any(marginal <= 1e-14):
-            raise ValueError(
-                "Risk parity tidak stabil: ada marginal risk contribution non-positif. "
-                "Periksa histori return, korelasi dan aset yang dipilih."
-            )
-        updated = budget / marginal
-        updated = _project_capped_simplex(updated, float(max_weight))
-        if np.max(np.abs(updated - weights)) < 1e-10:
-            weights = updated
+    for _ in range(500):
+        gradient = covariance @ x - budget / x
+        hessian = covariance + np.diag(budget / (x ** 2))
+        if not np.isfinite(gradient).all() or not np.isfinite(hessian).all():
+            raise ValueError("Risk parity menghasilkan gradient/Hessian non-finite.")
+        try:
+            direction = np.linalg.solve(hessian, gradient)
+        except np.linalg.LinAlgError as exc:
+            raise ValueError("Risk parity gagal menyelesaikan sistem numerik.") from exc
+        directional_decrease = float(gradient @ direction)
+        if np.max(np.abs(gradient)) <= 1e-10:
             converged = True
             break
-        weights = updated
+        step = 1.0
+        accepted = False
+        current_objective = _risk_budget_objective(x)
+        while step >= 1e-12:
+            candidate = x - step * direction
+            if np.all(candidate > 0) and _risk_budget_objective(candidate) <= (
+                current_objective - 1e-4 * step * directional_decrease
+            ):
+                x = candidate
+                accepted = True
+                break
+            step *= 0.5
+        if not accepted:
+            raise ValueError("Risk parity tidak menemukan langkah numerik yang stabil.")
     if not converged:
+        gradient = covariance @ x - budget / x
+        converged = bool(np.max(np.abs(gradient)) <= 1e-8)
+    if not converged:
+        raise ValueError("Risk parity tidak mencapai konvergensi; hasil tidak ditampilkan.")
+    weights = x / x.sum()
+    if not np.isfinite(weights).all() or np.any(weights <= 0):
+        raise ValueError("Bobot risk parity tidak valid.")
+    if np.max(weights) > float(max_weight) + 1e-8:
         raise ValueError(
-            "Risk parity tidak mencapai konvergensi dalam 10.000 iterasi; "
-            "hasil tidak ditampilkan agar tidak memberi label optimasi yang keliru."
+            "Solusi equal-risk contribution melampaui batas bobot maksimum. "
+            "Naikkan batas atau gunakan universe yang lebih luas; hasil tidak dipaksakan."
         )
 
     risk = math.sqrt(max(float(weights @ covariance @ weights), 0.0))
