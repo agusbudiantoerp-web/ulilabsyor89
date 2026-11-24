@@ -30,8 +30,8 @@ def analyze_institutional_risk(
     required = {"Ticker", "Currency", "Market Value"}
     if not required.issubset(positions.columns):
         raise ValueError(f"Kolom posisi wajib: {sorted(required)}")
-    if not 0.90 <= float(confidence_level) <= 0.999:
-        raise ValueError("confidence_level harus antara 0.90 dan 0.999.")
+    if not math.isfinite(float(confidence_level)) or not 0.90 <= float(confidence_level) <= 0.999:
+        raise ValueError("confidence_level harus finite dan antara 0.90 dan 0.999.")
 
     frame = positions.copy()
     frame["Ticker"] = frame["Ticker"].astype(str).str.strip()
@@ -39,14 +39,21 @@ def analyze_institutional_risk(
     frame["Market Value"] = pd.to_numeric(frame["Market Value"], errors="coerce")
     if frame["Market Value"].isna().any() or not frame["Market Value"].map(math.isfinite).all():
         raise ValueError("Market Value harus berupa angka finite.")
-    frame = frame[(frame["Ticker"] != "") & (frame["Market Value"] > 0)].copy()
+    if (frame["Market Value"] < 0).any():
+        raise ValueError("Market Value tidak boleh negatif.")
+    if (frame["Ticker"] == "").any() or (frame["Currency"] == "").any():
+        raise ValueError("Ticker dan Currency wajib diisi.")
+    frame = frame[frame["Market Value"] > 0].copy()
     if frame.empty:
         raise ValueError("Tidak ada posisi dengan market value positif.")
 
     limits = {**DEFAULT_RISK_LIMITS, **(risk_limits or {})}
+    unknown_limits = set(limits) - set(DEFAULT_RISK_LIMITS)
+    if unknown_limits:
+        raise ValueError(f"Risk limit tidak dikenal: {sorted(unknown_limits)}")
     for key, value in limits.items():
-        if not math.isfinite(float(value)) or float(value) < 0:
-            raise ValueError(f"Risk limit {key} harus finite dan tidak negatif.")
+        if not math.isfinite(float(value)) or not 0 <= float(value) <= 100:
+            raise ValueError(f"Risk limit {key} harus finite dan berada pada rentang 0–100%.")
 
     frame = frame.groupby(["Ticker", "Currency"], as_index=False).agg(
         {"Market Value": "sum", **({"Sector": "first"} if "Sector" in frame.columns else {})}
