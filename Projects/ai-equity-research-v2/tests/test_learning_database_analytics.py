@@ -33,7 +33,7 @@ def test_outcome_summary_includes_median_and_segments(tmp_path):
     ids = {row["ticker"]: row["id"] for row in rows}
     record_outcome(ids["AAA.JK"], 1, "2026-01-06", 110.0, db_path=db_path, owner_id='test-owner')
     record_outcome(ids["AAA.JK"], 3, "2026-01-08", 90.0, db_path=db_path, owner_id='test-owner')
-    record_outcome(ids["BBB.JK"], 1, "2026-01-06", 220.0, db_path=db_path)
+    record_outcome(ids["BBB.JK"], 1, "2026-01-06", 220.0, db_path=db_path, owner_id='test-owner')
 
     summary = outcome_summary(db_path=db_path, owner_id='test-owner')
     overall_1d = next(
@@ -57,18 +57,18 @@ def test_outcome_summary_includes_median_and_segments(tmp_path):
 
 def test_outcome_summary_does_not_count_unavailable_horizons(tmp_path):
     db_path, _ = _seed(tmp_path)
-    summary = outcome_summary(db_path=db_path)
+    summary = outcome_summary(db_path=db_path, owner_id='test-owner')
     assert summary == []
 
 
 def test_record_outcome_rejects_invalid_price_and_non_forward_date(tmp_path):
     db_path, _ = _seed(tmp_path)
     from daily_signal_storage import signal_history
-    rows = signal_history(limit=10, db_path=db_path)
+    rows = signal_history(limit=10, db_path=db_path, owner_id='test-owner')
     signal_id = next(row["id"] for row in rows if row["ticker"] == "AAA.JK")
     with pytest.raises(ValueError, match="finite dan positif"):
-        record_outcome(signal_id, 1, "2026-01-06", float("inf"), db_path=db_path)
+        record_outcome(signal_id, 1, "2026-01-06", float("inf"), db_path=db_path, owner_id='test-owner')
     with pytest.raises(ValueError, match="setelah tanggal signal"):
-        record_outcome(signal_id, 1, "2026-01-05", 101.0, db_path=db_path)
+        record_outcome(signal_id, 1, "2026-01-05", 101.0, db_path=db_path, owner_id='test-owner')
     with pytest.raises(ValueError, match="ISO"):
-        record_outcome(signal_id, 1, "not-a-date", 101.0, db_path=db_path)
+        record_outcome(signal_id, 1, "not-a-date", 101.0, db_path=db_path, owner_id='test-owner')
