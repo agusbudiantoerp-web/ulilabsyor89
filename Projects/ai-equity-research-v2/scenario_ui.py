@@ -159,6 +159,8 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
 
             if not result.get("available"):
                 st.warning(result.get("reason", "Scenario valuation unavailable."))
+            for warning in result.get("model_warnings") or []:
+                st.warning(warning)
 
     st.subheader("DCF Sensitivity Analysis")
 
