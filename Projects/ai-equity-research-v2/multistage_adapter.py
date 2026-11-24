@@ -297,7 +297,7 @@ def calculate_multistage_dcf(
         result["fx_source_date"] = fx_source_date if financial_currency != quote_currency else None
         result["fx_rate_applied"] = applied_fx_rate
         result["data_quality_override"] = bool(
-            warnings and allow_data_quality_override
+            blocking_warnings and allow_data_quality_override
         )
 
     return result
