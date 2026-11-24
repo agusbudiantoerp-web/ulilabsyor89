@@ -16,13 +16,24 @@ from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
 from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scenario_analysis
 from institutional_risk import analyze_institutional_risk
 from portfolio_optimization import optimize_portfolio
-from security_controls import has_permission
+from security_controls import has_permission, require_permission, record_audit_event
 from research_run_store import save_run
 from daily_signal_portfolio import allocate_candidates
 from advanced_workspace import (
     render_market_intelligence, render_portfolio_persistence,
     render_multi_asset_backtest, render_research_exports, render_research_run_history,
 )
+
+
+def _audit_action(action: str, resource_type: str, resource_id: str = "", details: dict | None = None) -> None:
+    """Record user actions without allowing an audit outage to corrupt research output."""
+    try:
+        record_audit_event(
+            _owner_id(), st.session_state.get("_auth_role"),
+            action, resource_type, resource_id, details=details or {},
+        )
+    except Exception as exc:
+        st.warning(f"Aksi selesai, tetapi audit event gagal dicatat: {type(exc).__name__}: {exc}")
 
 
 def _owner_id() -> str:
@@ -62,6 +73,7 @@ def _show_scan(scan: dict) -> None:
 
 
 def render_daily_signal() -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     st.header("Daily Stock Signal & Advanced Screener")
     st.caption("Data harian Yahoo Finance; hasil adalah kandidat riset, bukan harga live atau instruksi transaksi.")
     daily_tab, advanced_tab = st.tabs(["Daily Signal", "Advanced Screener + AI Stock Scoring"])
@@ -78,6 +90,10 @@ def render_daily_signal() -> None:
                 with st.spinner("Memindai watchlist IDX dan US..."):
                     scan = run_daily_scan(max_workers=3, owner_id=_owner_id())
                 st.session_state["unified_latest_scan"] = scan
+                _audit_action(
+                    "DAILY_SCAN_RUN", "daily_signal_scan", str(scan.get("scan_id", "")),
+                    details=scan.get("counts", {}),
+                )
                 st.success(f"Scan tersimpan. Scan ID: {scan.get('scan_id', 'N/A')}")
             except Exception as exc:
                 st.error(f"Pemindaian gagal: {type(exc).__name__}: {exc}")
@@ -151,6 +167,15 @@ def render_daily_signal() -> None:
                             period=period, max_workers=workers,
                         )
                     st.session_state["advanced_screener_result"] = result
+                    _audit_action(
+                        "ADVANCED_SCREENER_RUN", "stock_screener",
+                        details={
+                            "markets": markets,
+                            "symbols_requested": sum(len(symbols_by_market.get(m, [])) for m in markets),
+                            "results": len(result.get("results", [])),
+                            "failed": result.get("failed", 0),
+                        },
+                    )
                 except Exception as exc:
                     st.error(f"Advanced Screener gagal: {type(exc).__name__}: {exc}")
         result = st.session_state.get("advanced_screener_result")
@@ -193,6 +218,7 @@ def render_daily_signal() -> None:
 
 
 def render_portfolio_risk() -> None:
+    require_permission(st.session_state.get("_auth_role"), "manage_portfolio")
     st.header("Portfolio & Risk Management")
     st.caption("Analisis posisi, konsentrasi, korelasi, risiko per mata uang, dan skenario harga. Tidak mengirim order.")
     if "portfolio_input" not in st.session_state:
@@ -402,6 +428,7 @@ def render_portfolio_risk() -> None:
     st.caption(analysis["limitations"])
 
 def render_backtesting() -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     st.header("Advanced Backtesting")
     st.caption("Simulasi historis dengan fee, slippage, risk sizing, dan evaluasi walk-forward kronologis.")
     single_tab,wf_tab = st.tabs(["Single ticker backtest","Walk-forward out-of-sample"])
@@ -428,7 +455,7 @@ def render_backtesting() -> None:
                 normalized_ticker = meta.get("ticker", ticker.upper())
                 st.session_state["backtest_result"]={"ticker":normalized_ticker,"market":market,"result":result}
                 try:
-                    save_run(
+                    run_id = save_run(
                         owner_id=_owner_id(), run_type="single_ticker", market=market,
                         symbols=[normalized_ticker],
                         parameters={
@@ -438,6 +465,7 @@ def render_backtesting() -> None:
                         },
                         result=result,
                     )
+                    _audit_action("BACKTEST_RUN", "research_run", run_id, {"run_type": "single_ticker", "ticker": normalized_ticker})
                 except Exception as persist_exc:
                     st.warning(
                         "Backtest selesai pada sesi ini, tetapi belum tersimpan permanen: "
@@ -496,7 +524,7 @@ def render_backtesting() -> None:
                 normalized_ticker = meta.get("ticker", wf_ticker)
                 st.session_state["walk_forward_result"]={"ticker":normalized_ticker,"market":wf_market,"result":result}
                 try:
-                    save_run(
+                    run_id = save_run(
                         owner_id=_owner_id(), run_type="walk_forward", market=wf_market,
                         symbols=[normalized_ticker],
                         parameters={
@@ -507,6 +535,7 @@ def render_backtesting() -> None:
                         },
                         result=result,
                     )
+                    _audit_action("BACKTEST_RUN", "research_run", run_id, {"run_type": "walk_forward", "ticker": normalized_ticker})
                 except Exception as persist_exc:
                     st.warning(
                         "Walk-forward selesai pada sesi ini, tetapi belum tersimpan permanen: "
@@ -533,6 +562,7 @@ def render_backtesting() -> None:
 
 
 def render_performance_dashboard() -> None:
+    require_permission(st.session_state.get("_auth_role"), "view_dashboard")
     st.header("Performance & Learning Dashboard")
     st.caption("Histori scan, kualitas sinyal, dan forward return aktual setelah 1/3/5/10/20 sesi perdagangan.")
     backend=backend_name()
@@ -545,6 +575,13 @@ def render_performance_dashboard() -> None:
             try:
                 with st.spinner("Memeriksa harga penutupan setelah tanggal sinyal..."):
                     refresh=refresh_forward_outcomes(limit=1000, owner_id=_owner_id())
+                _audit_action(
+                    "FORWARD_OUTCOME_REFRESH", "signal_outcomes",
+                    details={
+                        "updated_outcomes": refresh.get("updated_outcomes", 0),
+                        "pending_signals": refresh.get("pending_signals", 0),
+                    },
+                )
                 st.success(f"{refresh['updated_outcomes']} outcome baru tercatat dari {refresh['pending_signals']} sinyal tertunda.")
                 if refresh["errors"]:
                     with st.expander(f"Ticker belum berhasil diperbarui ({len(refresh['errors'])})"):
