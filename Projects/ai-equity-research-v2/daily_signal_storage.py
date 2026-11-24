@@ -352,6 +352,8 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
                 if observed <= date.fromisoformat(str(row["bar_date"])[:10]):
                     raise ValueError("Tanggal observasi harus setelah tanggal signal.")
                 ret = (observed_close / initial_close - 1) * 100
+                if not math.isfinite(ret):
+                    raise ValueError("Forward return melampaui rentang numerik yang didukung.")
                 cur.execute("""
                     INSERT INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
                     VALUES(%s,%s,%s,%s,%s)
@@ -369,6 +371,8 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
         if observed <= date.fromisoformat(str(row["bar_date"])[:10]):
             raise ValueError("Tanggal observasi harus setelah tanggal signal.")
         ret = (observed_close / initial_close - 1) * 100
+        if not math.isfinite(ret):
+            raise ValueError("Forward return melampaui rentang numerik yang didukung.")
         db.execute("""
             INSERT OR REPLACE INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
             VALUES(?,?,?,?,?)
