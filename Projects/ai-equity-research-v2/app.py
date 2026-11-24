@@ -85,9 +85,11 @@ with st.sidebar:
     st.caption(f"Role: {identity['role']}")
     if st.button("Logout", use_container_width=True):
         try:
-            logout(st, identity)
+            audit_ok = logout(st, identity)
+            if not audit_ok:
+                st.warning("Sesi logout telah dihentikan, tetapi event logout tidak berhasil dicatat ke audit log.")
         except Exception:
-            st.error("Logout audit gagal. Silakan hubungi administrator.")
+            st.error("Logout gagal diproses. Silakan hubungi administrator.")
             st.stop()
     st.divider()
     allowed_pages = []
