@@ -23,3 +23,17 @@ def test_excel_and_pdf_reports_are_generated_with_nested_history_payload():
         set(workbook.sheetnames)
     )
     assert pdf.startswith(b"%PDF")
+
+
+
+def test_excel_report_escapes_formula_like_untrusted_text():
+    excel = build_excel_report(
+        portfolio=pd.DataFrame([{"Ticker": "=HYPERLINK(\"https://evil.example\",\"click\")"}]),
+        metrics={"Provider note": "+cmd|' /C calc'!A0"},
+        extra_sheets={"External Data": pd.DataFrame([{"Company": "  @SUM(1,1)"}])},
+    )
+    workbook = load_workbook(BytesIO(excel), read_only=True, data_only=False)
+    assert workbook["Portfolio"]["A2"].value.startswith("'=")
+    summary = list(workbook["Summary"].iter_rows(values_only=True))
+    assert any(row[0] == "Provider note" and str(row[1]).startswith("' +") is False and str(row[1]).startswith("'+") for row in summary)
+    assert workbook["External Data"]["A2"].value.startswith("'  @")
