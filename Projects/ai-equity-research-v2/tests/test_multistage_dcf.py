@@ -66,3 +66,14 @@ class TestMultiStageDCF(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_model_discloses_terminal_value_share_and_low_terminal_capex(self):
+        assumptions = dict(self.a)
+        assumptions["capex_pct_revenue"] = 0.10
+        assumptions["terminal_capex_pct_revenue"] = 0.01
+        result = project_multistage_dcf(self.f, assumptions, years=5)
+        self.assertTrue(result["available"], result.get("reason"))
+        self.assertGreaterEqual(result["terminal_value_share_pct"], 0)
+        self.assertLessEqual(result["terminal_value_share_pct"], 100)
+        self.assertTrue(any("Terminal CAPEX intensity" in item for item in result["model_warnings"]))
