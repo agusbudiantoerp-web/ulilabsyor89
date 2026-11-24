@@ -26,7 +26,7 @@ def _audit_event_safely(
             resource_type, resource_id, details=details or {},
         )
     except Exception as exc:
-        st.warning(f"Data berhasil diproses, tetapi audit event gagal dicatat: {type(exc).__name__}: {exc}")
+        st.warning(f"Data berhasil diproses, tetapi audit event gagal dicatat ({type(exc).__name__}). Detail error disembunyikan.")
 
 
 def _download_benchmark(market: str, period: str) -> pd.DataFrame:
