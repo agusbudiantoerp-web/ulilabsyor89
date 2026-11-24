@@ -23,8 +23,8 @@ def _url() -> str | None:
         return None
 
 
-def backend_name() -> str:
-    return "PostgreSQL" if _url() else "SQLite"
+def backend_name(path: str | None = None) -> str:
+    return "SQLite" if path is not None else ("PostgreSQL" if _url() else "SQLite")
 
 
 def _connect(path: str | None = None):
@@ -56,7 +56,7 @@ def initialize(path: str | None = None):
             PRIMARY KEY(book_id, market, ticker)
         )""",
     ]
-    if backend_name() == "PostgreSQL":
+    if backend_name(path) == "PostgreSQL":
         with _pg_connect() as db:
             with db.cursor() as cur:
                 for statement in statements:
@@ -90,9 +90,11 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame, path: str | None
         lambda row: row["Cost Value"] / row["Shares"] if row["Shares"] > 0 else 0.0, axis=1
     )
     frame = frame.drop(columns=["Cost Value"])
+    if frame.empty:
+        raise ValueError("Tidak ada posisi valid untuk disimpan.")
     now = datetime.now(timezone.utc).isoformat()
     initialize(path)
-    if backend_name() == "PostgreSQL":
+    if backend_name(path) == "PostgreSQL":
         with _pg_connect() as db:
             with db.cursor() as cur:
                 cur.execute("""INSERT INTO portfolio_books(id,name,updated_at) VALUES(%s,%s,%s)
@@ -115,7 +117,7 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame, path: str | None
 
 def list_books(path: str | None = None) -> list[dict]:
     initialize(path)
-    if backend_name() == "PostgreSQL":
+    if backend_name(path) == "PostgreSQL":
         with _pg_connect() as db:
             with db.cursor() as cur:
                 cur.execute("SELECT id,name,updated_at FROM portfolio_books ORDER BY name")
@@ -126,7 +128,7 @@ def list_books(path: str | None = None) -> list[dict]:
 
 def load_book(book_id: str, path: str | None = None) -> pd.DataFrame:
     initialize(path)
-    if backend_name() == "PostgreSQL":
+    if backend_name(path) == "PostgreSQL":
         with _pg_connect() as db:
             with db.cursor() as cur:
                 cur.execute("SELECT market,ticker,shares,average_cost FROM portfolio_positions WHERE book_id=%s ORDER BY market,ticker", (book_id,))
@@ -140,7 +142,7 @@ def load_book(book_id: str, path: str | None = None) -> pd.DataFrame:
 
 def delete_book(book_id: str, path: str | None = None) -> bool:
     initialize(path)
-    if backend_name() == "PostgreSQL":
+    if backend_name(path) == "PostgreSQL":
         with _pg_connect() as db:
             with db.cursor() as cur:
                 cur.execute("DELETE FROM portfolio_positions WHERE book_id=%s", (book_id,))
