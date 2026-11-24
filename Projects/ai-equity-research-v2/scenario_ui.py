@@ -27,8 +27,9 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     missing = [name for name, value in required_values.items() if value is None]
 
     if missing:
-        st.warning("Scenario Analysis tidak tersedia. Data belum lengkap: " + ", ".join(missing))
-        return
+        reason = "Data belum lengkap: " + ", ".join(missing)
+        st.warning("Scenario Analysis tidak tersedia. " + reason)
+        return {"available": False, "reason": reason}
 
     financial_currency = data.get("financial_currency") or data.get("currency")
     quote_currency = data.get("quote_currency") or data.get("currency")
@@ -203,3 +204,12 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
         "Scenario results depend on assumptions, not guaranteed future prices. "
         "Review financial data and assumptions before using these results."
     )
+    return {
+        "available": True,
+        "ticker": financials.get("ticker"),
+        "financials": financials,
+        "assumptions": scenarios,
+        "results": results,
+        "sensitivity": sensitivity,
+        "selected_scenario": selected_scenario,
+    }
