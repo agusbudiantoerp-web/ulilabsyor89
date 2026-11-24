@@ -330,7 +330,7 @@ def render_research_run_history(owner_id: str) -> None:
             st.error(f"Hasil backtest tidak dapat dihapus: {type(exc).__name__}: {exc}")
 
 
-def render_research_exports(latest: dict | None, history: list | None) -> None:
+def render_research_exports(latest: dict | None, history: list | None, owner_id: str) -> None:
     st.subheader("Research Pack & Export")
     st.caption("Ekspor ringkasan performa dan histori sinyal ke Excel atau PDF.")
     frame = pd.DataFrame(history or [])
@@ -350,6 +350,7 @@ def render_research_exports(latest: dict | None, history: list | None) -> None:
             "Index return 20 sessions %": regime.get("return_20d_pct"),
         })
     multi_result = st.session_state.get("multi_asset_backtest_result")
+    extra_sheets: dict[str, pd.DataFrame] = {}
     if multi_result:
         metrics.update({
             "Multi-asset return %": multi_result.get("total_return_pct"),
@@ -358,11 +359,52 @@ def render_research_exports(latest: dict | None, history: list | None) -> None:
             "Multi-asset Sharpe": multi_result.get("sharpe_ratio"),
             "Multi-asset benchmark return %": multi_result.get("benchmark_return_pct"),
         })
+        extra_sheets["Multi Asset Equity Curve"] = pd.DataFrame(multi_result.get("curve", []))
+        extra_sheets["Multi Asset Universe"] = pd.DataFrame({
+            "Ticker": multi_result.get("active_symbols", [])
+        })
+        extra_sheets["Rejected Assets"] = pd.DataFrame(multi_result.get("rejected_symbols", []))
+
+    single_saved = st.session_state.get("backtest_result") or {}
+    single_result = single_saved.get("result") or {}
+    if single_result:
+        metrics.update({
+            "Single-ticker": single_saved.get("ticker"),
+            "Single backtest return %": single_result.get("total_return_pct"),
+            "Single backtest CAGR %": single_result.get("cagr_pct"),
+            "Single backtest max drawdown %": single_result.get("max_drawdown_pct"),
+            "Single backtest trades": single_result.get("trades"),
+        })
+        extra_sheets["Single Equity Curve"] = pd.DataFrame(single_result.get("equity_curve", []))
+        extra_sheets["Single Trade Detail"] = pd.DataFrame(single_result.get("trades_detail", []))
+
+    walk_saved = st.session_state.get("walk_forward_result") or {}
+    walk_result = walk_saved.get("result") or {}
+    if walk_result:
+        metrics.update({
+            "Walk-forward ticker": walk_saved.get("ticker"),
+            "Walk-forward OOS return %": walk_result.get("combined_oos_return_pct"),
+            "Walk-forward weighted win rate %": walk_result.get("weighted_win_rate_pct"),
+            "Walk-forward total trades": walk_result.get("total_trades"),
+            "Walk-forward profitable folds %": walk_result.get("profitable_folds_pct"),
+        })
+        extra_sheets["Walk Forward Folds"] = pd.DataFrame(walk_result.get("folds", []))
+
+    try:
+        saved_runs = list_runs(owner_id=owner_id, limit=100)
+        metrics["Saved research runs"] = len(saved_runs)
+        extra_sheets["Saved Research Runs"] = pd.DataFrame([{
+            "Created UTC": item["created_at"], "Run Type": item["run_type"],
+            "Market": item["market"], "Symbols": ", ".join(item["symbols"]),
+            "Run ID": item["id"], "Parameters": item["parameters"],
+        } for item in saved_runs])
+    except Exception as exc:
+        st.warning(f"Riwayat backtest tidak ditambahkan ke Excel: {type(exc).__name__}: {exc}")
     if has_permission(st.session_state.get("_auth_role"), "export_reports"):
         c1, c2 = st.columns(2)
         c1.download_button("Unduh Research Pack Excel", build_excel_report(
             portfolio=st.session_state.get("portfolio_report_frame"),
-            metrics=metrics, history=frame,
+            metrics=metrics, history=frame, extra_sheets=extra_sheets,
         ), file_name="ai_equity_research_pack.xlsx",
            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         c2.download_button("Unduh Ringkasan PDF", build_pdf_report(
