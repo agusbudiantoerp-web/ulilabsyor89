@@ -24,7 +24,7 @@ def oidc_is_configured(secrets: Any) -> bool:
             if value.get("client_id") and value.get("client_secret")
             and value.get("server_metadata_url")
         ]
-        return bool(providers)
+        return len(providers) == 1
     except Exception:
         return False
 
