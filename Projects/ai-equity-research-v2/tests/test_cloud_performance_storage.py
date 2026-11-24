@@ -99,3 +99,37 @@ def test_learning_storage_requires_explicit_owner(tmp_path):
         signal_history(db_path=db_path, owner_id='test-owner')
     with pytest.raises(ValueError, match="Owner identity"):
         latest_scan(db_path=db_path, owner_id='test-owner')
+
+
+def test_legacy_learning_records_are_quarantined_on_owner_migration(tmp_path):
+    import sqlite3
+    from daily_signal_storage import initialize
+
+    db_path = str(tmp_path / "legacy-learning.sqlite3")
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE scans(
+                id INTEGER PRIMARY KEY, created_at TEXT NOT NULL,
+                scanned INTEGER, failed INTEGER, payload TEXT NOT NULL
+            );
+            CREATE TABLE signals(
+                id INTEGER PRIMARY KEY, scan_id INTEGER NOT NULL,
+                market TEXT, ticker TEXT, bar_date TEXT, signal TEXT, score INTEGER,
+                close REAL, entry_low REAL, entry_high REAL, stop_loss REAL,
+                target REAL, reward_risk REAL, payload TEXT NOT NULL,
+                UNIQUE(market,ticker,bar_date)
+            );
+            CREATE TABLE outcomes(
+                id INTEGER PRIMARY KEY, signal_id INTEGER NOT NULL, horizon INTEGER NOT NULL,
+                observed_date TEXT, close REAL, return_pct REAL, UNIQUE(signal_id,horizon)
+            );
+            INSERT INTO scans VALUES(1,'2026-01-01',1,0,'{"results":[]}');
+            INSERT INTO signals VALUES(1,1,'IDX','AAA.JK','2026-01-01','WATCH',60,100,NULL,NULL,NULL,NULL,NULL,'{"ruleset_version":"legacy"}');
+            INSERT INTO outcomes VALUES(1,1,1,'2026-01-02',101,1);
+        """)
+    initialize(db_path)
+    assert latest_scan(db_path=db_path, owner_id="issuer|new-user") is None
+    assert signal_history(db_path=db_path, owner_id="issuer|new-user") == []
+    legacy = signal_history(db_path=db_path, owner_id="legacy-unassigned")
+    assert len(legacy) == 1
+    assert legacy[0]["outcome_1d_return_pct"] == 1
