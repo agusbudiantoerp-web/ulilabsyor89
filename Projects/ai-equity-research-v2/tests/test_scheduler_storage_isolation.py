@@ -3,8 +3,9 @@ def test_local_daily_scheduler_passes_explicit_sqlite_path(monkeypatch):
 
     captured = {}
 
-    def fake_scan(db_path=None):
+    def fake_scan(db_path=None, owner_id=None):
         captured["db_path"] = db_path
+        captured["owner_id"] = owner_id
         return {"counts": {"scanned": 0}, "results": [], "errors": []}
 
     monkeypatch.setattr(scheduler, "_setup_logging", lambda: None)
@@ -15,3 +16,4 @@ def test_local_daily_scheduler_passes_explicit_sqlite_path(monkeypatch):
     scheduler.run_once(dry_run=True)
 
     assert captured["db_path"] == scheduler.DB_PATH
+    assert captured["owner_id"] == "local-automation"
