@@ -172,7 +172,9 @@ def delete_book(book_id: str, path: str | None = None, owner_id: str | None = No
         book = db.execute(
             "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
         ).fetchone()
-        if book and book["owner_id"] != owner:
+        if not book:
+            return False
+        if book["owner_id"] != owner:
             raise PermissionError("Portfolio ini dimiliki pengguna lain; akses ditolak.")
         db.execute("DELETE FROM portfolio_positions WHERE book_id=?", (book_id,))
         result = db.execute(
