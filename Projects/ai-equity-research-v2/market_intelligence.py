@@ -40,6 +40,8 @@ def _clean_close(frame: pd.DataFrame) -> pd.Series:
 def classify_market_regime(index_bars: pd.DataFrame) -> dict[str, Any]:
     """Classify broad trend using only completed daily closes."""
     close = _clean_close(index_bars)
+    if len(close) < 200:
+        raise ValueError("Klasifikasi EMA200 memerlukan minimal 200 sesi penutupan.")
     ema50 = close.ewm(span=50, adjust=False).mean()
     ema200 = close.ewm(span=200, adjust=False).mean()
     last = float(close.iloc[-1])
