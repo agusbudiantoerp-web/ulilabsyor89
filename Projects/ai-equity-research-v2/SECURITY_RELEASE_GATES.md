@@ -9,8 +9,7 @@
 - Login/logout audit events are recorded when the local audit store is available. Login audit failure blocks dashboard access; logout remains available even if the audit store fails.
 - `security_controls.py` provides a SQLite hash-linked audit event log, serialized append operations, and a chain-verification routine.
 - Audit payloads reject credential-like keys recursively, including common nested and naming variants.
-- Portfolio books are scoped by the authenticated issuer-bound OIDC principal in SQLite. Existing pre-migration books are assigned `legacy-unassigned` and are hidden from authenticated users until an administrator explicitly migrates ownership.
-- The portfolio database remains local SQLite and is not encrypted or suitable for shared multi-instance deployment.
+- Portfolio books are scoped by the authenticated issuer-bound OIDC principal in PostgreSQL when `DATABASE_URL` is configured, with local SQLite fallback. Existing pre-migration local books are assigned `legacy-unassigned` and are hidden from authenticated users; they are not automatically uploaded to PostgreSQL.
 - Daily scans, signals, forward outcomes and learning analytics are scoped to the authenticated issuer-bound OIDC principal in both SQLite and PostgreSQL. Existing records are migrated to `legacy-unassigned` and hidden from authenticated principals.
 - Performance history can use PostgreSQL, but production use still requires managed database operations, tenant-aware backups and operational security.
 
