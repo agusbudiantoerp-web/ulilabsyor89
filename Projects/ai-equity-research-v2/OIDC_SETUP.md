@@ -12,6 +12,13 @@ https://YOUR-APP-NAME.streamlit.app/oauth2callback
 
 Keep the production callback registered when adding a preview callback. Do not replace it.
 
+**Important: distinguish the two Google Console fields.**
+
+- **Authorized JavaScript origins** (if shown): enter only the app origin, for example `https://YOUR-APP-NAME.streamlit.app`. No path and no trailing slash.
+- **Authorized redirect URIs**: enter the full callback, including `/oauth2callback`, as shown above.
+
+The error “Invalid Origin: URIs must not contain a path or end with /” means the callback URL was entered into the origins field. Put the origin-only address in that field, and the full callback in the redirect-URI field.
+
 Google discovery metadata URL:
 
 ```text
@@ -78,7 +85,7 @@ Initially keep the Google OAuth consent screen in Testing and add only approved 
 
 ## 5. Administrator console
 
-The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, recent audit events, CSV export, hash-chain verification and the selected storage backend for signals, portfolio books, research runs and audit events. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
+The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, recent audit events, CSV export, hash-chain verification, storage routing, a confirmed PostgreSQL schema-preparation action and read-only connectivity/schema/privilege diagnostics. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
 
 ## 6. Security and release limitations
 
