@@ -10,21 +10,34 @@ from typing import Any
 from security_controls import record_audit_event, resolve_role_for_subject
 
 
+def oidc_provider_name(secrets: Any) -> str | None:
+    """Return the single configured provider name, or None for Streamlit's default provider."""
+    auth_settings = secrets.get("auth", {})
+    if not isinstance(auth_settings, dict) and not hasattr(auth_settings, "get"):
+        raise ValueError("Konfigurasi [auth] tidak valid.")
+    if not auth_settings.get("redirect_uri") or not auth_settings.get("cookie_secret"):
+        raise ValueError("redirect_uri dan cookie_secret wajib dikonfigurasi.")
+    root_configured = all(auth_settings.get(key) for key in (
+        "client_id", "client_secret", "server_metadata_url"
+    ))
+    named = [
+        str(key) for key, value in auth_settings.items()
+        if (isinstance(value, dict) or hasattr(value, "get"))
+        and value.get("client_id") and value.get("client_secret")
+        and value.get("server_metadata_url")
+    ]
+    if root_configured and not named:
+        return None
+    if not root_configured and len(named) == 1:
+        return named[0]
+    raise ValueError("Harus ada tepat satu konfigurasi OIDC: default [auth] atau satu provider bernama.")
+
+
 def oidc_is_configured(secrets: Any) -> bool:
-    """Require Streamlit auth settings and at least one configured OIDC provider."""
+    """Accept one default provider or exactly one named provider."""
     try:
-        auth_settings = secrets.get("auth", {})
-        if not isinstance(auth_settings, dict) and not hasattr(auth_settings, "get"):
-            return False
-        if not auth_settings.get("redirect_uri") or not auth_settings.get("cookie_secret"):
-            return False
-        providers = [
-            value for key, value in auth_settings.items()
-            if isinstance(value, dict) or hasattr(value, "get")
-            if value.get("client_id") and value.get("client_secret")
-            and value.get("server_metadata_url")
-        ]
-        return len(providers) == 1
+        oidc_provider_name(secrets)
+        return True
     except Exception:
         return False
 
