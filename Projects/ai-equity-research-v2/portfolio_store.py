@@ -79,7 +79,7 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame, path: str | None
     frame["Shares"] = pd.to_numeric(frame["Shares"], errors="coerce")
     frame["Average Cost"] = pd.to_numeric(frame["Average Cost"], errors="coerce")
     frame = frame.dropna(subset=["Shares", "Average Cost"])
-    frame = frame[(frame["Ticker"] != "") & frame["Market"].isin(["IDX", "US"])]
+    frame = frame[(frame["Ticker"] != "") & (frame["Ticker"].str.lower() != "nan") & frame["Market"].isin(["IDX", "US"])]
     if (frame[["Shares", "Average Cost"]] < 0).any().any():
         raise ValueError("Jumlah saham dan harga rata-rata tidak boleh negatif.")
     frame["Cost Value"] = frame["Shares"] * frame["Average Cost"]
