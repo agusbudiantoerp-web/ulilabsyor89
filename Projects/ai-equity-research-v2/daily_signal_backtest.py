@@ -28,6 +28,26 @@ def backtest(
     required = {"Open", "High", "Low", "Close", "Volume"}
     if not required.issubset(bars.columns):
         raise ValueError(f"Kolom wajib tidak lengkap: {sorted(required - set(bars.columns))}")
+    if not isinstance(bars.index, pd.DatetimeIndex):
+        raise ValueError("Index backtest harus berupa DatetimeIndex.")
+    if bars.index.has_duplicates:
+        raise ValueError("Tanggal historis duplikat harus dibersihkan sebelum backtest.")
+    if not bars.index.is_monotonic_increasing:
+        raise ValueError("Data historis harus berurutan dari tanggal paling lama.")
+
+    numeric = bars[list(required)].apply(pd.to_numeric, errors="coerce")
+    if numeric.isna().any().any() or not numeric.map(math.isfinite).all().all():
+        raise ValueError("Data OHLCV mengandung nilai kosong atau non-finite.")
+    if (numeric[["Open", "High", "Low", "Close"]] <= 0).any().any():
+        raise ValueError("Harga OHLC harus positif.")
+    if (numeric["Volume"] < 0).any():
+        raise ValueError("Volume tidak boleh negatif.")
+    invalid_ohlc = (
+        (numeric["High"] < numeric[["Open", "Close", "Low"]].max(axis=1))
+        | (numeric["Low"] > numeric[["Open", "Close", "High"]].min(axis=1))
+    )
+    if invalid_ohlc.any():
+        raise ValueError("Relasi OHLC tidak valid pada data backtest.")
 
     cfg = {**DEFAULT_CONFIG, **(config or {})}
     x = calculate_indicators(bars).dropna(subset=[
@@ -153,10 +173,19 @@ def backtest(
             item for item in curve
             if start_ts is None or pd.Timestamp(item["date"]) >= start_ts
         ],
+        "bias_controls": {
+            "signal_execution_timing": "Signal is evaluated on completed bar i; entry is at next session open i+1.",
+            "indicator_calculation": "Indicators use trailing/causal rolling and exponential calculations.",
+            "same_bar_stop_target": "Stop is prioritized when stop and target are both touched in one daily bar.",
+            "point_in_time_universe": False,
+            "survivorship_bias_control": False,
+            "corporate_action_history_complete": False,
+        },
         "limitations": (
-            "Simulasi harian konservatif dengan stop diprioritaskan bila stop dan target tersentuh pada bar yang sama. "
-            "Belum memodelkan pajak, spread aktual, market impact, suspensi, corporate actions historis secara penuh, "
-            "survivorship bias, dan antrean/likuiditas eksekusi."
+            "Simulasi harian konservatif dengan sinyal pada bar selesai dan entry sesi berikutnya. "
+            "Data historis Yahoo saat ini bukan point-in-time universe; survivorship bias belum dapat dihilangkan. "
+            "Pajak, spread aktual, market impact, suspensi, corporate actions historis lengkap, "
+            "dan antrean/likuiditas eksekusi belum dimodelkan."
         ),
     }
 
