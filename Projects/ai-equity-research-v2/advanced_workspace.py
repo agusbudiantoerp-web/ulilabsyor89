@@ -207,6 +207,23 @@ def render_research_exports(latest: dict | None, history: list | None) -> None:
                    "Success": counts.get("success"), "Failed": counts.get("failed"),
                    "BUY candidate": counts.get("buy_candidate"), "WATCH": counts.get("watch"),
                    "NO TRADE": counts.get("no_trade")}
+    market_result = st.session_state.get("market_intelligence_result")
+    if market_result:
+        regime = market_result.get("regime", {})
+        metrics.update({
+            "Market regime": regime.get("regime"),
+            "Market index date": regime.get("bar_date"),
+            "Index return 20 sessions %": regime.get("return_20d_pct"),
+        })
+    multi_result = st.session_state.get("multi_asset_backtest_result")
+    if multi_result:
+        metrics.update({
+            "Multi-asset return %": multi_result.get("total_return_pct"),
+            "Multi-asset CAGR %": multi_result.get("cagr_pct"),
+            "Multi-asset max drawdown %": multi_result.get("max_drawdown_pct"),
+            "Multi-asset Sharpe": multi_result.get("sharpe_ratio"),
+            "Multi-asset benchmark return %": multi_result.get("benchmark_return_pct"),
+        })
     c1, c2 = st.columns(2)
     c1.download_button("Unduh Research Pack Excel", build_excel_report(
         portfolio=st.session_state.get("portfolio_report_frame"),
