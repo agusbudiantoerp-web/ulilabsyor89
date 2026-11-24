@@ -13,6 +13,7 @@ from multi_asset_backtest import run_multi_asset_backtest
 from portfolio_store import list_books, load_book, save_book
 from research_reporting import build_excel_report, build_pdf_report
 from security_controls import has_permission, require_permission, record_audit_event
+from research_run_store import delete_run, get_run, list_runs, save_run
 
 
 def _download_benchmark(market: str, period: str) -> pd.DataFrame:
@@ -153,7 +154,7 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
             st.info("Belum ada portfolio tersimpan.")
 
 
-def render_multi_asset_backtest() -> None:
+def render_multi_asset_backtest(owner_id: str) -> None:
     st.subheader("Multi-Asset Portfolio Backtest")
     st.caption("Uji strategi pada beberapa saham sekaligus dengan sinyal yang digeser satu sesi untuk mencegah look-ahead.")
     with st.expander("Buka Multi-Asset Backtest", expanded=False):
@@ -195,6 +196,25 @@ def render_multi_asset_backtest() -> None:
                     )
                     st.session_state["multi_asset_backtest_result"] = result
                     st.session_state["multi_asset_backtest_errors"] = errors
+                    try:
+                        run_id = save_run(
+                            owner_id=owner_id,
+                            run_type="multi_asset",
+                            market=market,
+                            symbols=symbols,
+                            parameters={
+                                "period": period, "initial_capital": capital,
+                                "fee_bps": fee, "slippage_bps": slippage,
+                                "max_positions": max_positions, "max_weight_pct": cap_weight,
+                            },
+                            result=result,
+                        )
+                        st.session_state["multi_asset_backtest_run_id"] = run_id
+                    except Exception as persist_exc:
+                        st.warning(
+                            "Hasil backtest tersedia pada sesi ini, tetapi belum tersimpan permanen: "
+                            f"{type(persist_exc).__name__}: {persist_exc}"
+                        )
                 except Exception as exc:
                     st.error(f"Multi-asset backtest gagal: {type(exc).__name__}: {exc}")
         result = st.session_state.get("multi_asset_backtest_result")
@@ -222,6 +242,84 @@ def render_multi_asset_backtest() -> None:
             if errors:
                 with st.expander(f"Data gagal ({len(errors)})"):
                     st.dataframe(pd.DataFrame(errors), use_container_width=True, hide_index=True)
+
+
+def render_research_run_history(owner_id: str) -> None:
+    """Owner-scoped history for single, walk-forward and multi-asset backtests."""
+    st.subheader("Riwayat Research & Backtest Tersimpan")
+    if not str(owner_id or "").strip():
+        st.info("Riwayat tersimpan memerlukan identitas pengguna yang terverifikasi.")
+        return
+    try:
+        runs = list_runs(owner_id=owner_id, limit=100)
+    except Exception as exc:
+        st.error(f"Riwayat research tidak dapat dibaca: {type(exc).__name__}: {exc}")
+        return
+    if not runs:
+        st.info("Belum ada hasil backtest yang tersimpan.")
+        return
+    labels = {
+        f"{item['created_at']} · {item['run_type']} · {item['market']} · "
+        f"{', '.join(item['symbols'])} · {item['id'][:8]}": item["id"]
+        for item in runs
+    }
+    st.dataframe(pd.DataFrame([{
+        "Tanggal UTC": item["created_at"],
+        "Jenis": item["run_type"],
+        "Market": item["market"],
+        "Ticker": ", ".join(item["symbols"]),
+        "Run ID": item["id"],
+    } for item in runs]), use_container_width=True, hide_index=True)
+    selected = st.selectbox(
+        "Pilih hasil backtest tersimpan",
+        ["— pilih —"] + list(labels),
+        key="research_run_history_select",
+    )
+    if selected == "— pilih —":
+        return
+    run_id = labels[selected]
+    load_col, delete_col = st.columns(2)
+    if load_col.button("Muat hasil ke dashboard", key="load_research_run"):
+        try:
+            saved = get_run(owner_id=owner_id, run_id=run_id)
+            if saved["run_type"] == "single_ticker":
+                st.session_state["backtest_result"] = {
+                    "ticker": saved["symbols"][0],
+                    "market": saved["market"],
+                    "result": saved["result"],
+                }
+            elif saved["run_type"] == "walk_forward":
+                st.session_state["walk_forward_result"] = {
+                    "ticker": saved["symbols"][0],
+                    "market": saved["market"],
+                    "result": saved["result"],
+                }
+            elif saved["run_type"] == "multi_asset":
+                st.session_state["multi_asset_backtest_result"] = saved["result"]
+            record_audit_event(
+                owner_id, st.session_state.get("_auth_role"),
+                "RESEARCH_RUN_LOAD", "research_run", run_id,
+                details={"run_type": saved["run_type"], "market": saved["market"]},
+            )
+            st.success("Hasil backtest berhasil dimuat.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Hasil backtest tidak dapat dimuat: {type(exc).__name__}: {exc}")
+    if delete_col.button("Hapus hasil tersimpan", key="delete_research_run"):
+        try:
+            deleted = delete_run(owner_id=owner_id, run_id=run_id)
+            if deleted:
+                record_audit_event(
+                    owner_id, st.session_state.get("_auth_role"),
+                    "RESEARCH_RUN_DELETE", "research_run", run_id,
+                    details={"scope": "owner"},
+                )
+                st.success("Hasil backtest dihapus dari penyimpanan pengguna ini.")
+                st.rerun()
+            else:
+                st.info("Hasil sudah tidak tersedia.")
+        except Exception as exc:
+            st.error(f"Hasil backtest tidak dapat dihapus: {type(exc).__name__}: {exc}")
 
 
 def render_research_exports(latest: dict | None, history: list | None) -> None:
