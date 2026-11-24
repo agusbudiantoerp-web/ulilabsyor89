@@ -16,6 +16,7 @@ from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
 from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scenario_analysis
 from institutional_risk import analyze_institutional_risk
 from portfolio_optimization import optimize_portfolio
+from security_controls import has_permission
 from daily_signal_portfolio import allocate_candidates
 from advanced_workspace import (
     render_market_intelligence, render_portfolio_persistence,
@@ -495,16 +496,19 @@ def render_performance_dashboard() -> None:
         st.success("Database cloud PostgreSQL aktif. Histori scan disimpan secara persisten.")
     else:
         st.warning("Database aktif masih SQLite. Konfigurasikan DATABASE_URL untuk histori cloud persisten.")
-    if st.button("Perbarui outcome 1/3/5/10/20 sesi",type="primary"):
-        try:
-            with st.spinner("Memeriksa harga penutupan setelah tanggal sinyal..."):
-                refresh=refresh_forward_outcomes(limit=1000)
-            st.success(f"{refresh['updated_outcomes']} outcome baru tercatat dari {refresh['pending_signals']} sinyal tertunda.")
-            if refresh["errors"]:
-                with st.expander(f"Ticker belum berhasil diperbarui ({len(refresh['errors'])})"):
-                    st.dataframe(pd.DataFrame(refresh["errors"]),use_container_width=True,hide_index=True)
-        except Exception as exc:
-            st.error(f"Pembaruan outcome gagal: {type(exc).__name__}: {exc}")
+    if has_permission(st.session_state.get("_auth_role"), "run_analysis"):
+        if st.button("Perbarui outcome 1/3/5/10/20 sesi",type="primary"):
+            try:
+                with st.spinner("Memeriksa harga penutupan setelah tanggal sinyal..."):
+                    refresh=refresh_forward_outcomes(limit=1000)
+                st.success(f"{refresh['updated_outcomes']} outcome baru tercatat dari {refresh['pending_signals']} sinyal tertunda.")
+                if refresh["errors"]:
+                    with st.expander(f"Ticker belum berhasil diperbarui ({len(refresh['errors'])})"):
+                        st.dataframe(pd.DataFrame(refresh["errors"]),use_container_width=True,hide_index=True)
+            except Exception as exc:
+                st.error(f"Pembaruan outcome gagal: {type(exc).__name__}: {exc}")
+    else:
+        st.caption("Mode viewer: pembaruan outcome hanya tersedia untuk role analyst atau lebih tinggi.")
     try:
         data=get_dashboard_data(limit=1000)
         latest,history,outcomes=data.get("latest"),data.get("history") or [],data.get("outcomes") or []
@@ -527,7 +531,8 @@ def render_performance_dashboard() -> None:
         cols=[c for c in ["bar_date","market","ticker","signal","score","close","outcome_1d_return_pct","outcome_3d_return_pct","outcome_5d_return_pct","outcome_10d_return_pct","outcome_20d_return_pct"] if c in frame.columns]
         st.subheader("Riwayat sinyal dan forward outcome")
         st.dataframe(frame[cols],use_container_width=True,hide_index=True)
-        st.download_button("Unduh histori sinyal CSV",frame[cols].to_csv(index=False).encode("utf-8-sig"),"signal_history.csv","text/csv")
+        if has_permission(st.session_state.get("_auth_role"), "export_reports"):
+            st.download_button("Unduh histori sinyal CSV",frame[cols].to_csv(index=False).encode("utf-8-sig"),"signal_history.csv","text/csv")
         st.bar_chart(frame["signal"].value_counts().rename_axis("Signal").reset_index(name="Count").set_index("Signal"))
         st.subheader("Evaluasi hasil berdasarkan sinyal")
         for horizon,column in [(1,"outcome_1d_return_pct"),(3,"outcome_3d_return_pct"),(5,"outcome_5d_return_pct"),(10,"outcome_10d_return_pct"),(20,"outcome_20d_return_pct")]:
