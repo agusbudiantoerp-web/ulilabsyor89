@@ -4,8 +4,9 @@
 
 - Telegram chat access remains fail-closed: an empty allowlist authorizes nobody.
 - `security_controls.py` provides role names and permission checks for viewer, analyst, portfolio_manager and admin.
-- `security_controls.py` provides a SQLite hash-linked audit event log and a chain-verification routine.
-- Audit payloads reject common credential field names.
+- A fail-closed helper maps an immutable, verified identity-provider subject to a server-managed role; it does not authenticate a user by itself.
+- `security_controls.py` provides a SQLite hash-linked audit event log, serialized append operations, and a chain-verification routine.
+- Audit payloads reject credential-like keys recursively, including common nested and naming variants.
 - Portfolio books remain local SQLite by design; no shared cloud portfolio store is enabled.
 - Performance/learning history can use PostgreSQL, but this database is not a substitute for tenant authorization.
 
