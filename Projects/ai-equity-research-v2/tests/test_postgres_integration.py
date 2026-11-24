@@ -55,26 +55,35 @@ def test_postgres_research_run_owner_isolation(postgres_test_database):
 
 
 def test_postgres_learning_records_are_owner_scoped(postgres_test_database):
+    suffix = uuid.uuid4().hex[:8].upper()
+    owner_a = f"issuer|test-alice-{suffix}"
+    owner_b = f"issuer|test-bob-{suffix}"
+    ticker = f"TST{suffix[:5]}"
     scan = {
         "counts": {"scanned": 1, "failed": 0, "success": 1},
         "results": [{
-            "market": "IDX", "ticker": "BBCA", "bar_date": "2026-01-02",
+            "market": "IDX", "ticker": ticker, "bar_date": "2026-01-02",
             "signal": "WATCH", "score": 50, "close": 9000,
         }],
         "errors": [],
     }
-    save_scan(scan, owner_id="issuer|alice")
-    save_scan(scan, owner_id="issuer|bob")
-    alice_rows = signal_history(owner_id="issuer|alice")
-    bob_rows = signal_history(owner_id="issuer|bob")
-    assert any(row["ticker"] == "BBCA" and row["bar_date"] == "2026-01-02" for row in alice_rows)
-    assert any(row["ticker"] == "BBCA" and row["bar_date"] == "2026-01-02" for row in bob_rows)
-    alice_signal = next(
-        row for row in alice_rows
-        if row["ticker"] == "BBCA" and row["bar_date"] == "2026-01-02"
-    )
-    with pytest.raises(ValueError, match="Signal tidak ditemukan"):
-        record_outcome(
-            alice_signal["id"], 1, "2026-01-05", 9100,
-            owner_id="issuer|bob",
+    try:
+        save_scan(scan, owner_id=owner_a)
+        save_scan(scan, owner_id=owner_b)
+        alice_rows = signal_history(owner_id=owner_a)
+        bob_rows = signal_history(owner_id=owner_b)
+        assert any(row["ticker"] == ticker and row["bar_date"] == "2026-01-02" for row in alice_rows)
+        assert any(row["ticker"] == ticker and row["bar_date"] == "2026-01-02" for row in bob_rows)
+        alice_signal = next(
+            row for row in alice_rows
+            if row["ticker"] == ticker and row["bar_date"] == "2026-01-02"
         )
+        with pytest.raises(ValueError, match="Signal tidak ditemukan"):
+            record_outcome(
+                alice_signal["id"], 1, "2026-01-05", 9100,
+                owner_id=owner_b,
+            )
+    finally:
+        import psycopg
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute("DELETE FROM scans WHERE owner_id = ANY(%s)", ([owner_a, owner_b],))
