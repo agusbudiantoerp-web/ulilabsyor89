@@ -27,7 +27,7 @@ def test_postgres_portfolio_owner_isolation(postgres_test_database):
     }])
     save_book(book_id, "Isolation test", positions, owner_id="issuer|alice")
     try:
-        assert len(list_books(owner_id="issuer|alice")) >= 1
+        assert any(item["id"] == book_id for item in list_books(owner_id="issuer|alice"))
         assert all(item["id"] != book_id for item in list_books(owner_id="issuer|bob"))
         with pytest.raises(PermissionError):
             load_book(book_id, owner_id="issuer|bob")
