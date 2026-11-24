@@ -32,7 +32,7 @@ def test_outcome_summary_includes_median_and_segments(tmp_path):
     rows = signal_history(limit=10, db_path=db_path, owner_id='test-owner')
     ids = {row["ticker"]: row["id"] for row in rows}
     record_outcome(ids["AAA.JK"], 1, "2026-01-06", 110.0, db_path=db_path, owner_id='test-owner')
-    record_outcome(ids["AAA.JK"], 3, "2026-01-08", 90.0, db_path=db_path)
+    record_outcome(ids["AAA.JK"], 3, "2026-01-08", 90.0, db_path=db_path, owner_id='test-owner')
     record_outcome(ids["BBB.JK"], 1, "2026-01-06", 220.0, db_path=db_path)
 
     summary = outcome_summary(db_path=db_path, owner_id='test-owner')
