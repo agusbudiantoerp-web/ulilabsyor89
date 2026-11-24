@@ -4,13 +4,14 @@ Integrated Streamlit research platform for Indonesian (IDX) and US equities. The
 
 Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, incomplete, revised, rate-limited, or unavailable. Verify material data against issuer filings and exchange disclosures.
 
-## Five main menus
+## Main workspace menus
 
 1. **Equity Research** — company financials, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
 2. **Daily Stock Signal** — IDX/US daily technical signals, entry/stop/target levels and candidate/watch/no-trade states. Includes a nested **Advanced Screener + AI Stock Scoring** tab.
 3. **Portfolio & Risk Management** — position weights, sector/market/currency exposure, correlations, volatility, historical VaR, drawdown, price/FX scenarios and indicative candidate allocation.
 4. **Backtesting** — fee/slippage-aware single-ticker backtest and chronological walk-forward evaluation.
 5. **Performance & Learning** — owner-scoped PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
+6. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export and on-demand hash-chain integrity verification.
 
 ## Advanced screener and scoring
 
@@ -69,7 +70,7 @@ A GitHub Actions workflow also runs compile checks and the complete test suite o
 
 ## Authentication and access control
 
-The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. The audit hash chain is stored in PostgreSQL when configured, but it is not WORM/immutable. Remaining private data sources, managed database operations, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
+The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. The admin-only Security & Audit console provides role-map visibility and audit-chain review. The audit hash chain is stored in PostgreSQL when configured, but it is not WORM/immutable. Remaining private data sources, managed database operations, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
 
 See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configuration. Keep provider client secrets and the cookie secret only in Streamlit Secrets.
 
