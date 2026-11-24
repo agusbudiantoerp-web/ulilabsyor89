@@ -31,3 +31,16 @@ def test_portfolio_store_rejects_infinite_holdings(tmp_path):
     ])
     with pytest.raises(ValueError, match="finite"):
         save_book("book-invalid", "Invalid", positions, path=db_path)
+
+
+def test_portfolio_store_rejects_overflowing_position_cost(tmp_path):
+    import pytest
+
+    positions = pd.DataFrame([
+        {"Market": "US", "Ticker": "BIG", "Shares": 1e308, "Average Cost": 1e308}
+    ])
+    with pytest.raises(ValueError, match="melampaui"):
+        save_book(
+            "book-overflow", "Overflow", positions,
+            path=str(tmp_path / "portfolio.sqlite3"),
+        )
