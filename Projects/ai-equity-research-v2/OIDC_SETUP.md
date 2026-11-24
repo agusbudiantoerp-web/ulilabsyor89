@@ -40,7 +40,7 @@ client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
 server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
 
 [auth_roles]
-"IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
+"ISSUER_URL|IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
 ```
 
 ### Microsoft Entra ID example
@@ -58,7 +58,7 @@ client_secret = "YOUR_ENTRA_CLIENT_SECRET"
 server_metadata_url = "https://login.microsoftonline.com/YOUR-TENANT-ID/v2.0/.well-known/openid-configuration"
 
 [auth_roles]
-"IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
+"ISSUER_URL|IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
 ```
 
 Do not configure both provider blocks at the same time in this release: the login flow intentionally requires exactly one provider.
@@ -68,8 +68,8 @@ Do not configure both provider blocks at the same time in this release: the logi
 1. Save the provider settings and restart/reload the Streamlit app.
 2. Sign in with the intended account.
 3. If the account has no role yet, the app denies dashboard access and displays that account's immutable `sub` claim.
-4. As the administrator, copy that exact `sub` value into `[auth_roles]` in Streamlit Secrets and assign an approved role.
-5. Repeat for each authorized user. Never assign a role based only on a display name or email address.
+4. As the administrator, copy the exact `iss|sub` principal identifier shown by the app into `[auth_roles]` in Streamlit Secrets and assign an approved role.
+5. Repeat for each authorized user. Never assign a role based only on a display name or email address. The mapping key combines the exact OIDC issuer (`iss`) and subject (`sub`) so identical subject strings from different providers cannot inherit each other's roles.
 
 Supported roles:
 
