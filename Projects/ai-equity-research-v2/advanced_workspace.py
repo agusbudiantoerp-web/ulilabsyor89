@@ -27,6 +27,7 @@ def _download_benchmark(market: str, period: str) -> pd.DataFrame:
 
 
 def render_market_intelligence() -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     st.subheader("Market Regime, Relative Strength & Data Quality")
     st.caption("Analisis kondisi indeks acuan dan kekuatan relatif saham. Menggunakan daily close yang telah tersedia.")
     with st.expander("Buka Market Intelligence", expanded=False):
@@ -155,6 +156,7 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
 
 
 def render_multi_asset_backtest(owner_id: str) -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     st.subheader("Multi-Asset Portfolio Backtest")
     st.caption("Uji strategi pada beberapa saham sekaligus dengan sinyal yang digeser satu sesi untuk mencegah look-ahead.")
     with st.expander("Buka Multi-Asset Backtest", expanded=False):
@@ -210,6 +212,11 @@ def render_multi_asset_backtest(owner_id: str) -> None:
                             result=result,
                         )
                         st.session_state["multi_asset_backtest_run_id"] = run_id
+                        record_audit_event(
+                            owner_id, st.session_state.get("_auth_role"),
+                            "BACKTEST_RUN", "research_run", run_id,
+                            details={"run_type": "multi_asset", "market": market, "symbols": symbols},
+                        )
                     except Exception as persist_exc:
                         st.warning(
                             "Hasil backtest tersedia pada sesi ini, tetapi belum tersimpan permanen: "
@@ -245,6 +252,7 @@ def render_multi_asset_backtest(owner_id: str) -> None:
 
 
 def render_research_run_history(owner_id: str) -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     """Owner-scoped history for single, walk-forward and multi-asset backtests."""
     st.subheader("Riwayat Research & Backtest Tersimpan")
     if not str(owner_id or "").strip():
