@@ -315,7 +315,7 @@ def get_pending_outcomes(limit: int = 500, db_path: str | None = None, owner_id:
                 SELECT s.id,s.market,s.ticker,s.bar_date,s.close,GROUP_CONCAT(o.horizon) AS recorded
                 FROM signals s LEFT JOIN outcomes o ON o.signal_id=s.id
                 WHERE s.owner_id=? GROUP BY s.id ORDER BY s.bar_date DESC LIMIT ?
-            """, (limit,)).fetchall()
+            """, (owner, limit)).fetchall()
     pending = []
     for row in rows:
         item = dict(row)
