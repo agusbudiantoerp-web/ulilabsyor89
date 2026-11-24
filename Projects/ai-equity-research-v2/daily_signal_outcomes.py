@@ -7,8 +7,8 @@ from daily_signal_engine import load_daily_history
 from daily_signal_storage import OUTCOME_HORIZONS, signal_history, record_outcome
 
 
-def update_forward_outcomes(db_path=None, limit=500):
-    rows = signal_history(limit=limit, db_path=db_path)
+def update_forward_outcomes(db_path=None, limit=500, owner_id=None):
+    rows = signal_history(limit=limit, db_path=db_path, owner_id=owner_id)
     updated, errors = [], []
     grouped = {}
     for row in rows:
@@ -29,7 +29,7 @@ def update_forward_outcomes(db_path=None, limit=500):
                         continue
                     dt = future.index[horizon - 1]
                     close = float(future.iloc[horizon - 1]["Close"])
-                    value = record_outcome(row["id"], horizon, dt.date().isoformat(), close, db_path=db_path)
+                    value = record_outcome(row["id"], horizon, dt.date().isoformat(), close, db_path=db_path, owner_id=owner_id)
                     updated.append({"signal_id": row["id"], "horizon": horizon, "return_pct": value})
         except Exception as exc:
             errors.append({"market": market, "ticker": ticker, "error": str(exc)})
