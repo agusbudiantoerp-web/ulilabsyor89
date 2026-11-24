@@ -1,39 +1,41 @@
 # Security, Audit and Multi-User Release Gates
 
-## Implemented foundations
+## Implemented application controls
 
-- Telegram chat access remains fail-closed: an empty allowlist authorizes nobody.
-- `security_controls.py` provides role names and permission checks for viewer, analyst, portfolio_manager and admin.
-- Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, uses the verified issuer-bound immutable `iss|sub` principal, and fails closed when login or role mapping is missing.
-- Server-side page-level permission checks restrict research, signal, portfolio/risk, backtest, performance and the administrator-only Security & Audit console by role. Operation-level checks also restrict portfolio management and report exports; Excel/PDF and audit-log CSV downloads emit audit events. The console displays the server-managed OIDC role map, recent audit events, an on-demand hash-chain integrity check and a read-only PostgreSQL connection/schema/privilege diagnostic. A full review of every privileged operation remains a release gate.
-- Login/logout audit events use PostgreSQL when `DATABASE_URL` is configured and SQLite as a local fallback, unless an explicit local `audit_db_path` is supplied. Login audit failure blocks dashboard access; logout always terminates the OIDC session and reports audit failure.
-- `security_controls.py` provides a hash-linked audit event log with serialized append operations in PostgreSQL (cross-instance lock) and SQLite (immediate transaction), plus a chain-verification routine.
-- Audit payloads reject credential-like keys recursively, including common nested and naming variants.
-- Portfolio books are scoped by the authenticated issuer-bound OIDC principal in PostgreSQL when `DATABASE_URL` is configured, with local SQLite fallback. Existing pre-migration local books are assigned `legacy-unassigned` and are hidden from authenticated users; they are not automatically uploaded to PostgreSQL.
-- Daily scans, signals, forward outcomes and learning analytics are scoped to the authenticated issuer-bound OIDC principal in both SQLite and PostgreSQL. Existing records are migrated to `legacy-unassigned` and hidden from authenticated principals.
-- Single-ticker, walk-forward and multi-asset research runs are stored in `research_runs`; list, read and delete operations filter by the authenticated owner. Local SQLite research history is separate from cloud PostgreSQL.
-- Performance history can use PostgreSQL, but production use still requires managed database operations, tenant-aware backups and operational security.
+- Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, derives the principal from the verified issuer-bound immutable `iss|sub`, and denies access when login or role mapping is missing.
+- Server-managed roles are `viewer`, `analyst`, `portfolio_manager` and `admin`. Role mapping is maintained in private Streamlit Secrets; the browser console is read-only.
+- Server-side page gates protect research, daily signals, portfolio/risk, backtesting, performance and the admin-only Security & Audit console. Selected portfolio-management, report-export and other sensitive operations also enforce permissions at their execution points.
+- Session state is cleared when the authenticated principal changes in a reused Streamlit session.
+- Portfolio books, daily scans/signals/forward outcomes and saved single-ticker, walk-forward and multi-asset research runs are owner-scoped using the immutable OIDC principal. Existing legacy records are quarantined as `legacy-unassigned`; they are not silently assigned to the first user or uploaded from local SQLite.
+- Performance/learning records use PostgreSQL when configured and local SQLite otherwise. Local SQLite history is not automatically merged into cloud PostgreSQL.
+- Login/logout and application activity are audit-logged. The audit console is admin-only; audit history is intentionally system-wide rather than tenant-private.
+- Audit writes are serialized in PostgreSQL and SQLite. A SHA-256 hash chain can detect accidental or partial tampering, but it is not WORM storage and cannot resist a privileged database administrator rewriting the entire chain.
+- Audit payloads reject common credential-like keys recursively. Excel/CSV exports escape formula-like untrusted text; dynamic PDF text is escaped.
+- The admin console exposes the server-managed role map, permission matrix, audit history/export, hash-chain verification, storage routing, confirmed idempotent PostgreSQL schema preparation and read-only database/table/privilege diagnostics.
+- SQLite backup integrity checks and PostgreSQL custom-format logical backup support are provided by `database_backup.py`, with SHA-256 manifests.
 
-## Important release status
+## Explicit boundaries (not represented as completed application features)
 
-**OIDC login and page-level role gates are implemented, but the application is not yet certified or configured for production multi-user deployment.** The identity provider and role mapping still need to be configured in Streamlit Secrets, and tenant isolation and operation-level authorization remain incomplete.
+- User provisioning and role changes are performed by an administrator in Streamlit Secrets; there is no self-service registration or in-app role editor.
+- Audit history is shared across the installation and visible only to administrators. External append-only/WORM retention is not included in the application.
+- PostgreSQL managed-service configuration, credential rotation, point-in-time recovery, network policy and backup retention remain infrastructure/administrator responsibilities.
+- Local SQLite files are not a multi-instance shared database and may be ephemeral on hosted infrastructure. Configure PostgreSQL for persistent cloud multi-user operation.
+- The app does not place broker orders. Research and backtest outputs remain decision support, not execution instructions.
 
-Portfolio books, learning/performance records and research/backtest runs are scoped by issuer-bound owner ID. Audit events are intentionally system-wide and visible only through the admin-only console; they still require protected external retention for production. Page-level gates and selected action-level checks are present; every privileged operation still needs a complete authorization and audit review. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
+## Required before production release
 
-## Required before enabling multiple users
-
-1. Configure exactly one trusted OIDC provider in Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
-2. Map issuer-bound immutable provider subject IDs to server-managed roles; deny access if identity or role is missing.
-3. Enforce authorization server-side on every portfolio read/write/delete, report export, model configuration change, and user administration action. The audit console is admin-only, but its page-level gate must be complemented by endpoint-level checks if new audit APIs are added.
-4. Extend tenant/user ownership keys to any remaining private data tables and migrate legacy records with an explicit owner. Portfolio, learning/performance and research-run records are owner-scoped; audit events remain system-wide and are restricted to administrators.
-5. Use managed PostgreSQL with least-privilege credentials, TLS, connection limits, backups, and tested point-in-time recovery.
-6. Export audit events to access-controlled append-only or WORM storage. The PostgreSQL/SQLite hash chain is tamper-evident, not immutable against an administrator who can rewrite the database.
-7. Redact secrets and personal data from logs; rotate credentials and document incident response.
-8. Perform dependency, vulnerability, access-control, backup-restore, and penetration testing before release.
+1. Configure one trusted OIDC provider in Preview Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
+2. Map each approved immutable `issuer|sub` principal to the least-privilege role. Unknown principals must remain denied.
+3. Configure a dedicated Preview PostgreSQL database with TLS and least-privilege grants. Never use production credentials for Preview.
+4. Review and exercise every privileged page and operation against each role, including direct invocation paths, exports, portfolio CRUD, saved-run CRUD, and admin actions.
+5. Verify two-user isolation for portfolio books, learning/performance records and research/backtest history. Confirm audit records remain admin-only.
+6. Verify PostgreSQL schema, grants, connection limits, backups and recovery procedures on Preview/staging.
+7. Export audit events to an access-controlled append-only/WORM system if regulatory or operational retention requires immutability.
+8. Perform dependency/vulnerability review, access-control testing, backup-restore rehearsal and an independent security review before inviting production users.
 
 ## Operational controls
 
-- Keep API keys and database credentials in Streamlit secrets or environment variables, never in source files or audit payloads.
+- Keep API keys, OAuth client secrets, cookie secrets and database credentials only in Streamlit Secrets or private environment variables, never in source files or audit payloads.
 - Do not expose local SQLite files or database connection strings through downloads.
 - Do not merge the development branch or deploy it to the public Streamlit app until the complete test suite and release gates pass.
 - The system is research support only; it does not place broker orders or replace human review.
