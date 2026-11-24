@@ -180,7 +180,7 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
                         )
                         st.success("Portfolio tersimpan berhasil dihapus.")
                         st.session_state.pop("saved_portfolio_select", None)
-                        st.session_state.pop("confirm_delete_saved_portfolio", None)
+                        st.session_state.pop(f"confirm_delete_saved_portfolio_{names[selected_label]}", None)
                         st.rerun()
                     else:
                         st.info("Portfolio tidak ditemukan atau sudah dihapus.")
