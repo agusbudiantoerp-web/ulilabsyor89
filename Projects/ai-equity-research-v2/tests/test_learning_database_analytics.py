@@ -59,3 +59,16 @@ def test_outcome_summary_does_not_count_unavailable_horizons(tmp_path):
     db_path, _ = _seed(tmp_path)
     summary = outcome_summary(db_path=db_path)
     assert summary == []
+
+
+def test_record_outcome_rejects_invalid_price_and_non_forward_date(tmp_path):
+    db_path, _ = _seed(tmp_path)
+    from daily_signal_storage import signal_history
+    rows = signal_history(limit=10, db_path=db_path)
+    signal_id = next(row["id"] for row in rows if row["ticker"] == "AAA.JK")
+    with pytest.raises(ValueError, match="finite dan positif"):
+        record_outcome(signal_id, 1, "2026-01-06", float("inf"), db_path=db_path)
+    with pytest.raises(ValueError, match="setelah tanggal signal"):
+        record_outcome(signal_id, 1, "2026-01-05", 101.0, db_path=db_path)
+    with pytest.raises(ValueError, match="ISO"):
+        record_outcome(signal_id, 1, "not-a-date", 101.0, db_path=db_path)
