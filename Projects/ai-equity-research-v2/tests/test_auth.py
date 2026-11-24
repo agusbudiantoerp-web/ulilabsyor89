@@ -6,6 +6,7 @@ from auth import (
     audit_login_once,
     get_claim,
     oidc_is_configured,
+    logout,
     resolve_streamlit_identity,
 )
 from security_controls import list_audit_events
@@ -82,3 +83,19 @@ def test_identity_requires_issuer_to_prevent_cross_provider_subject_collision():
     user = FakeUser(sub="same-subject")
     with pytest.raises(PermissionError, match="issuer"):
         resolve_streamlit_identity(user, {"auth_roles": {"same-subject": "admin"}})
+
+
+def test_logout_is_not_blocked_by_audit_storage_failure(monkeypatch):
+    import auth
+
+    def fail_audit(*args, **kwargs):
+        raise OSError("audit store unavailable")
+
+    monkeypatch.setattr(auth, "record_audit_event", fail_audit)
+    fake_st = SimpleNamespace(
+        secrets={},
+        logout=lambda: setattr(fake_st, "logged_out", True),
+        logged_out=False,
+    )
+    logout(fake_st, {"subject_id": "issuer|subject", "role": "analyst"})
+    assert fake_st.logged_out is True
