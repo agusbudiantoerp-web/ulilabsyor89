@@ -148,6 +148,8 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
                     "Upside / Downside %": result.get("upside_downside_pct"),
                     "Enterprise value": result.get("enterprise_value"),
                     "Equity value": result.get("equity_value"),
+                    "PV terminal / EV %": result.get("terminal_value_share_pct"),
+                    "Model warnings": " | ".join(result.get("model_warnings") or []),
                     "Reason": result.get("reason"),
                 })
                 if result.get("forecast"):
@@ -404,6 +406,11 @@ def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | 
                 str(result.get("intrinsic_value_per_share")),
                 str(result.get("upside_downside_pct")),
             ])
+            for warning in result.get("model_warnings") or []:
+                story.append(Paragraph(
+                    f"Review ({escape(str(name))}): {escape(str(warning))}",
+                    styles["BodyText"],
+                ))
         scenario_table = Table(scenario_rows, colWidths=[90, 65, 145, 160], repeatRows=1)
         scenario_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163447")),
