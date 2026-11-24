@@ -19,3 +19,9 @@ app.py.backup*
 /equity-research-lab-source.zip
 *.bak
 logs/
+
+# Local/private databases and portfolio data
+*.sqlite
+*.sqlite3
+*.db
+data/
