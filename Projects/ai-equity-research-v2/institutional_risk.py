@@ -120,7 +120,8 @@ def analyze_institutional_risk(
         z_score = NormalDist().inv_cdf(float(confidence_level))
         parametric_var = max(0.0, -(mean - z_score * std)) * 100
         growth = (1 + series).cumprod()
-        drawdown = (growth / growth.cummax() - 1).min() * 100
+        running_peak = growth.cummax().clip(lower=1.0)
+        drawdown = (growth / running_peak - 1).min() * 100
         hist_var = max(0.0, -tail_q * 100)
         hist_es = max(0.0, -float(tail.mean()) * 100) if not tail.empty else hist_var
         risk_rows.append({
