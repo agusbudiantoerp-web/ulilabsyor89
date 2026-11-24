@@ -31,7 +31,7 @@ def test_postgres_url_is_translated_to_libpq_environment_without_url_leak():
         "postgresql://research_user:p%40ss%3Aword@db.example.net:6543/research_db"
         "?sslmode=require&connect_timeout=22&application_name=equity-backup"
     )
-    env = _postgres_environment(url, {"PATH": "/usr/bin", "DATABASE_URL": url})
+    env = _postgres_environment(url, {"PATH": "/usr/bin", "DATABASE_URL": url, "PGHOST": "stale-host", "PGPASSWORD": "stale-password"})
 
     assert env["PGHOST"] == "db.example.net"
     assert env["PGPORT"] == "6543"
@@ -50,3 +50,14 @@ def test_postgres_url_requires_database_name():
 
     with pytest.raises(ValueError, match="nama database"):
         _postgres_environment("postgresql://user:pass@db.example.net/")
+
+
+
+def test_postgres_url_does_not_inherit_stale_credentials():
+    env = _postgres_environment(
+        "postgresql://backup_user@db.example.net/research_db",
+        {"PATH": "/usr/bin", "PGUSER": "old-user", "PGPASSWORD": "old-password"},
+    )
+
+    assert env["PGUSER"] == "backup_user"
+    assert "PGPASSWORD" not in env
