@@ -95,7 +95,7 @@ def render_market_intelligence() -> None:
 
 def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None:
     st.subheader("Simpan & Muat Portfolio")
-    st.caption("Setiap portfolio disimpan dengan owner ID dari sesi OIDC. Penyimpanan tetap SQLite lokal dan tidak dienkripsi; database cloud belum diaktifkan.")
+    st.caption("Portfolio disimpan dengan owner ID OIDC. PostgreSQL digunakan bila DATABASE_URL tersedia; jika tidak, sistem memakai SQLite lokal yang tidak dienkripsi dan dapat bersifat sementara di hosting.")
     if not str(owner_id or "").strip():
         st.error("Owner identity tidak tersedia; penyimpanan portfolio dikunci.")
         return
