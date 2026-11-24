@@ -152,6 +152,11 @@ def render_security_audit(identity: dict, secrets) -> None:
             filtered.to_csv(index=False).encode("utf-8-sig"),
             file_name="ai_equity_research_audit_log.csv",
             mime="text/csv",
+            on_click=lambda: record_audit_event(
+                actor_id, actor_role, "AUDIT_EXPORT", "audit_log",
+                details={"format": "csv", "event_count": len(filtered)},
+                path=audit_path_value,
+            ),
         )
     else:
         st.info("Belum ada event audit tersimpan.")
