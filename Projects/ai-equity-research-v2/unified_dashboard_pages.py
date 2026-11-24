@@ -64,6 +64,10 @@ def _show_scan(scan: dict) -> None:
         st.download_button(
             "Unduh hasil scan CSV", frame.to_csv(index=False).encode("utf-8-sig"),
             file_name="daily_stock_signal.csv", mime="text/csv",
+            on_click=lambda: _audit_action(
+                "REPORT_EXPORT", "daily_signal_scan", str(scan.get("scan_id", "")),
+                {"format": "csv"},
+            ),
         )
     if scan.get("errors"):
         with st.expander(f"Detail data gagal ({len(scan['errors'])})"):
@@ -198,7 +202,14 @@ def render_daily_signal() -> None:
                 ]
                 visible = frame[[name for name in columns if name in frame.columns]]
                 st.dataframe(visible, use_container_width=True, hide_index=True)
-                st.download_button("Unduh ranking screener CSV", visible.to_csv(index=False).encode("utf-8-sig"), "advanced_stock_screener.csv", "text/csv")
+                st.download_button(
+                    "Unduh ranking screener CSV",
+                    visible.to_csv(index=False).encode("utf-8-sig"),
+                    "advanced_stock_screener.csv", "text/csv",
+                    on_click=lambda: _audit_action(
+                        "REPORT_EXPORT", "stock_screener", details={"format": "csv", "rows": len(visible)}
+                    ),
+                )
                 with st.expander("Penjelasan skor AI dan coverage data"):
                     for item in rows[:10]:
                         st.markdown(f"**{item['ticker']} — {item.get('ai_score')} / 100 ({item.get('score_label')})**")
@@ -514,7 +525,14 @@ def render_backtesting() -> None:
             if not trades.empty:
                 st.subheader("Detail transaksi")
                 st.dataframe(trades,use_container_width=True,hide_index=True)
-                st.download_button("Unduh transaksi CSV",trades.to_csv(index=False).encode("utf-8-sig"),"backtest_trades.csv","text/csv")
+                st.download_button(
+                    "Unduh transaksi CSV", trades.to_csv(index=False).encode("utf-8-sig"),
+                    "backtest_trades.csv", "text/csv",
+                    on_click=lambda: _audit_action(
+                        "REPORT_EXPORT", "backtest_trades",
+                        str(saved.get("ticker", "")), {"format": "csv", "rows": len(trades)},
+                    ),
+                )
             else:
                 st.info("Tidak ada transaksi yang memenuhi aturan strategi pada periode ini.")
             st.warning(r["limitations"])
@@ -631,7 +649,14 @@ def render_performance_dashboard() -> None:
         st.subheader("Riwayat sinyal dan forward outcome")
         st.dataframe(frame[cols],use_container_width=True,hide_index=True)
         if has_permission(st.session_state.get("_auth_role"), "export_reports"):
-            st.download_button("Unduh histori sinyal CSV",frame[cols].to_csv(index=False).encode("utf-8-sig"),"signal_history.csv","text/csv")
+            st.download_button(
+                "Unduh histori sinyal CSV",
+                frame[cols].to_csv(index=False).encode("utf-8-sig"),
+                "signal_history.csv", "text/csv",
+                on_click=lambda: _audit_action(
+                    "REPORT_EXPORT", "signal_history", details={"format": "csv", "rows": len(frame)}
+                ),
+            )
         st.bar_chart(frame["signal"].value_counts().rename_axis("Signal").reset_index(name="Count").set_index("Signal"))
         st.subheader("Evaluasi hasil berdasarkan sinyal")
         for horizon,column in [(1,"outcome_1d_return_pct"),(3,"outcome_3d_return_pct"),(5,"outcome_5d_return_pct"),(10,"outcome_10d_return_pct"),(20,"outcome_20d_return_pct")]:
