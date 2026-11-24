@@ -146,3 +146,13 @@ def test_portfolio_exposure_includes_missing_sector_and_normalizes_ticker():
     assert result["sector_exposure"]["Market Value"].sum() == 200
     assert set(result["sector_exposure"]["Sector"]) == {"Unknown"}
     assert result["market_exposure"] == {"IDX": 200}
+
+
+def test_portfolio_intelligence_rejects_exposure_aggregation_overflow():
+    import pytest
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Market": "IDX", "Currency": "IDR", "Market Value": 1e308},
+        {"Ticker": "BBB", "Market": "IDX", "Currency": "IDR", "Market Value": 1e308},
+    ])
+    with pytest.raises(ValueError, match="Agregasi exposure"):
+        analyze_portfolio(positions, {})
