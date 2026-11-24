@@ -98,9 +98,10 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
                 index=False
             )
 
-            pd.DataFrame({
-                "DCF notes": [dcf["warning"]]
-            }).to_excel(writer, sheet_name="DCF Notes", index=False)
+            dcf_notes = [dcf["warning"]] + list(dcf.get("model_warnings") or [])
+            pd.DataFrame({"DCF notes": dcf_notes}).to_excel(
+                writer, sheet_name="DCF Notes", index=False
+            )
 
         else:
             reason = dcf.get("reason", "DCF not run") if dcf else "DCF not run"
@@ -334,6 +335,7 @@ def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | 
         story += [
             Spacer(1, 6),
             Paragraph(escape(dcf["warning"]), styles["BodyText"]),
+            *[Paragraph("Review: " + escape(str(item)), styles["BodyText"]) for item in (dcf.get("model_warnings") or [])],
             Spacer(1, 10)
         ]
 
