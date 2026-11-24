@@ -45,8 +45,8 @@ def render_security_audit(identity: dict, secrets) -> None:
         events = list_audit_events(limit=500, path=audit_path_value)
     except Exception as exc:
         st.error(
-            "Audit console dikunci karena penyimpanan audit tidak dapat diakses: "
-            f"{type(exc).__name__}: {exc}"
+            "Audit console dikunci karena penyimpanan audit tidak dapat diakses "
+            f"({type(exc).__name__}). Detail koneksi dan error disembunyikan."
         )
         return
 
