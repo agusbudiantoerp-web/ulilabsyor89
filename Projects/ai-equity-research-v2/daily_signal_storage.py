@@ -377,13 +377,13 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
 
 
 def outcome_summary(db_path: str | None = None, owner_id: str | None = None):
+    """Summarize realized returns by horizon, ruleset and signal for one owner.
+
+    Only completed observations are included; unavailable horizons are not
+    treated as zero-return observations.
+    """
     owner = str(owner_id or '').strip()
     if not owner: raise ValueError('Owner identity wajib diisi.')
-    """Summarize realized forward returns overall and by ruleset/signal type.
-
-    Only rows already present in outcomes are included, so incomplete forward
-    horizons are never treated as zero-return observations.
-    """
     initialize(db_path)
     query = """
         SELECT o.horizon, o.return_pct, s.signal, s.score, s.payload
