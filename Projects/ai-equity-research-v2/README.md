@@ -69,13 +69,13 @@ A GitHub Actions workflow also runs compile checks and the complete test suite o
 
 ## Authentication and access control
 
-The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. Audit storage, remaining private data sources, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
+The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. The audit hash chain is stored in PostgreSQL when configured, but it is not WORM/immutable. Remaining private data sources, managed database operations, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
 
 See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configuration. Keep provider client secrets and the cookie secret only in Streamlit Secrets.
 
 ## Cloud performance database
 
-Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates the scan, signal and outcome tables on first use and scopes records to the authenticated OIDC principal. Legacy records are quarantined as `legacy-unassigned`. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
+Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates owner-scoped scan, signal, outcome, portfolio and audit tables. Legacy learning/portfolio records are quarantined as `legacy-unassigned`; local SQLite books are not automatically uploaded. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
 
 See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
