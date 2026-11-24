@@ -7,6 +7,10 @@ import pandas as pd
 def safe_csv_bytes(frame: pd.DataFrame, encoding: str = "utf-8-sig") -> bytes:
     """Serialize a dataframe while neutralizing spreadsheet formula-like text cells."""
     safe = frame.copy()
+    safe.columns = [
+        "'" + column if isinstance(column, str) and column.lstrip().startswith(("=", "+", "-", "@")) else column
+        for column in safe.columns
+    ]
     for column in safe.columns:
         safe[column] = safe[column].map(
             lambda value: "'" + value
