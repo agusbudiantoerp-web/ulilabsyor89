@@ -11,12 +11,12 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     st.caption("Catatan katalis dan risiko diisi analis; sistem tidak mengarang peristiwa korporasi.")
     catalyst_notes = st.text_area(
         "Katalis utama (opsional, sertakan tanggal/sumber bila tersedia)",
-        value="", key="scenario_catalysts",
+        value="", key=f"scenario_catalysts_{data.get('ticker', 'unknown')}",
         help="Contoh: ekspansi kapasitas, kontrak baru, perubahan regulasi. Cantumkan sumber dan tanggal."
     )
     risk_notes = st.text_area(
         "Risiko utama (opsional, sertakan tanggal/sumber bila tersedia)",
-        value="", key="scenario_risks",
+        value="", key=f"scenario_risks_{data.get('ticker', 'unknown')}",
         help="Contoh: leverage, volatilitas bahan baku, risiko proyek, likuiditas."
     )
 
