@@ -65,3 +65,37 @@ def test_record_outcome_rejects_unsupported_horizon(tmp_path):
         assert "1, 3, 5, 10, atau 20" in str(exc)
     else:
         raise AssertionError("Horizon selain 1, 3, 5, 10, atau 20 seharusnya ditolak.")
+
+
+def test_learning_history_isolated_between_users_and_same_day_tickers(tmp_path):
+    db_path = str(tmp_path / "tenant-learning.sqlite3")
+    first = save_scan(_scan(), db_path=db_path, owner_id="issuer|alice")
+    second = save_scan(_scan(), db_path=db_path, owner_id="issuer|bob")
+    assert first != second
+    assert len(signal_history(db_path=db_path, owner_id="issuer|alice")) == 1
+    assert len(signal_history(db_path=db_path, owner_id="issuer|bob")) == 1
+    assert latest_scan(db_path=db_path, owner_id="issuer|alice")["scan_id"] == first
+    assert latest_scan(db_path=db_path, owner_id="issuer|bob")["scan_id"] == second
+    alice_signal = signal_history(db_path=db_path, owner_id="issuer|alice")[0]
+    with __import__("pytest").raises(ValueError, match="Signal tidak ditemukan"):
+        record_outcome(
+            alice_signal["id"], 1, "2026-11-23", 1178.1,
+            db_path=db_path, owner_id="issuer|bob",
+        )
+    record_outcome(
+        alice_signal["id"], 1, "2026-11-23", 1178.1,
+        db_path=db_path, owner_id="issuer|alice",
+    )
+    assert outcome_summary(db_path=db_path, owner_id="issuer|bob") == []
+    assert outcome_summary(db_path=db_path, owner_id="issuer|alice")
+
+
+def test_learning_storage_requires_explicit_owner(tmp_path):
+    import pytest
+    db_path = str(tmp_path / "owner-required.sqlite3")
+    with pytest.raises(ValueError, match="Owner identity"):
+        save_scan(_scan(), db_path=db_path)
+    with pytest.raises(ValueError, match="Owner identity"):
+        signal_history(db_path=db_path)
+    with pytest.raises(ValueError, match="Owner identity"):
+        latest_scan(db_path=db_path)
