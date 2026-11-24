@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -56,8 +57,8 @@ def backup_sqlite(source: str | Path, output_dir: str | Path = "backups") -> dic
     backup_path = target_dir / f"{source_path.stem}-{_timestamp()}.sqlite3"
 
     try:
-        with sqlite3.connect(str(source_path), timeout=30) as src:
-            with sqlite3.connect(str(backup_path), timeout=30) as dst:
+        with closing(sqlite3.connect(str(source_path), timeout=30)) as src:
+            with closing(sqlite3.connect(str(backup_path), timeout=30)) as dst:
                 src.backup(dst)
                 result = dst.execute("PRAGMA integrity_check").fetchone()[0]
         if result != "ok":
