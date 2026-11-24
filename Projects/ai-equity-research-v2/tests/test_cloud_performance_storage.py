@@ -94,8 +94,8 @@ def test_learning_storage_requires_explicit_owner(tmp_path):
     import pytest
     db_path = str(tmp_path / "owner-required.sqlite3")
     with pytest.raises(ValueError, match="Owner identity"):
-        save_scan(_scan(), db_path=db_path)
+        save_scan(_scan(), db_path=db_path, owner_id='test-owner')
     with pytest.raises(ValueError, match="Owner identity"):
-        signal_history(db_path=db_path)
+        signal_history(db_path=db_path, owner_id='test-owner')
     with pytest.raises(ValueError, match="Owner identity"):
-        latest_scan(db_path=db_path)
+        latest_scan(db_path=db_path, owner_id='test-owner')
