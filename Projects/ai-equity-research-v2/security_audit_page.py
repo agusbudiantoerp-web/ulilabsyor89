@@ -1,9 +1,14 @@
 """Administrator-only security and audit console."""
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 import streamlit as st
 
+from daily_signal_storage import backend_name as signal_backend_name
+from portfolio_store import backend_name as portfolio_backend_name
+from research_run_store import backend_name as research_backend_name
 from security_controls import (
     list_audit_events,
     normalize_role,
@@ -64,6 +69,31 @@ def render_security_audit(identity: dict, secrets) -> None:
         st.dataframe(pd.DataFrame(role_rows), use_container_width=True, hide_index=True)
     else:
         st.warning("Belum ada pemetaan role yang dapat ditampilkan.")
+
+    st.subheader("Konfigurasi penyimpanan")
+    database_settings = secrets.get("database", {})
+    database_url_configured = bool(
+        os.getenv("DATABASE_URL")
+        or os.getenv("CLOUD_DATABASE_URL")
+        or secrets.get("DATABASE_URL")
+        or secrets.get("CLOUD_DATABASE_URL")
+        or (database_settings.get("url") if hasattr(database_settings, "get") else None)
+    )
+    audit_path = secrets.get("audit_db_path")
+    storage_cols = st.columns(4)
+    storage_cols[0].metric("Daily signals", signal_backend_name())
+    storage_cols[1].metric("Portfolio books", portfolio_backend_name())
+    storage_cols[2].metric("Research runs", research_backend_name())
+    storage_cols[3].metric(
+        "Audit events",
+        "SQLite" if audit_path else ("PostgreSQL" if database_url_configured else "SQLite"),
+    )
+    if not database_url_configured:
+        st.warning("DATABASE_URL belum dikonfigurasi. Penyimpanan cloud menggunakan fallback SQLite dan dapat bersifat sementara.")
+    st.caption(
+        "Panel ini hanya membaca jalur backend berdasarkan konfigurasi; belum menguji koneksi, "
+        "hak akses database, migrasi, backup, atau pemulihan."
+    )
 
     st.subheader("Integritas audit log")
     if st.button("Verifikasi hash chain audit", type="primary", key="audit_verify_chain"):
