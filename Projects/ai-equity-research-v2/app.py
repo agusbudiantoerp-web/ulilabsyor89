@@ -1,6 +1,6 @@
 import streamlit as st
 
-from auth import audit_login_once, logout, oidc_is_configured, resolve_streamlit_identity
+from auth import audit_login_once, get_claim, logout, oidc_is_configured, resolve_streamlit_identity
 from equity_research_page import render_equity_research
 from security_controls import require_permission
 from unified_dashboard_pages import (
@@ -40,7 +40,7 @@ try:
     identity = resolve_streamlit_identity(st.user, st.secrets)
 except PermissionError as exc:
     st.error("Akses ditolak: " + str(exc))
-    subject = str(st.user.get("sub", "") or "").strip()
+    subject = str(get_claim(st.user, "sub", "") or "").strip()
     if subject:
         st.caption("Immutable identity subject (sub) untuk administrator:")
         st.code(subject)
