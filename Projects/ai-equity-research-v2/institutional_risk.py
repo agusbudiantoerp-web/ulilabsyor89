@@ -100,6 +100,8 @@ def analyze_institutional_risk(
             axis=1,
         ).sort_index()
         daily = daily.replace([float("inf"), -float("inf")], float("nan")).dropna(how="any")
+        if (daily <= -1).any().any():
+            raise ValueError("Daily return tidak boleh <= -100%.")
         weights = values.reindex(available).astype(float)
         weights = weights / weights.sum()
         series = daily.mul(weights, axis=1).sum(axis=1)
