@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlsplit
 
 
 LOCAL_DATABASES = {
@@ -18,6 +19,19 @@ LOCAL_DATABASES = {
     "portfolio_books": ("PORTFOLIO_DB_PATH", "data/portfolio_books.sqlite3"),
     "audit_log": ("AUDIT_DB_PATH", "data/audit_log.sqlite3"),
     "research_runs": ("RESEARCH_RUNS_DB_PATH", "data/research_runs.sqlite3"),
+}
+
+_LIBPQ_QUERY_ENV = {
+    "sslmode": "PGSSLMODE",
+    "sslcert": "PGSSLCERT",
+    "sslkey": "PGSSLKEY",
+    "sslrootcert": "PGSSLROOTCERT",
+    "sslcrl": "PGSSLCRL",
+    "application_name": "PGAPPNAME",
+    "connect_timeout": "PGCONNECT_TIMEOUT",
+    "target_session_attrs": "PGTARGETSESSIONATTRS",
+    "gssencmode": "PGGSSENCMODE",
+    "channel_binding": "PGCHANNELBINDING",
 }
 
 
@@ -46,6 +60,40 @@ def _write_manifest(backup_path: Path, backend: str, source_name: str, validatio
     manifest_path = backup_path.with_suffix(backup_path.suffix + ".manifest.json")
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest_path
+
+
+def _postgres_environment(database_url: str, base_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Translate a PostgreSQL URL into libpq environment variables, not process arguments."""
+    parsed = urlsplit(str(database_url).strip())
+    if parsed.scheme not in {"postgres", "postgresql"} or not parsed.hostname:
+        raise ValueError("DATABASE_URL harus berupa URL PostgreSQL yang valid.")
+    database = unquote(parsed.path.lstrip("/"))
+    if not database:
+        raise ValueError("DATABASE_URL harus menyertakan nama database.")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Port PostgreSQL pada DATABASE_URL tidak valid.") from exc
+
+    env = dict(os.environ if base_env is None else base_env)
+    env["PGHOST"] = unquote(parsed.hostname)
+    env["PGDATABASE"] = database
+    if parsed.username:
+        env["PGUSER"] = unquote(parsed.username)
+    if parsed.password is not None:
+        env["PGPASSWORD"] = unquote(parsed.password)
+    if port is not None:
+        env["PGPORT"] = str(port)
+
+    query = parse_qs(parsed.query, keep_blank_values=False)
+    for parameter, environment_key in _LIBPQ_QUERY_ENV.items():
+        values = query.get(parameter)
+        if values:
+            env[environment_key] = values[-1]
+    env.setdefault("PGCONNECT_TIMEOUT", "15")
+    env.pop("DATABASE_URL", None)
+    env.pop("CLOUD_DATABASE_URL", None)
+    return env
 
 
 def backup_sqlite(source: str | Path, output_dir: str | Path = "backups") -> dict:
@@ -85,7 +133,7 @@ def backup_local_databases(output_dir: str | Path = "backups") -> list[dict]:
 
 
 def backup_postgres(output_dir: str | Path = "backups") -> dict:
-    """Create a custom-format pg_dump using PGDATABASE, not a command-line URI."""
+    """Create a custom-format pg_dump using libpq environment variables."""
     database_url = os.getenv("DATABASE_URL") or os.getenv("CLOUD_DATABASE_URL")
     if not database_url:
         raise RuntimeError("Set DATABASE_URL privately in the process environment first.")
@@ -97,11 +145,7 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
     target_dir = Path(output_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
     backup_path = target_dir / f"ai-equity-research-{_timestamp()}.dump"
-    env = os.environ.copy()
-    env["PGDATABASE"] = database_url
-    env.setdefault("PGCONNECT_TIMEOUT", "15")
-    env.pop("DATABASE_URL", None)
-    env.pop("CLOUD_DATABASE_URL", None)
+    env = _postgres_environment(database_url)
 
     try:
         subprocess.run(
@@ -113,7 +157,7 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
         )
         subprocess.run(
             [pg_restore, "--list", str(backup_path)],
-            check=True, capture_output=True, text=True, timeout=120,
+            env=env, check=True, capture_output=True, text=True, timeout=120,
         )
         manifest_path = _write_manifest(
             backup_path, "PostgreSQL", "DATABASE_URL (value redacted)",
