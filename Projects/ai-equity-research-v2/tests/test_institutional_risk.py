@@ -6,8 +6,8 @@ from institutional_risk import analyze_institutional_risk
 
 def test_institutional_risk_calculates_var_es_concentration_and_stress():
     dates = pd.bdate_range("2025-01-01", periods=100)
-    a = pd.Series([0.01] * 95 + [-0.05, -0.06, -0.07, -0.08, -0.09], index=dates)
-    b = pd.Series([0.005] * 95 + [-0.03, -0.04, -0.05, -0.06, -0.07], index=dates)
+    a = pd.Series([0.01] * 90 + [-0.05, -0.06, -0.07, -0.08, -0.09, -0.10, -0.11, -0.12, -0.13, -0.14], index=dates)
+    b = pd.Series([0.005] * 90 + [-0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09, -0.10, -0.11, -0.12], index=dates)
     positions = pd.DataFrame([
         {"Ticker": "AAA", "Currency": "IDR", "Market Value": 800, "Sector": "Bank"},
         {"Ticker": "BBB", "Currency": "IDR", "Market Value": 200, "Sector": "Energy"},
@@ -112,5 +112,5 @@ def test_institutional_risk_rejects_market_value_aggregation_overflow():
         {"Ticker": "AAA", "Currency": "IDR", "Market Value": 1e308},
         {"Ticker": "BBB", "Currency": "IDR", "Market Value": 1e308},
     ])
-    with pytest.raises(ValueError, match="Agregasi market value"):
+    with pytest.raises(ValueError, match="market value per mata uang"):
         analyze_institutional_risk(positions, {})
