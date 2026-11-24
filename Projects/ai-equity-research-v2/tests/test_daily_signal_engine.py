@@ -37,9 +37,9 @@ def test_risk_plan_and_entry_validation():
 def test_sqlite_persistence(tmp_path):
     path=str(tmp_path/"signals.db")
     scan={"counts":{"scanned":1,"failed":0},"results":[{"market":"US","ticker":"AAPL","bar_date":"2026-01-01","signal":"WATCH","score":55,"close":100}]}
-    save_scan(scan,path)
-    assert latest_scan(path)["counts"]["scanned"]==1
-    assert len(signal_history(db_path=path))==1
+    save_scan(scan,path,owner_id='test-owner')
+    assert latest_scan(path,owner_id='test-owner')["counts"]["scanned"]==1
+    assert len(signal_history(db_path=path,owner_id='test-owner'))==1
 
 def test_invalid_ohlc_raises():
     with pytest.raises(ValueError):
