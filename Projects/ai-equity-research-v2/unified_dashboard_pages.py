@@ -656,4 +656,4 @@ def render_performance_dashboard() -> None:
     else:
         st.info("Outcome forward belum tercatat. Sistem menunggu harga penutupan untuk setiap horizon tersedia.")
     st.caption("Return historis adalah hasil observasi setelah tanggal sinyal, bukan prediksi. Evaluasi per sinyal belum menghilangkan seluruh bias survivorship dan data vendor.")
-    render_research_exports(latest, history)
+    render_research_exports(latest, history, _owner_id())
