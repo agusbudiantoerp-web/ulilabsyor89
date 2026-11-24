@@ -47,7 +47,7 @@ def resolve_streamlit_identity(user: Any, secrets: Any) -> dict:
     subject = str(get_claim(user, "sub", "") or "").strip()
     issuer = str(get_claim(user, "iss", "") or "").strip().rstrip("/")
     if not subject or not issuer:
-        raise PermissionError("Provider tidak memberikan immutable issuer (iss) dan subject (sub).")
+        raise PermissionError("Provider tidak memberikan immutable subject (sub) dan issuer (iss).")
     # Subject identifiers are unique only within an issuer. Bind both to avoid
     # accidental role reuse if the configured identity provider is changed.
     principal_id = f"{issuer}|{subject}"
