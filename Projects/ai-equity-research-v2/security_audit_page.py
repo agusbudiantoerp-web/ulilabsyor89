@@ -28,6 +28,8 @@ def render_security_audit(identity: dict, secrets) -> None:
 
     st.header("Security & Audit Console")
     st.caption("Konsol administrator untuk meninjau pemetaan role dan jejak audit sistem.")
+    audit_path = secrets.get("audit_db_path")
+    audit_path_value = str(audit_path) if audit_path else None
     try:
         record_audit_event(
             actor_id,
@@ -35,8 +37,9 @@ def render_security_audit(identity: dict, secrets) -> None:
             "AUDIT_VIEW",
             "audit_log",
             details={"view": "security_audit_console"},
+            path=audit_path_value,
         )
-        events = list_audit_events(limit=500)
+        events = list_audit_events(limit=500, path=audit_path_value)
     except Exception as exc:
         st.error(
             "Audit console dikunci karena penyimpanan audit tidak dapat diakses: "
@@ -79,7 +82,6 @@ def render_security_audit(identity: dict, secrets) -> None:
         or secrets.get("CLOUD_DATABASE_URL")
         or (database_settings.get("url") if hasattr(database_settings, "get") else None)
     )
-    audit_path = secrets.get("audit_db_path")
     storage_cols = st.columns(4)
     storage_cols[0].metric("Daily signals", signal_backend_name())
     storage_cols[1].metric("Portfolio books", portfolio_backend_name())
@@ -98,7 +100,7 @@ def render_security_audit(identity: dict, secrets) -> None:
     st.subheader("Integritas audit log")
     if st.button("Verifikasi hash chain audit", type="primary", key="audit_verify_chain"):
         try:
-            result = verify_audit_chain()
+            result = verify_audit_chain(path=audit_path_value)
             if result.get("valid"):
                 st.success(
                     f"Hash chain valid. {result.get('checked_events', 0)} event diperiksa."
