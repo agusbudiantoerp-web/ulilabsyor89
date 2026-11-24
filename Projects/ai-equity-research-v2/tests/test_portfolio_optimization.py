@@ -52,3 +52,24 @@ def test_optimizer_rejects_missing_asset_returns_and_invalid_cap():
     positions, returns = fixtures()
     with pytest.raises(ValueError, match="maksimum"):
         optimize_portfolio(positions, returns, max_weight=0.2)
+
+
+def test_optimizer_rejects_negative_value_and_missing_currency():
+    import pytest
+    idx = pd.bdate_range("2025-01-01", periods=80)
+    returns = {
+        "AAA": pd.Series(np.linspace(-0.01, 0.01, 80), index=idx),
+        "BBB": pd.Series(np.linspace(0.01, -0.01, 80), index=idx),
+    }
+    negative = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": 100},
+        {"Ticker": "BBB", "Currency": "IDR", "Market Value": -10},
+    ])
+    with pytest.raises(ValueError, match="tidak boleh negatif"):
+        optimize_portfolio(negative, returns)
+    blank = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": 100},
+        {"Ticker": "BBB", "Currency": "", "Market Value": 100},
+    ])
+    with pytest.raises(ValueError, match="wajib diisi"):
+        optimize_portfolio(blank, returns)
