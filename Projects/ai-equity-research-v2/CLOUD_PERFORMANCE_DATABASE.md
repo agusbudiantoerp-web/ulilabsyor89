@@ -22,11 +22,21 @@ Never commit the real connection URI, database password, or service credentials.
 
 ## Backup and recovery operations
 
-The administrator console reports which backend is selected from configuration; it does not prove that the database is reachable or that a backup is restorable. Before multi-user production use:
+The repository includes `database_backup.py` for verified local SQLite backups and PostgreSQL logical backups. Run it from the project directory:
+
+~~~powershell
+# Back up every known local SQLite database that exists
+python database_backup.py local --output-dir backups
+
+# Back up cloud PostgreSQL; set DATABASE_URL privately in this PowerShell process first
+python database_backup.py postgres --output-dir backups
+~~~
+
+SQLite backups are checked with `PRAGMA integrity_check`; PostgreSQL dumps are checked with `pg_restore --list`. Each backup gets a SHA-256 manifest. The generated `backups/` directory is ignored by Git. The administrator console reports which backend is selected from configuration; it does not prove that the live database is reachable or that a restore is successful. Before multi-user production use:
 
 1. Enable the database provider's automated backups and point-in-time recovery where available. Confirm retention, recovery-point objective and recovery-time objective with the provider; availability may depend on the selected service plan.
 2. Keep a separate encrypted backup copy under administrator-controlled access. Never commit backup files or connection strings to Git.
-3. For a manual PostgreSQL logical backup from a trusted administrator workstation, configure `DATABASE_URL` privately in the PowerShell process environment, then run:
+3. If you need a manual PostgreSQL logical backup from a trusted administrator workstation, configure `DATABASE_URL` privately in the PowerShell process environment, then run:
 
 ~~~powershell
 New-Item -ItemType Directory -Force .\backups | Out-Null
