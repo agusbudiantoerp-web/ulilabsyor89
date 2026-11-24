@@ -1,4 +1,7 @@
+from io import BytesIO
+
 import pandas as pd
+from openpyxl import load_workbook
 
 from research_reporting import build_excel_report, build_pdf_report
 
@@ -10,8 +13,13 @@ def test_excel_and_pdf_reports_are_generated_with_nested_history_payload():
         "payload": {"signal": "BUY", "checks": ["trend", "volume"]},
     }])
     excel = build_excel_report(
-        portfolio=portfolio, metrics={"Return": 12.5}, history=history
+        portfolio=portfolio, metrics={"Return": 12.5}, history=history,
+        extra_sheets={"Backtest Trades": pd.DataFrame([{"ticker": "BBCA", "pnl": 25}])},
     )
     pdf = build_pdf_report("Test report", {"Return": 12.5}, ["Research only"])
     assert excel[:2] == b"PK"
+    workbook = load_workbook(BytesIO(excel), read_only=True)
+    assert {"Portfolio", "Signal History", "Summary", "Backtest Trades"}.issubset(
+        set(workbook.sheetnames)
+    )
     assert pdf.startswith(b"%PDF")
