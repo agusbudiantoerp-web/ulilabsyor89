@@ -36,7 +36,7 @@ def backtest(
         raise ValueError("Data historis harus berurutan dari tanggal paling lama.")
 
     numeric = bars[list(required)].apply(pd.to_numeric, errors="coerce")
-    if numeric.isna().any().any() or not numeric.map(math.isfinite).all().all():
+    if numeric.isna().any().any() or not all(math.isfinite(float(value)) for value in numeric.to_numpy().ravel()):
         raise ValueError("Data OHLCV mengandung nilai kosong atau non-finite.")
     if (numeric[["Open", "High", "Low", "Close"]] <= 0).any().any():
         raise ValueError("Harga OHLC harus positif.")
