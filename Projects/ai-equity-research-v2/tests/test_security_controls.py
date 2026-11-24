@@ -51,3 +51,17 @@ def test_audit_rejects_missing_actor_and_secrets(tmp_path):
             "admin", "admin", "CONFIG", "settings",
             details={"api_key": "do-not-store"}, path=path,
         )
+
+
+def test_audit_rejects_nested_and_variant_secret_keys(tmp_path):
+    path = str(tmp_path / "audit.sqlite3")
+    with pytest.raises(ValueError, match="kredensial"):
+        record_audit_event(
+            "analyst", "analyst", "EXPORT", "report",
+            details={"metadata": [{"accessToken": "sensitive"}]}, path=path,
+        )
+    with pytest.raises(ValueError, match="kredensial"):
+        record_audit_event(
+            "analyst", "analyst", "EXPORT", "report",
+            details={"connection": {"database-url": "sensitive"}}, path=path,
+        )
