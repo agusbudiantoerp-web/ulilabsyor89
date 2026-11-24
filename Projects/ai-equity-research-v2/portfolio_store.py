@@ -100,6 +100,9 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     initialize(path)
     now = datetime.now(timezone.utc).isoformat()
     with _connect(path) as db:
+        # Serialize ownership check and write so concurrent users cannot race
+        # a book-ID collision and overwrite another owner's positions.
+        db.execute("BEGIN IMMEDIATE")
         existing = db.execute(
             "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
         ).fetchone()
