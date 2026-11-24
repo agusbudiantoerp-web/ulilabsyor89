@@ -101,3 +101,31 @@ def test_portfolio_risk_does_not_report_negative_var_in_all_up_period():
     returns = {"AAA": pd.Series([0.01] * 5, index=idx, name="AAA")}
     result = analyze_portfolio(positions, returns)
     assert result["risk"].iloc[0]["Historical VaR 95% 1d %"] == 0
+
+
+def test_portfolio_rejects_non_finite_market_value():
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Market": "IDX", "Currency": "IDR", "Market Value": float("inf")},
+    ])
+    import pytest
+    with pytest.raises(ValueError, match="finite"):
+        analyze_portfolio(positions, {})
+
+
+def test_stock_scenario_rejects_loss_beyond_total_capital():
+    import pytest
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": 100},
+    ])
+    with pytest.raises(ValueError, match="-100"):
+        scenario_analysis(positions, {"AAA": -101})
+
+
+def test_fx_scenario_rejects_non_finite_rate_or_shock():
+    import pytest
+    from portfolio_intelligence import fx_scenario_analysis
+    positions = pd.DataFrame([{"Currency": "IDR", "Market Value": 100}])
+    with pytest.raises(ValueError, match="finite"):
+        fx_scenario_analysis(positions, usd_idr=float("nan"))
+    with pytest.raises(ValueError, match="finite"):
+        fx_scenario_analysis(positions, usd_idr=16000, fx_shock_pct=float("inf"))
