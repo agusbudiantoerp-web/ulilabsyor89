@@ -41,9 +41,11 @@ try:
 except PermissionError as exc:
     st.error("Akses ditolak: " + str(exc))
     subject = str(get_claim(st.user, "sub", "") or "").strip()
-    if subject:
+    issuer = str(get_claim(st.user, "iss", "") or "").strip().rstrip("/")
+    principal = f"{issuer}|{subject}" if issuer and subject else ""
+    if principal:
         st.caption("Principal identifier (issuer|sub) untuk administrator:")
-        st.code(subject)
+        st.code(principal)
         st.caption(
             "Administrator harus memasukkan principal identifier ini ke tabel [auth_roles] "
             "di Streamlit Secrets dengan role yang disetujui."
