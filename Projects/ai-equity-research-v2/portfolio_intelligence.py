@@ -53,6 +53,8 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
             axis=1,
         ).sort_index()
         daily = daily.replace([float("inf"), -float("inf")], float("nan")).dropna(how="any")
+        if (daily <= -1).any().any():
+            raise ValueError("Daily return tidak boleh <= -100%.")
         columns = [column for column in daily.columns if column in ticker_values.index]
         if daily.empty or not columns:
             risk_rows.append({
