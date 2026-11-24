@@ -9,6 +9,7 @@ import streamlit as st
 from daily_signal_storage import backend_name as signal_backend_name
 from portfolio_store import backend_name as portfolio_backend_name
 from research_run_store import backend_name as research_backend_name
+from database_health import check_postgres_health
 from security_controls import (
     list_audit_events,
     normalize_role,
@@ -93,9 +94,41 @@ def render_security_audit(identity: dict, secrets) -> None:
     if not database_url_configured:
         st.warning("DATABASE_URL belum dikonfigurasi. Penyimpanan cloud menggunakan fallback SQLite dan dapat bersifat sementara.")
     st.caption(
-        "Panel ini hanya membaca jalur backend berdasarkan konfigurasi; belum menguji koneksi, "
-        "hak akses database, migrasi, backup, atau pemulihan."
+        "Indikator backend di atas membaca konfigurasi. Gunakan pemeriksaan berikut untuk "
+        "menguji koneksi PostgreSQL, tabel wajib, dan hak akses tanpa menulis data."
     )
+    if st.button("Uji koneksi, skema & hak akses PostgreSQL", key="database_health_check"):
+        health = check_postgres_health(secrets)
+        if health.get("connected") and health.get("ok"):
+            st.success(health["message"])
+        elif health.get("connected"):
+            st.warning(health["message"])
+        else:
+            st.error(health["message"])
+        if health.get("connected"):
+            health_cols = st.columns(3)
+            health_cols[0].metric("Database", health.get("database", "N/A"))
+            health_cols[1].metric("Schema", health.get("schema", "N/A"))
+            health_cols[2].metric("Latency", f"{health.get('latency_ms', 0)} ms")
+            if health.get("missing_tables"):
+                st.warning("Tabel belum tersedia: " + ", ".join(health["missing_tables"]))
+            if health.get("privilege_issues"):
+                st.dataframe(pd.DataFrame(health["privilege_issues"]), use_container_width=True, hide_index=True)
+            if not health.get("missing_tables") and not health.get("privilege_issues"):
+                st.caption(f"Versi PostgreSQL: {health.get('server_version', 'N/A')}")
+        _audit_event = {
+            "connected": bool(health.get("connected")),
+            "schema_ok": bool(health.get("ok")),
+            "missing_table_count": len(health.get("missing_tables", [])),
+            "privilege_issue_count": len(health.get("privilege_issues", [])),
+        }
+        try:
+            record_audit_event(
+                actor_id, actor_role, "DATABASE_HEALTH_CHECK", "database",
+                details=_audit_event, path=audit_path_value,
+            )
+        except Exception as exc:
+            st.warning(f"Hasil pemeriksaan tidak tercatat ke audit log: {type(exc).__name__}.")
 
     st.subheader("Integritas audit log")
     if st.button("Verifikasi hash chain audit", type="primary", key="audit_verify_chain"):
