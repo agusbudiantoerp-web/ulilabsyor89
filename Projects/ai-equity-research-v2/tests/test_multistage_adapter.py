@@ -104,3 +104,32 @@ class MultiStageAdapterFXTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    @patch("multistage_adapter.project_multistage_dcf")
+    def test_critical_statement_period_mismatch_requires_manual_review(self, mock_dcf):
+        mock_dcf.return_value = {"available": True}
+        data = self.sample_data()
+        data["data_quality_warnings"] = [
+            "Periode laporan laba rugi dan neraca berbeda."
+        ]
+        result = calculate_multistage_dcf(data, {})
+        self.assertFalse(result["available"])
+        self.assertIn("Requires Manual Review", result["reason"])
+        self.assertTrue(result["critical_data_quality_warnings"])
+        mock_dcf.assert_not_called()
+
+    @patch("multistage_adapter.project_multistage_dcf")
+    def test_critical_warning_can_only_proceed_with_explicit_override(self, mock_dcf):
+        mock_dcf.return_value = {"available": True}
+        data = self.sample_data()
+        data["data_quality_warnings"] = [
+            "Periode laporan laba rugi dan neraca berbeda."
+        ]
+        result = calculate_multistage_dcf(
+            data, {}, allow_data_quality_override=True
+        )
+        self.assertTrue(result["available"])
+        self.assertTrue(result["critical_data_quality_warnings"])
+        self.assertTrue(result["data_quality_override"])
+        mock_dcf.assert_called_once()
