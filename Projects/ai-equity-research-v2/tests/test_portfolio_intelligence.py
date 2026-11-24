@@ -73,3 +73,31 @@ def test_portfolio_risk_reports_partial_data_coverage_and_aggregates_duplicates(
     assert risk["Total positions"] == 2
     assert risk["Market value coverage %"] == 50.0
     assert risk["Coverage status"].startswith("Partial")
+
+
+
+def test_portfolio_risk_uses_complete_dates_and_reports_expected_shortfall():
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Market": "IDX", "Currency": "IDR", "Market Value": 100},
+        {"Ticker": "BBB", "Market": "IDX", "Currency": "IDR", "Market Value": 100},
+    ])
+    idx = pd.bdate_range("2025-01-01", periods=5)
+    returns = {
+        "AAA": pd.Series([0.10, 0.10, 0.10, -0.10, -0.20], index=idx, name="AAA"),
+        "BBB": pd.Series([None, None, 0.00, -0.10, -0.20], index=idx, name="BBB"),
+    }
+    result = analyze_portfolio(positions, returns)
+    risk = result["risk"].iloc[0]
+    assert risk["Observations"] == 3
+    assert "Historical ES 95% 1d %" in result["risk"].columns
+    assert risk["Historical ES 95% 1d %"] >= risk["Historical VaR 95% 1d %"]
+
+
+def test_portfolio_risk_does_not_report_negative_var_in_all_up_period():
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Market": "IDX", "Currency": "IDR", "Market Value": 100},
+    ])
+    idx = pd.bdate_range("2025-01-01", periods=5)
+    returns = {"AAA": pd.Series([0.01] * 5, index=idx, name="AAA")}
+    result = analyze_portfolio(positions, returns)
+    assert result["risk"].iloc[0]["Historical VaR 95% 1d %"] == 0
