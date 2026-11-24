@@ -41,7 +41,8 @@ def test_standard_dcf_rejects_wacc_above_100_percent():
 
 def test_standard_dcf_rejects_intrinsic_value_fx_overflow():
     result = calculate_dcf(
-        _data(fcf=1e307, debt=0, cash=0, shares=1),
+        {**_data(fcf=1e307, debt=0, cash=0, shares=1),
+         "financial_currency": "USD", "currency": "IDR"},
         growth=0.0, fx_rate=100.0,
     )
     assert result["available"] is False
