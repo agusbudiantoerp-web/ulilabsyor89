@@ -24,6 +24,7 @@ def build_excel_report(
 
     def excel_safe(frame: pd.DataFrame) -> pd.DataFrame:
         safe = frame.copy()
+        safe.columns = [safe_excel_cell(column) for column in safe.columns]
         for column in safe.columns:
             safe[column] = safe[column].map(safe_excel_cell)
         return safe
