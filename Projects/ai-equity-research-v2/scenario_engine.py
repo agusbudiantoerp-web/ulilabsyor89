@@ -135,6 +135,17 @@ def project_scenario(financials: dict, assumptions: dict, years: int = 5) -> dic
         pv = fcff / ((1 + wacc) ** year)
         pv_fcff += pv
 
+        year_values = (
+            revenue, ebitda, depreciation, ebit, tax, capex,
+            change_nwc, fcff, pv, pv_fcff,
+        )
+        if not all(math.isfinite(value) for value in year_values):
+            return {
+                "available": False,
+                "reason": f"Numerical overflow detected in forecast year {year}; review revenue and scenario assumptions.",
+                "forecast": forecast,
+            }
+
         forecast.append({
             "year": year,
             "revenue": revenue,
@@ -172,6 +183,14 @@ def project_scenario(financials: dict, assumptions: dict, years: int = 5) -> dic
 
     enterprise_value = pv_fcff + pv_terminal
     equity_value = enterprise_value - net_debt
+    if not all(math.isfinite(value) for value in (
+        terminal_value, pv_terminal, enterprise_value, equity_value
+    )):
+        return {
+            "available": False,
+            "reason": "Numerical overflow detected in terminal or equity valuation.",
+            "forecast": forecast,
+        }
     terminal_value_share_pct = (
         pv_terminal / enterprise_value * 100 if enterprise_value > 0 else None
     )
