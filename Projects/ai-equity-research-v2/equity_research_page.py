@@ -166,6 +166,7 @@ def render_equity_research():
     data = st.session_state.get("equity_result")
     dcf = st.session_state.get("equity_dcf")
     multistage_dcf = st.session_state.get("equity_multistage_dcf")
+    scenario_result = st.session_state.get("equity_scenario_result")
     
     if data:
         st.subheader(f"{data['company']} · {data['ticker']}")
@@ -556,7 +557,8 @@ def render_equity_research():
                         st.warning(warning)
     
             st.divider()
-            render_scenario_analysis(data, fx_rate=fx_rate, years=years)
+            scenario_result = render_scenario_analysis(data, fx_rate=fx_rate, years=years)
+            st.session_state["equity_scenario_result"] = scenario_result
     
         with tab5:
             render_historical_analysis(symbol, market)
@@ -565,7 +567,7 @@ def render_equity_research():
     
         col1.download_button(
             "Download Excel report",
-            make_excel_report(data, dcf),
+            make_excel_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result),
             file_name=f"{data['ticker'].replace('.', '_')}_research.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
@@ -573,7 +575,7 @@ def render_equity_research():
     
         col2.download_button(
             "Download PDF report",
-            make_pdf_report(data, dcf),
+            make_pdf_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result),
             file_name=f"{data['ticker'].replace('.', '_')}_research.pdf",
             mime="application/pdf",
             use_container_width=True
