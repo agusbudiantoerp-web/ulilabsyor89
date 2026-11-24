@@ -52,3 +52,14 @@ def test_institutional_risk_rejects_invalid_confidence_and_shock():
         analyze_institutional_risk(
             positions, {}, stress_scenarios={"bad": {"AAA": -101}}
         )
+
+
+def test_drawdown_includes_loss_from_initial_capital_baseline():
+    dates = pd.bdate_range("2025-01-01", periods=30)
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": 100}
+    ])
+    result = analyze_institutional_risk(
+        positions, {"AAA": pd.Series([-0.01] * 30, index=dates)}
+    )
+    assert result["risk"].iloc[0]["Max drawdown %"] < 0
