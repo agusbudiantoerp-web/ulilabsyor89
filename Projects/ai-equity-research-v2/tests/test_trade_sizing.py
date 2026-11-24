@@ -17,7 +17,7 @@ def test_trade_plan_rejects_non_finite_and_invalid_entry_buffer():
 
 def test_trade_plan_rejects_share_count_overflow():
     with pytest.raises(ValueError, match="Jumlah saham"):
-        build_trade_plan(1e-300, 1e-301, 1e308, risk_pct=5)
+        build_trade_plan(0.02, 0.01, 1e308, risk_pct=5)
 
 
 def test_idx_candidate_allocation_rounds_down_to_board_lots():
