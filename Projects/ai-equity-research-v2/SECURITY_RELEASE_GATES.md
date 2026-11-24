@@ -17,7 +17,7 @@
 
 **OIDC login and page-level role gates are implemented, but the application is not yet certified or configured for production multi-user deployment.** The identity provider and role mapping still need to be configured in Streamlit Secrets, and tenant isolation and operation-level authorization remain incomplete.
 
-The application does not yet enforce tenant ownership on every portfolio/database query and does not route every privileged UI action through `require_permission` and `record_audit_event`. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
+Portfolio-book queries are scoped by issuer-bound owner ID, but shared learning/performance history and other private database records are not yet fully tenant-scoped. Page-level gates and selected action-level checks are present; every privileged operation still needs a complete authorization and audit review. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
 
 ## Required before enabling multiple users
 
