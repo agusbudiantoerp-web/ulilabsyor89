@@ -35,20 +35,20 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
     assert pending[0]["missing_horizons"] == [1, 3, 5, 10, 20]
 
     record_outcome(signal_id, 1, "2026-11-23", 1178.1, db_path=db_path, owner_id='test-owner')
-    record_outcome(signal_id, 3, "2026-11-25", 1190.0, db_path=db_path)
+    record_outcome(signal_id, 3, "2026-11-25", 1190.0, db_path=db_path, owner_id='test-owner')
 
-    history = signal_history(db_path=db_path)
+    history = signal_history(db_path=db_path, owner_id='test-owner')
     assert round(history[0]["outcome_1d_return_pct"], 2) == 2.0
     assert history[0]["outcome_3d_return_pct"] is not None
     assert history[0]["outcome_5d_return_pct"] is None
 
-    pending = get_pending_outcomes(db_path=db_path)
+    pending = get_pending_outcomes(db_path=db_path, owner_id='test-owner')
     assert pending[0]["missing_horizons"] == [5, 10, 20]
 
-    record_outcome(signal_id, 5, "2026-11-27", 1200.0, db_path=db_path)
-    record_outcome(signal_id, 10, "2026-12-04", 1210.0, db_path=db_path)
-    record_outcome(signal_id, 20, "2026-12-18", 1230.0, db_path=db_path)
-    pending = get_pending_outcomes(db_path=db_path)
+    record_outcome(signal_id, 5, "2026-11-27", 1200.0, db_path=db_path, owner_id='test-owner')
+    record_outcome(signal_id, 10, "2026-12-04", 1210.0, db_path=db_path, owner_id='test-owner')
+    record_outcome(signal_id, 20, "2026-12-18", 1230.0, db_path=db_path, owner_id='test-owner')
+    pending = get_pending_outcomes(db_path=db_path, owner_id='test-owner')
     assert pending == []
 
     summary = outcome_summary(db_path=db_path, owner_id='test-owner')
@@ -58,9 +58,9 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
 def test_record_outcome_rejects_unsupported_horizon(tmp_path):
     db_path = str(tmp_path / "performance.sqlite3")
     scan_id = save_scan(_scan(), db_path=db_path, owner_id='test-owner')
-    signal_id = signal_history(db_path=db_path)[0]["id"]
+    signal_id = signal_history(db_path=db_path, owner_id='test-owner')[0]["id"]
     try:
-        record_outcome(signal_id, 2, "2026-11-24", 1160.0, db_path=db_path)
+        record_outcome(signal_id, 2, "2026-11-24", 1160.0, db_path=db_path, owner_id='test-owner')
     except ValueError as exc:
         assert "1, 3, 5, 10, atau 20" in str(exc)
     else:
