@@ -4,7 +4,7 @@
 
 - Telegram chat access remains fail-closed: an empty allowlist authorizes nobody.
 - `security_controls.py` provides role names and permission checks for viewer, analyst, portfolio_manager and admin.
-- Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, uses the verified immutable `sub` claim, and fails closed when login or role mapping is missing.
+- Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, uses the verified issuer-bound immutable `iss|sub` principal, and fails closed when login or role mapping is missing.
 - Server-side page-level permission checks restrict research, signal, portfolio/risk, backtest and performance pages by role. This is not yet a substitute for checks on every sensitive operation inside those pages.
 - Login/logout audit events are recorded once per session when the local audit store is available; audit write failure blocks dashboard access.
 - `security_controls.py` provides a SQLite hash-linked audit event log, serialized append operations, and a chain-verification routine.
@@ -21,7 +21,7 @@ The application does not yet enforce tenant ownership on every portfolio/databas
 ## Required before enabling multiple users
 
 1. Configure exactly one trusted OIDC provider in Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
-2. Map immutable provider subject IDs to server-managed roles; deny access if identity or role is missing.
+2. Map issuer-bound immutable provider subject IDs to server-managed roles; deny access if identity or role is missing.
 3. Enforce authorization server-side on every portfolio read/write/delete, report export, model configuration change, user administration action, and audit-log access; current page-level checks are not sufficient.
 4. Add tenant/user ownership keys to portfolio and private data tables; migrate existing local books with an explicit owner.
 5. Use managed PostgreSQL with least-privilege credentials, TLS, connection limits, backups, and tested point-in-time recovery.
