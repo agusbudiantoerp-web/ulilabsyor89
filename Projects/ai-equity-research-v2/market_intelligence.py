@@ -106,6 +106,12 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
     invalid = int(numeric[["Open", "High", "Low", "Close"]].isna().any(axis=1).sum())
     if invalid:
         checks.append({"severity": "WARNING", "message": f"{invalid} bar memiliki OHLC kosong/non-numerik."})
+    infinite_prices = int(numeric[["Open", "High", "Low", "Close"]].isin([float("inf"), -float("inf")]).any(axis=1).sum())
+    if infinite_prices:
+        checks.append({"severity": "ERROR", "message": f"{infinite_prices} bar memiliki harga infinite/non-finite."})
+    missing_volume = int(numeric["Volume"].isna().sum())
+    if missing_volume:
+        checks.append({"severity": "WARNING", "message": f"{missing_volume} bar memiliki volume kosong/non-numerik."})
     bad_ohlc = int(((numeric["High"] < numeric[["Open", "Close", "Low"]].max(axis=1)) |
                     (numeric["Low"] > numeric[["Open", "Close", "High"]].min(axis=1))).fillna(False).sum())
     if bad_ohlc:
