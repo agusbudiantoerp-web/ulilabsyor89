@@ -7,6 +7,7 @@ from security_controls import (
     list_audit_events,
     record_audit_event,
     require_permission,
+    resolve_role_for_subject,
     verify_audit_chain,
 )
 
@@ -65,3 +66,15 @@ def test_audit_rejects_nested_and_variant_secret_keys(tmp_path):
             "analyst", "analyst", "EXPORT", "report",
             details={"connection": {"database-url": "sensitive"}}, path=path,
         )
+
+
+def test_verified_subject_role_mapping_fails_closed():
+    assert resolve_role_for_subject(
+        "oidc-subject-001", {"oidc-subject-001": "analyst"}
+    ) == "analyst"
+    with pytest.raises(PermissionError, match="belum diberi role"):
+        resolve_role_for_subject("unknown-subject", {"oidc-subject-001": "analyst"})
+    with pytest.raises(PermissionError, match="Identitas terverifikasi"):
+        resolve_role_for_subject("", {"oidc-subject-001": "analyst"})
+    with pytest.raises(PermissionError, match="Role identitas tidak valid"):
+        resolve_role_for_subject("oidc-subject-001", {"oidc-subject-001": "superuser"})
