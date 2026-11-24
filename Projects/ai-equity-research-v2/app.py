@@ -74,7 +74,7 @@ PAGES = {
     "2. Daily Stock Signal": (render_daily_signal, "run_analysis"),
     "3. Portfolio & Risk Management": (render_portfolio_risk, "manage_portfolio"),
     "4. Backtesting": (render_backtesting, "run_analysis"),
-    "5. Performance Dashboard": (render_performance_dashboard, "view_audit"),
+    "5. Performance Dashboard": (render_performance_dashboard, "view_dashboard"),
 }
 
 with st.sidebar:
