@@ -75,12 +75,12 @@ Supported roles:
 
 | Role | Access |
 |---|---|
-| `viewer` | Performance dashboard |
-| `analyst` | Equity research, daily signals, backtesting, performance dashboard |
+| `viewer` | No application page until shared performance history is tenant-scoped; reserved for future read-only views |
+| `analyst` | Equity research, daily signals, backtesting |
 | `portfolio_manager` | Analyst access plus portfolio and risk management |
-| `admin` | All application pages and administrative permission primitives |
+| `admin` | All application pages, including shared performance history, and administrative permission primitives |
 
-The current UI page gate is enforced server-side. Sensitive operations inside individual pages still require a separate complete authorization review before production multi-user use.
+The current UI page gate is enforced server-side. Performance history is restricted to admin because the learning database is not yet tenant-scoped. Sensitive operations inside individual pages still require a separate complete authorization review before production multi-user use.
 
 ## 4. Important release limitations
 
