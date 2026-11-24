@@ -91,17 +91,14 @@ def initialize(db_path: str | None = None):
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_signals_owner_date ON signals(owner_id,bar_date DESC)")
                 cur.execute("ALTER TABLE signals DROP CONSTRAINT IF EXISTS signals_market_ticker_bar_date_key")
                 cur.execute("""
-                    DO $
-                    BEGIN
-                      IF NOT EXISTS (
-                        SELECT 1 FROM pg_constraint WHERE conrelid='signals'::regclass
-                          AND conname='signals_owner_market_ticker_bar_date_key'
-                      ) THEN
-                        ALTER TABLE signals ADD CONSTRAINT signals_owner_market_ticker_bar_date_key
-                          UNIQUE(owner_id,market,ticker,bar_date);
-                      END IF;
-                    END $;
+                    SELECT 1 FROM pg_constraint WHERE conrelid='signals'::regclass
+                      AND conname='signals_owner_market_ticker_bar_date_key'
                 """)
+                if cur.fetchone() is None:
+                    cur.execute(
+                        "ALTER TABLE signals ADD CONSTRAINT signals_owner_market_ticker_bar_date_key "
+                        "UNIQUE(owner_id,market,ticker,bar_date)"
+                    )
                 # Migrate the old constraint once; avoid DDL on every dashboard read.
                 cur.execute("""
                     SELECT pg_get_constraintdef(oid) AS definition
