@@ -195,7 +195,7 @@ def backtest(
         "limitations": (
             "Simulasi harian konservatif dengan sinyal pada bar selesai dan entry sesi berikutnya. "
             "Data historis Yahoo saat ini bukan point-in-time universe; survivorship bias belum dapat dihilangkan. "
-            "Pajak, spread aktual, market impact, suspensi, corporate actions historis lengkap, "
+            "Pajak penjualan dimodelkan hanya sebesar sell_tax_bps yang diinput; pajak lain, spread aktual, market impact, suspensi, corporate actions historis lengkap, "
             "dan antrean/likuiditas eksekusi belum dimodelkan."
         ),
     }
