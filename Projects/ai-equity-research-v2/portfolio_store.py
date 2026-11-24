@@ -30,7 +30,8 @@ def initialize(path: str | None = None) -> None:
         CREATE TABLE IF NOT EXISTS portfolio_books(
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'
         );
         CREATE TABLE IF NOT EXISTS portfolio_positions(
             book_id TEXT NOT NULL,
@@ -43,12 +44,26 @@ def initialize(path: str | None = None) -> None:
         CREATE INDEX IF NOT EXISTS idx_portfolio_positions_book
             ON portfolio_positions(book_id);
         """)
+        columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(portfolio_books)").fetchall()
+        }
+        if "owner_id" not in columns:
+            # Existing books are quarantined until an administrator explicitly reassigns them.
+            db.execute(
+                "ALTER TABLE portfolio_books ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'"
+            )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_portfolio_books_owner ON portfolio_books(owner_id)"
+        )
 
 
 def save_book(book_id: str, name: str, positions: pd.DataFrame,
-              path: str | None = None) -> int:
+              path: str | None = None, owner_id: str = "local") -> int:
     if not isinstance(book_id, str) or not book_id.strip() or not isinstance(name, str) or not name.strip():
         raise ValueError("ID dan nama portfolio wajib diisi.")
+    owner = str(owner_id or "").strip()
+    if not owner:
+        raise ValueError("Owner portfolio wajib diisi.")
     required = {"Market", "Ticker", "Shares", "Average Cost"}
     if not required.issubset(positions.columns):
         raise ValueError(f"Kolom wajib: {sorted(required)}")
@@ -85,10 +100,17 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     initialize(path)
     now = datetime.now(timezone.utc).isoformat()
     with _connect(path) as db:
+        existing = db.execute(
+            "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
+        ).fetchone()
+        if existing and existing["owner_id"] != owner:
+            raise PermissionError("Portfolio ini dimiliki pengguna lain; akses ditolak.")
         db.execute("""
-            INSERT INTO portfolio_books(id, name, updated_at) VALUES(?,?,?)
-            ON CONFLICT(id) DO UPDATE SET name=excluded.name, updated_at=excluded.updated_at
-        """, (book_id, name, now))
+            INSERT INTO portfolio_books(id, name, updated_at, owner_id) VALUES(?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name, updated_at=excluded.updated_at
+            WHERE portfolio_books.owner_id=excluded.owner_id
+        """, (book_id, name, now, owner))
         db.execute("DELETE FROM portfolio_positions WHERE book_id=?", (book_id,))
         db.executemany("""
             INSERT INTO portfolio_positions(book_id, market, ticker, shares, average_cost)
@@ -101,18 +123,30 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     return len(frame)
 
 
-def list_books(path: str | None = None) -> list[dict]:
+def list_books(path: str | None = None, owner_id: str = "local") -> list[dict]:
+    owner = str(owner_id or "").strip()
+    if not owner:
+        raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
     with _connect(path) as db:
         rows = db.execute(
-            "SELECT id, name, updated_at FROM portfolio_books ORDER BY name"
+            "SELECT id, name, updated_at FROM portfolio_books WHERE owner_id=? ORDER BY name",
+            (owner,),
         ).fetchall()
     return [dict(row) for row in rows]
 
 
-def load_book(book_id: str, path: str | None = None) -> pd.DataFrame:
+def load_book(book_id: str, path: str | None = None, owner_id: str = "local") -> pd.DataFrame:
+    owner = str(owner_id or "").strip()
+    if not owner:
+        raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
     with _connect(path) as db:
+        book = db.execute(
+            "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
+        ).fetchone()
+        if book and book["owner_id"] != owner:
+            raise PermissionError("Portfolio ini dimiliki pengguna lain; akses ditolak.")
         rows = db.execute("""
             SELECT market, ticker, shares, average_cost
             FROM portfolio_positions WHERE book_id=? ORDER BY market, ticker
@@ -124,9 +158,19 @@ def load_book(book_id: str, path: str | None = None) -> pd.DataFrame:
     ], columns=["Market", "Ticker", "Shares", "Average Cost"])
 
 
-def delete_book(book_id: str, path: str | None = None) -> bool:
+def delete_book(book_id: str, path: str | None = None, owner_id: str = "local") -> bool:
+    owner = str(owner_id or "").strip()
+    if not owner:
+        raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
     with _connect(path) as db:
+        book = db.execute(
+            "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
+        ).fetchone()
+        if book and book["owner_id"] != owner:
+            raise PermissionError("Portfolio ini dimiliki pengguna lain; akses ditolak.")
         db.execute("DELETE FROM portfolio_positions WHERE book_id=?", (book_id,))
-        result = db.execute("DELETE FROM portfolio_books WHERE id=?", (book_id,))
+        result = db.execute(
+            "DELETE FROM portfolio_books WHERE id=? AND owner_id=?", (book_id, owner)
+        )
         return result.rowcount > 0
