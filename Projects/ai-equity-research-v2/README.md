@@ -80,6 +80,10 @@ Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App setting
 
 See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
+## Database backup utility
+
+`database_backup.py` creates integrity-checked local SQLite backups and custom-format PostgreSQL logical backups. It writes SHA-256 manifests and never prints or stores the database URL in the manifest. See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for commands and staging-first recovery guidance. Keep generated `backups/` artifacts private; the directory is excluded from Git.
+
 ## Local Telegram and Ollama automation
 
 The local Telegram/Ollama scheduler is separate from the Streamlit Cloud app. It continues using SQLite through its explicit local database path. Keep bot tokens and allowed chat IDs in local environment variables or a private `.env` file; never upload them to GitHub.
