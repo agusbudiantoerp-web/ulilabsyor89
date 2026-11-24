@@ -34,7 +34,7 @@ def _audit_action(action: str, resource_type: str, resource_id: str = "", detail
             action, resource_type, resource_id, details=details or {},
         )
     except Exception as exc:
-        st.warning(f"Aksi selesai, tetapi audit event gagal dicatat: {type(exc).__name__}: {exc}")
+        st.warning(f"Aksi selesai, tetapi audit event gagal dicatat ({type(exc).__name__}). Detail error disembunyikan.")
 
 
 def _owner_id() -> str:
