@@ -198,7 +198,7 @@ def render_portfolio_risk() -> None:
         }, key="portfolio_editor",
     )
     st.session_state["portfolio_input"] = edited
-    render_portfolio_persistence(edited)
+    render_portfolio_persistence(edited, owner_id=st.session_state.get('_auth_subject_id', ''))
     if st.button("Hitung portfolio intelligence", type="primary"):
         positions, return_series, errors = [], {}, []
         for _, row in edited.iterrows():
