@@ -34,7 +34,7 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
     pending = get_pending_outcomes(db_path=db_path, owner_id='test-owner')
     assert pending[0]["missing_horizons"] == [1, 3, 5, 10, 20]
 
-    record_outcome(signal_id, 1, "2026-11-23", 1178.1, db_path=db_path)
+    record_outcome(signal_id, 1, "2026-11-23", 1178.1, db_path=db_path, owner_id='test-owner')
     record_outcome(signal_id, 3, "2026-11-25", 1190.0, db_path=db_path)
 
     history = signal_history(db_path=db_path)
