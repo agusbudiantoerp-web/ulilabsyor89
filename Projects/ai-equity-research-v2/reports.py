@@ -172,6 +172,31 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
             if sensitivity_rows:
                 pd.DataFrame(sensitivity_rows).to_excel(writer, sheet_name="Scenario Sensitivity", index=False)
 
+            assumptions_rows = []
+            for scenario_name, scenario_data in (scenario_result.get("assumptions") or {}).items():
+                for key, value in scenario_data.items():
+                    assumptions_rows.append({
+                        "Scenario": scenario_name,
+                        "Assumption": key,
+                        "Value": value,
+                    })
+            if assumptions_rows:
+                pd.DataFrame(assumptions_rows).to_excel(
+                    writer, sheet_name="Scenario Assumptions", index=False
+                )
+
+            context = scenario_result.get("research_context") or {}
+            pd.DataFrame([
+                {"Section": "Catalysts", "Analyst notes": context.get("catalysts") or "Not supplied"},
+                {"Section": "Risks", "Analyst notes": context.get("risks") or "Not supplied"},
+                {"Section": "Disclosure", "Analyst notes": context.get("analyst_note") or "Manual analyst input"},
+            ]).to_excel(writer, sheet_name="Catalysts & Risks", index=False)
+
+            source = scenario_result.get("source_metadata") or {}
+            pd.DataFrame(
+                [{"Field": key, "Value": value} for key, value in source.items()]
+            ).to_excel(writer, sheet_name="Sources & Dates", index=False)
+
         for ws in writer.book.worksheets:
             ws.freeze_panes = "A2"
             ws.auto_filter.ref = ws.dimensions
@@ -388,6 +413,35 @@ def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | 
             ("PADDING", (0, 0), (-1, -1), 4),
         ]))
         story += [scenario_table, Spacer(1, 8)]
+
+        assumption_rows = [["Scenario", "Assumption", "Value"]]
+        for scenario_name, scenario_data in (scenario_result.get("assumptions") or {}).items():
+            for key, value in scenario_data.items():
+                assumption_rows.append([str(scenario_name), str(key), str(value)])
+        if len(assumption_rows) > 1:
+            assumption_table = Table(assumption_rows, colWidths=[90, 190, 180], repeatRows=1)
+            assumption_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163447")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), .3, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("PADDING", (0, 0), (-1, -1), 3),
+            ]))
+            story += [Paragraph("Scenario assumptions", styles["Heading3"]), assumption_table, Spacer(1, 8)]
+
+        context = scenario_result.get("research_context") or {}
+        source = scenario_result.get("source_metadata") or {}
+        story.append(Paragraph("Analyst catalysts and risks", styles["Heading3"]))
+        for label, value in (
+            ("Catalysts", context.get("catalysts") or "Not supplied by analyst."),
+            ("Risks", context.get("risks") or "Not supplied by analyst."),
+            ("Disclosure", context.get("analyst_note") or "Manual analyst input."),
+        ):
+            story.append(Paragraph(f"<b>{escape(label)}:</b> {escape(str(value))}", styles["BodyText"]))
+        story.append(Paragraph("Source and reporting dates", styles["Heading3"]))
+        for key, value in source.items():
+            story.append(Paragraph(f"<b>{escape(str(key))}:</b> {escape(str(value))}", styles["BodyText"]))
+        story.append(Spacer(1, 8))
         story.append(Paragraph(
             "Scenario assumptions and sensitivity are assumption-driven. "
             "Review the accompanying Excel workbook for detailed assumptions and forecasts.",
