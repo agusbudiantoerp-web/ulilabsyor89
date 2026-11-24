@@ -20,18 +20,18 @@ def _scan():
 def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
     db_path = str(tmp_path / "performance.sqlite3")
     scan = _scan()
-    scan_id = save_scan(scan, db_path=db_path)
+    scan_id = save_scan(scan, db_path=db_path, owner_id='test-owner')
 
     assert backend_name(db_path) == "SQLite"
-    assert latest_scan(db_path=db_path)["counts"]["scanned"] == 1
-    assert latest_scan(db_path=db_path)["scan_id"] == scan_id
+    assert latest_scan(db_path=db_path, owner_id='test-owner')["counts"]["scanned"] == 1
+    assert latest_scan(db_path=db_path, owner_id='test-owner')["scan_id"] == scan_id
 
-    history = signal_history(db_path=db_path)
+    history = signal_history(db_path=db_path, owner_id='test-owner')
     assert len(history) == 1
     assert history[0]["ruleset_version"] == "1.0.0"
     signal_id = history[0]["id"]
 
-    pending = get_pending_outcomes(db_path=db_path)
+    pending = get_pending_outcomes(db_path=db_path, owner_id='test-owner')
     assert pending[0]["missing_horizons"] == [1, 3, 5, 10, 20]
 
     record_outcome(signal_id, 1, "2026-11-23", 1178.1, db_path=db_path)
@@ -51,13 +51,13 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
     pending = get_pending_outcomes(db_path=db_path)
     assert pending == []
 
-    summary = outcome_summary(db_path=db_path)
+    summary = outcome_summary(db_path=db_path, owner_id='test-owner')
     assert [row["horizon"] for row in summary] == [1, 3, 5, 10, 20]
 
 
 def test_record_outcome_rejects_unsupported_horizon(tmp_path):
     db_path = str(tmp_path / "performance.sqlite3")
-    scan_id = save_scan(_scan(), db_path=db_path)
+    scan_id = save_scan(_scan(), db_path=db_path, owner_id='test-owner')
     signal_id = signal_history(db_path=db_path)[0]["id"]
     try:
         record_outcome(signal_id, 2, "2026-11-24", 1160.0, db_path=db_path)
