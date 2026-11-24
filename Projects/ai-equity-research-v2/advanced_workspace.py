@@ -341,9 +341,55 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
                    "Success": counts.get("success"), "Failed": counts.get("failed"),
                    "BUY candidate": counts.get("buy_candidate"), "WATCH": counts.get("watch"),
                    "NO TRADE": counts.get("no_trade")}
+    latest_scan_rows = (latest or {}).get("results", [])
+    if latest_scan_rows:
+        extra_sheets["Latest Daily Scan"] = pd.DataFrame(latest_scan_rows)
+    screener_result = st.session_state.get("advanced_screener_result") or {}
+    if screener_result.get("results"):
+        extra_sheets["Advanced Screener"] = pd.DataFrame(screener_result["results"])
+
+    for state_key, sheet_name in [
+        ("portfolio_exposure_report_frame", "Portfolio Exposure"),
+        ("portfolio_risk_report_frame", "Portfolio Risk"),
+        ("portfolio_sector_report_frame", "Sector Exposure"),
+        ("portfolio_risk_parity_report_frame", "Risk Parity Weights"),
+        ("portfolio_max_sharpe_report_frame", "Max Sharpe Weights"),
+        ("portfolio_institutional_risk_frame", "Institutional Risk"),
+        ("portfolio_concentration_frame", "Concentration Limits"),
+        ("portfolio_stress_frame", "Stress Scenarios"),
+        ("portfolio_limit_breaches_frame", "Risk Limit Breaches"),
+        ("portfolio_price_scenario_frame", "Price Scenarios"),
+    ]:
+        saved_frame = st.session_state.get(state_key)
+        if isinstance(saved_frame, pd.DataFrame) and not saved_frame.empty:
+            extra_sheets[sheet_name] = saved_frame.copy()
+    fx_metrics = st.session_state.get("portfolio_fx_scenario_metrics") or {}
+    if fx_metrics:
+        metrics.update({
+            "Portfolio FX base currency": fx_metrics.get("base_currency"),
+            "USD/IDR spot input": fx_metrics.get("usd_idr_spot"),
+            "FX shock %": fx_metrics.get("fx_shock_pct"),
+            "FX translation P/L IDR": fx_metrics.get("fx_translation_pnl_idr"),
+            "Portfolio scenario value IDR": fx_metrics.get("scenario_portfolio_idr"),
+        })
+    optimization_metrics = st.session_state.get("portfolio_optimization_metrics") or {}
+    if optimization_metrics:
+        for key, value in optimization_metrics.items():
+            metrics[f"Portfolio optimization — {key}"] = value
+
     market_result = st.session_state.get("market_intelligence_result")
     if market_result:
         regime = market_result.get("regime", {})
+        strength = market_result.get("strength", {})
+        strength_rows = [
+            {"Horizon": horizon, **values}
+            for horizon, values in strength.get("periods", {}).items()
+        ]
+        extra_sheets["Market Relative Strength"] = pd.DataFrame(strength_rows)
+        extra_sheets["Price Data Quality"] = pd.DataFrame(market_result.get("quality", {}).get("checks", []))
+        extra_sheets["Fundamental Data Quality"] = pd.DataFrame(
+            market_result.get("fundamental_quality", {}).get("checks", [])
+        )
         metrics.update({
             "Market regime": regime.get("regime"),
             "Market index date": regime.get("bar_date"),
