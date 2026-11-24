@@ -557,6 +557,12 @@ def calculate_dcf(
             "equity_value": equity_value,
         }
     intrinsic_value = equity_value / shares
+    terminal_value_share_pct = terminal_pv / enterprise_value * 100 if enterprise_value > 0 else None
+    model_warnings = [
+        "Yahoo Finance Free Cash Flow is an OCF-minus-CAPEX proxy and may reflect financing/interest cash flows; confirm FCFF versus FCFE before interpreting EV less net debt."
+    ]
+    if terminal_value_share_pct is not None and terminal_value_share_pct > 75:
+        model_warnings.append("PV terminal value exceeds 75% of enterprise value; valuation is highly sensitive to terminal assumptions.")
 
     financial_currency = (
         data.get("financial_currency") or data.get("currency", "Unknown")
@@ -588,6 +594,8 @@ def calculate_dcf(
         "terminal_value": terminal_value,
         "pv_terminal_value": terminal_pv,
         "enterprise_value": enterprise_value,
+        "terminal_value_share_pct": terminal_value_share_pct,
+        "model_warnings": model_warnings,
         "total_debt": debt,
         "cash": cash,
         "net_debt": net_debt,
@@ -610,7 +618,9 @@ def calculate_dcf(
             "DCF ini merupakan estimasi sederhana. Equity Value dihitung "
             "dari EV dikurangi total debt dan ditambah cash. Nilai per saham "
             "bergantung pada kualitas FCF, neraca, jumlah saham, asumsi, "
-            "dan kurs konversi jika digunakan. Bukan rekomendasi investasi."
+            "dan kurs konversi jika digunakan. FCF Yahoo adalah proxy OCF dikurangi CAPEX; "
+            "klasifikasi FCFF/FCFE wajib diverifikasi sebelum EV dikurangi net debt. "
+            "Bukan rekomendasi investasi."
         )
     }
 
