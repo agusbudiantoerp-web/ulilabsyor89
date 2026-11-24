@@ -12,13 +12,18 @@ def backtest(
     config: dict | None = None,
     fee_bps: float = 10,
     slippage_bps: float = 10,
+    sell_tax_bps: float = 0,
     risk_fraction: float = 0.01,
     max_allocation: float = 1.0,
     max_holding_sessions: int = 5,
     evaluation_start=None,
 ) -> dict:
-    if fee_bps < 0 or slippage_bps < 0:
-        raise ValueError("Fee dan slippage tidak boleh negatif.")
+    if any(not math.isfinite(float(value)) or float(value) < 0 for value in (fee_bps, slippage_bps, sell_tax_bps)):
+        raise ValueError("Fee, slippage dan sell tax harus finite dan tidak negatif.")
+    entry_cost = (float(fee_bps) + float(slippage_bps)) / 10000
+    exit_cost = (float(fee_bps) + float(slippage_bps) + float(sell_tax_bps)) / 10000
+    if entry_cost >= 1 or exit_cost >= 1:
+        raise ValueError("Total biaya transaksi tidak boleh mencapai 100% nilai transaksi.")
     if not 0 < risk_fraction <= 0.05:
         raise ValueError("risk_fraction harus >0 dan <=5%.")
     if not 0 < max_allocation <= 1:
@@ -59,7 +64,6 @@ def backtest(
     if start_ts is not None and start_ts.tzinfo is not None:
         start_ts = start_ts.tz_localize(None)
 
-    cost = (fee_bps + slippage_bps) / 10000
     equity = 1.0
     trades = []
     curve_updates = {}
@@ -84,7 +88,7 @@ def backtest(
         if not math.isfinite(raw_entry) or raw_entry <= 0:
             i += 1
             continue
-        entry = raw_entry * (1 + cost)
+        entry = raw_entry * (1 + entry_cost)
         stop = max(0.01, float(r.Close) - cfg["atr_stop_multiple"] * float(r.ATR14))
         risk_per_share = entry - stop
         if risk_per_share <= 0:
@@ -108,11 +112,11 @@ def backtest(
         if exit_price is None:
             i += 1
             continue
-        exit_net = exit_price * (1 - cost)
+        exit_net = exit_price * (1 - exit_cost)
         net_return = exit_net / entry - 1
         equity_before = equity
         for j in range(entry_index, exit_index):
-            mark = float(x.iloc[j].Close) * (1 - cost)
+            mark = float(x.iloc[j].Close) * (1 - exit_cost)
             curve_updates[x.index[j]] = equity_before * (1 + position_fraction * (mark / entry - 1))
         equity_after = equity_before * (1 + position_fraction * net_return)
         curve_updates[x.index[exit_index]] = equity_after
@@ -173,6 +177,13 @@ def backtest(
             item for item in curve
             if start_ts is None or pd.Timestamp(item["date"]) >= start_ts
         ],
+        "transaction_costs": {
+            "fee_bps_per_side": float(fee_bps),
+            "slippage_bps_per_side": float(slippage_bps),
+            "sell_tax_bps_on_exit": float(sell_tax_bps),
+            "entry_cost_pct": entry_cost * 100,
+            "exit_cost_pct": exit_cost * 100,
+        },
         "bias_controls": {
             "signal_execution_timing": "Signal is evaluated on completed bar i; entry is at next session open i+1.",
             "indicator_calculation": "Indicators use trailing/causal rolling and exponential calculations.",
