@@ -163,7 +163,9 @@ def backtest(
     daily_std = float(daily_returns.std(ddof=1)) if len(daily_returns) > 1 else 0.0
     sharpe = float(daily_returns.mean() / daily_std * math.sqrt(252)) if daily_std > 0 else 0.0
     first_close, last_close = float(evaluation_bars.Close.iloc[0]), float(evaluation_bars.Close.iloc[-1])
-    benchmark_return = (last_close * (1-cost) / (first_close * (1+cost)) - 1) * 100
+    benchmark_return = (
+        last_close * (1 - exit_cost) / (first_close * (1 + entry_cost)) - 1
+    ) * 100
     return {
         "trades": n, "win_rate_pct": wins / n * 100 if n else 0.0,
         "avg_return_pct": sum(returns) / n if n else 0.0,
