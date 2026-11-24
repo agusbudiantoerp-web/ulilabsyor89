@@ -10,7 +10,7 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 2. **Daily Stock Signal** — IDX/US daily technical signals, entry/stop/target levels and candidate/watch/no-trade states. Includes a nested **Advanced Screener + AI Stock Scoring** tab.
 3. **Portfolio & Risk Management** — position weights, sector/market/currency exposure, correlations, volatility, historical VaR, drawdown, price/FX scenarios and indicative candidate allocation.
 4. **Backtesting** — fee/slippage-aware single-ticker backtest and chronological walk-forward evaluation.
-5. **Performance & Learning** — PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
+5. **Performance & Learning** — owner-scoped PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
 
 ## Advanced screener and scoring
 
@@ -69,13 +69,13 @@ The test suite is intended to validate deterministic logic and local SQLite stor
 
 ## Authentication and access control
 
-The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access is permission-gated; sensitive operations within pages and tenant-level data isolation still require additional controls before production multi-user use.
+The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and the portfolio/learning databases are owner-scoped and permission-gated. Remaining private data sources, operation-level reviews, managed storage, and deployment configuration must still pass the release gates before production multi-user use.
 
 See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configuration. Keep provider client secrets and the cookie secret only in Streamlit Secrets.
 
 ## Cloud performance database
 
-Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates the scan, signal and outcome tables on first use. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
+Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates the scan, signal and outcome tables on first use and scopes records to the authenticated OIDC principal. Legacy records are quarantined as `legacy-unassigned`. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
 
 See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
