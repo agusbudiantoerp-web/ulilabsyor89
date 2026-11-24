@@ -142,9 +142,14 @@ def save_run(
         raise ValueError("Minimal satu ticker wajib disimpan.")
     if not isinstance(parameters, dict) or not isinstance(result, dict):
         raise ValueError("Parameters dan result harus berupa dictionary.")
+    normalized_symbols = list(dict.fromkeys(
+        str(item).strip().upper() for item in symbols if str(item).strip()
+    ))
+    if not normalized_symbols:
+        raise ValueError("Minimal satu ticker valid wajib disimpan.")
     run_id = uuid.uuid4().hex
     created_at = datetime.now(timezone.utc).isoformat()
-    symbols_json = _safe_json([str(item).strip().upper() for item in symbols if str(item).strip()])
+    symbols_json = _safe_json(normalized_symbols)
     parameters_json = _safe_json(parameters)
     result_json = _safe_json(result)
     # Ensure the schema exists before the first INSERT on both SQLite and PostgreSQL.
