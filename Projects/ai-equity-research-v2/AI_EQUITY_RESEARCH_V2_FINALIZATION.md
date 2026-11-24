@@ -60,3 +60,13 @@ The model is instructed to use only the deterministic report data, preserve sour
 The follow-on extension is documented in [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md). It adds the editable 40+40 IDX/US advanced screener, explainable 0–100 factor scoring, portfolio concentration/correlation/scenario analysis, currency-separated candidate allocation with IDX board-lot rounding, chronological walk-forward evaluation, and 1/3/5/10/20-session forward outcome tracking.
 
 The scoring engine is deterministic and explainable; it is not a trained ML predictor. Walk-forward evaluation uses fixed rules and does not tune on test folds. Verify provider data, currency, sample size and execution assumptions before relying on results.
+
+
+## Additional development — not yet validated
+
+- Added an administrator-only Security & Audit console with OIDC role-map visibility, recent audit events, CSV export, hash-chain verification and configured storage-backend visibility.
+- Logout audit events now follow the configured cloud PostgreSQL backend unless an explicit local audit database path is set.
+- Added owner-scoped persistence for single-ticker, walk-forward and multi-asset research runs. Users can list, reload and delete only their own saved runs.
+- Expanded the Excel research pack to include available daily scan results, screener output, portfolio exposure/risk/optimization/stress scenarios, market intelligence diagnostics, backtest equity curves, trade details, walk-forward folds and saved-run metadata.
+- Added PostgreSQL backup and recovery operating instructions, including a staging-first restore warning.
+- Added regression tests for owner-scoped research-run storage and detailed Excel workbook sheets. These tests have been authored but intentionally not executed; consolidated validation remains deferred until the development scope is complete.
