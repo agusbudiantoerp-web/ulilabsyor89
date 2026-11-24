@@ -48,7 +48,7 @@ def run_multi_asset_backtest(
     if not closes:
         raise ValueError("Tidak ada instrumen dengan histori memadai.")
     close_frame = pd.concat(closes.values(), axis=1).sort_index()
-    daily_returns = close_frame.pct_change().replace([float("inf"), -float("inf")], pd.NA).fillna(0.0)
+    daily_returns = close_frame.pct_change(fill_method=None).replace([float("inf"), -float("inf")], float("nan")).fillna(0.0)
     signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).fillna(0.0)
     # Shift by one full bar: information from day t can only earn day t+1 return.
     active = signal_frame.shift(1).fillna(0.0)
