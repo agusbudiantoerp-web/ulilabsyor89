@@ -209,7 +209,7 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
         "ticker": financials.get("ticker"),
         "financials": financials,
         "assumptions": scenarios,
-        "results": results,
+        "results": results.get("scenarios", {}),
         "sensitivity": sensitivity,
         "selected_scenario": selected_scenario,
     }
