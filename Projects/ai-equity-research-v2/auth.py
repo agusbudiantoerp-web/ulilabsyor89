@@ -68,14 +68,14 @@ def audit_login_once(st_module: Any, identity: dict) -> None:
     key = "_security_login_audited"
     if st_module.session_state.get(key):
         return
-    audit_path = st_module.secrets.get("audit_db_path", "data/audit_log.sqlite3")
+    audit_path = st_module.secrets.get("audit_db_path")
     record_audit_event(
         identity["subject_id"],
         identity["role"],
         "LOGIN",
         "streamlit_session",
         details={"authentication": "OIDC"},
-        path=str(audit_path),
+        path=str(audit_path) if audit_path else None,
     )
     st_module.session_state[key] = True
 
