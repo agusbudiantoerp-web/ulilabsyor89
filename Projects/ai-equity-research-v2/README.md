@@ -9,7 +9,7 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 1. **Equity Research** — company financials, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
 2. **Daily Stock Signal** — IDX/US daily technical signals, entry/stop/target levels and candidate/watch/no-trade states. Includes a nested **Advanced Screener + AI Stock Scoring** tab.
 3. **Portfolio & Risk Management** — position weights, sector/market/currency exposure, correlations, volatility, historical VaR, drawdown, price/FX scenarios and indicative candidate allocation.
-4. **Backtesting** — fee/slippage-aware single-ticker backtest and chronological walk-forward evaluation.
+4. **Backtesting** — fee/slippage-aware single-ticker backtest, chronological walk-forward evaluation, multi-asset simulation and owner-scoped saved run history.
 5. **Performance & Learning** — owner-scoped PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
 6. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export and on-demand hash-chain integrity verification.
 
@@ -31,7 +31,7 @@ The existing five menus also include these extensions:
 
 - **Daily Stock Signal:** market-regime classification for the IDX Composite (^JKSE) or SPY, relative strength of a selected stock versus its market benchmark over matched sessions, and OHLCV/fundamental data-quality checks. Negative valuation multiples are flagged for interpretation rather than automatically treated as invalid; quote/reporting-currency mismatches are surfaced.
 - **Portfolio & Risk Management:** named portfolio books are scoped to the authenticated OIDC issuer/subject and use PostgreSQL when `DATABASE_URL` is configured; local SQLite is the fallback. Duplicate ticker rows are consolidated using share-weighted average cost. Legacy local books are quarantined as `legacy-unassigned` and are not automatically uploaded to PostgreSQL.
-- **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps.
+- **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps. Single-ticker, walk-forward and multi-asset runs can be saved, reloaded and deleted within the authenticated owner account.
 - **Performance & Learning:** export a research pack to Excel and a concise PDF summary.
 
 The multi-asset backtest is a separate fixed-rule trend simulation, not a broker execution model. Missing price bars are not forward-filled; uninvested cash earns zero. Benchmark comparisons are price-only and do not include dividends. Local SQLite files may be ephemeral on hosted instances; PostgreSQL is preferred for persistent cloud storage.
@@ -76,7 +76,7 @@ See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configurati
 
 ## Cloud performance database
 
-Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates owner-scoped scan, signal, outcome, portfolio and audit tables. Legacy learning/portfolio records are quarantined as `legacy-unassigned`; local SQLite books are not automatically uploaded. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
+Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates owner-scoped scan, signal, outcome, portfolio, research-run and audit tables. Legacy learning/portfolio records are quarantined as `legacy-unassigned`; local SQLite books are not automatically uploaded. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
 
 See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
