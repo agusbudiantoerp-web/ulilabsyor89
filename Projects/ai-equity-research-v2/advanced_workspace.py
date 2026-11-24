@@ -12,6 +12,7 @@ from market_intelligence import (
 from multi_asset_backtest import run_multi_asset_backtest
 from portfolio_store import list_books, load_book, save_book
 from research_reporting import build_excel_report, build_pdf_report
+from security_controls import has_permission
 
 
 def _download_benchmark(market: str, period: str) -> pd.DataFrame:
@@ -233,15 +234,18 @@ def render_research_exports(latest: dict | None, history: list | None) -> None:
             "Multi-asset Sharpe": multi_result.get("sharpe_ratio"),
             "Multi-asset benchmark return %": multi_result.get("benchmark_return_pct"),
         })
-    c1, c2 = st.columns(2)
-    c1.download_button("Unduh Research Pack Excel", build_excel_report(
-        portfolio=st.session_state.get("portfolio_report_frame"),
-        metrics=metrics, history=frame,
-    ), file_name="ai_equity_research_pack.xlsx",
-       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    c2.download_button("Unduh Ringkasan PDF", build_pdf_report(
-        "AI Equity Research — Performance Summary", metrics,
-        notes=["Forward outcomes are observations, not forecasts.",
-               "Yahoo Finance data may be incomplete or revised.",
-               "No broker execution is performed."],
-    ), file_name="ai_equity_research_summary.pdf", mime="application/pdf")
+    if has_permission(st.session_state.get("_auth_role"), "export_reports"):
+        c1, c2 = st.columns(2)
+        c1.download_button("Unduh Research Pack Excel", build_excel_report(
+            portfolio=st.session_state.get("portfolio_report_frame"),
+            metrics=metrics, history=frame,
+        ), file_name="ai_equity_research_pack.xlsx",
+           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        c2.download_button("Unduh Ringkasan PDF", build_pdf_report(
+            "AI Equity Research — Performance Summary", metrics,
+            notes=["Forward outcomes are observations, not forecasts.",
+                   "Yahoo Finance data may be incomplete or revised.",
+                   "No broker execution is performed."],
+        ), file_name="ai_equity_research_summary.pdf", mime="application/pdf")
+    else:
+        st.info("Ekspor laporan memerlukan role analyst atau lebih tinggi.")
