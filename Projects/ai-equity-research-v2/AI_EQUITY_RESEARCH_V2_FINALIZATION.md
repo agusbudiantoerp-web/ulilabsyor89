@@ -71,6 +71,8 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Expanded the Excel research pack to include available daily scan results, screener output, portfolio exposure/risk/optimization/stress scenarios, market intelligence diagnostics, backtest equity curves, trade details, walk-forward folds and saved-run metadata.
 - Added audit events for Excel/PDF report downloads and administrator audit-log CSV exports.
 - Added an administrator-only, read-only PostgreSQL health diagnostic for connectivity, required tables and basic table privileges; its results are also audit-logged.
+- Added a confirmed administrator action to initialize the idempotent PostgreSQL schemas before running the read-only health check.
+- Added a final Preview multi-user release test plan covering OIDC callbacks, role matrix, tenant isolation, audit, backtesting, exports and backup/restore.
 - Hardened Excel report generation against formula injection from untrusted provider or ticker text.
 - Fixed research-run storage initialization so the schema is created before the first SQLite/PostgreSQL save.
 - Added `database_backup.py` for integrity-checked SQLite backups and PostgreSQL logical dumps with SHA-256 manifests, plus staging-first restore guidance.
