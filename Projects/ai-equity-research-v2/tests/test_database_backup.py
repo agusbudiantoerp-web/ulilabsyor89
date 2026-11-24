@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from pathlib import Path
 
 from database_backup import backup_sqlite
 
@@ -11,8 +12,8 @@ def test_sqlite_backup_is_integrity_checked_and_has_sha256_manifest(tmp_path):
         db.execute("INSERT INTO sample(value) VALUES('private-row')")
 
     result = backup_sqlite(source, tmp_path / "backups")
-    backup_path = tmp_path / "backups" / result["backup"].split("/")[-1]
-    manifest_path = tmp_path / "backups" / result["manifest"].split("/")[-1]
+    backup_path = Path(result["backup"])
+    manifest_path = Path(result["manifest"])
 
     assert result["validation"] == "ok"
     with sqlite3.connect(backup_path) as db:
