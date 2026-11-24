@@ -34,6 +34,6 @@ def test_excel_report_escapes_formula_like_untrusted_text():
     )
     workbook = load_workbook(BytesIO(excel), read_only=True, data_only=False)
     assert workbook["Portfolio"]["A2"].value.startswith("'=")
-    summary = list(workbook["Summary"].iter_rows(values_only=True))
-    assert any(row[0] == "Provider note" and str(row[1]).startswith("' +") is False and str(row[1]).startswith("'+") for row in summary)
+    summary = {row[0]: row[1] for row in workbook["Summary"].iter_rows(values_only=True) if row[0]}
+    assert str(summary["Provider note"]).startswith("'+")
     assert workbook["External Data"]["A2"].value.startswith("'  @")
