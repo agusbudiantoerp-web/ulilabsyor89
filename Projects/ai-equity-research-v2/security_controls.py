@@ -12,6 +12,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from collections.abc import Mapping
 
 
 ROLE_PERMISSIONS = {
@@ -35,10 +36,10 @@ def normalize_role(role: str | None) -> str:
     return value
 
 
-def resolve_role_for_subject(subject_id: str | None, role_mapping: dict) -> str:
+def resolve_role_for_subject(subject_id: str | None, role_mapping: Mapping) -> str:
     """Resolve a verified immutable identity subject through server-managed role mapping."""
     subject = str(subject_id or "").strip()
-    if not subject or not isinstance(role_mapping, dict):
+    if not subject or not isinstance(role_mapping, Mapping):
         raise PermissionError("Identitas terverifikasi atau pemetaan role tidak tersedia.")
     role = role_mapping.get(subject)
     if role is None:
