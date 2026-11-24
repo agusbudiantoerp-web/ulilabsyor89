@@ -130,6 +130,14 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
             "age_calendar_days": age, "checks": checks}
 
 
+def _finite_negative(value: Any) -> bool:
+    try:
+        number = float(value)
+        return math.isfinite(number) and number < 0
+    except (TypeError, ValueError):
+        return False
+
+
 def audit_fundamental_record(record: dict[str, Any]) -> dict[str, Any]:
     """Flag missing and implausible fundamentals while retaining original source values."""
     numeric_fields = ("trailingPE", "forwardPE", "priceToBook", "returnOnEquity",
@@ -142,7 +150,7 @@ def audit_fundamental_record(record: dict[str, Any]) -> dict[str, Any]:
             continue
         try:
             number = float(value)
-            if not math.isfinite(number) or (key in {"marketCap", "priceToBook", "trailingPE", "forwardPE"} and number < 0):
+            if not math.isfinite(number) or (key == "marketCap" and number < 0):
                 invalid.append(key)
         except (TypeError, ValueError):
             invalid.append(key)
@@ -151,7 +159,13 @@ def audit_fundamental_record(record: dict[str, Any]) -> dict[str, Any]:
         flags.append({"severity": "WARNING", "message": "Fundamental tidak tersedia: " + ", ".join(missing)})
     if invalid:
         flags.append({"severity": "ERROR", "message": "Nilai fundamental tidak valid: " + ", ".join(invalid)})
+    negative_multiples = [key for key in ("trailingPE", "forwardPE", "priceToBook")
+                          if record.get(key) is not None and _finite_negative(record.get(key))]
+    if negative_multiples:
+        flags.append({"severity": "WARNING", "message": "Multiple negatif perlu interpretasi khusus (misalnya perusahaan rugi atau ekuitas negatif): " + ", ".join(negative_multiples)})
     if record.get("currency") is None:
         flags.append({"severity": "WARNING", "message": "Mata uang pelaporan/kuotasi tidak diketahui."})
+    if record.get("financialCurrency") and record.get("currency") and record["financialCurrency"] != record["currency"]:
+        flags.append({"severity": "WARNING", "message": "Mata uang laporan keuangan berbeda dari mata uang kuotasi; jangan bandingkan nominal tanpa konversi."})
     return {"status": "FAIL" if invalid else ("WARNING" if flags else "PASS"),
             "missing_fields": missing, "invalid_fields": invalid, "checks": flags}
