@@ -24,6 +24,13 @@ from advanced_workspace import (
 )
 
 
+def _owner_id() -> str:
+    value = str(st.session_state.get("_auth_subject_id") or "").strip()
+    if not value:
+        raise PermissionError("Authenticated owner identity is unavailable.")
+    return value
+
+
 def _show_scan(scan: dict) -> None:
     counts = scan.get("counts", {})
     cols = st.columns(5)
@@ -68,7 +75,7 @@ def render_daily_signal() -> None:
         if run:
             try:
                 with st.spinner("Memindai watchlist IDX dan US..."):
-                    scan = run_daily_scan(max_workers=3)
+                    scan = run_daily_scan(max_workers=3, owner_id=_owner_id())
                 st.session_state["unified_latest_scan"] = scan
                 st.success(f"Scan tersimpan. Scan ID: {scan.get('scan_id', 'N/A')}")
             except Exception as exc:
@@ -76,7 +83,7 @@ def render_daily_signal() -> None:
         scan = st.session_state.get("unified_latest_scan")
         if scan is None:
             try:
-                scan = get_dashboard_data().get("latest")
+                scan = get_dashboard_data(owner_id=_owner_id()).get("latest")
             except Exception as exc:
                 st.warning(f"Riwayat scan belum dapat dibaca: {exc}")
         if scan:
@@ -331,7 +338,7 @@ def render_portfolio_risk() -> None:
     st.subheader("Simulasi alokasi dari BUY candidate terbaru")
     st.caption("Alokasi ini simulasi berdasarkan modal terpisah per mata uang. IDX dibulatkan ke lot 100 saham; US menggunakan satuan saham. Bukan instruksi order.")
     try:
-        latest_scan = get_dashboard_data(limit=500).get("latest") or {}
+        latest_scan = get_dashboard_data(limit=500, owner_id=_owner_id()).get("latest") or {}
         candidates = [item for item in latest_scan.get("results", []) if item.get("signal") == "BUY_CANDIDATE"]
     except Exception:
         candidates = []
@@ -500,7 +507,7 @@ def render_performance_dashboard() -> None:
         if st.button("Perbarui outcome 1/3/5/10/20 sesi",type="primary"):
             try:
                 with st.spinner("Memeriksa harga penutupan setelah tanggal sinyal..."):
-                    refresh=refresh_forward_outcomes(limit=1000)
+                    refresh=refresh_forward_outcomes(limit=1000, owner_id=_owner_id())
                 st.success(f"{refresh['updated_outcomes']} outcome baru tercatat dari {refresh['pending_signals']} sinyal tertunda.")
                 if refresh["errors"]:
                     with st.expander(f"Ticker belum berhasil diperbarui ({len(refresh['errors'])})"):
@@ -510,7 +517,7 @@ def render_performance_dashboard() -> None:
     else:
         st.caption("Mode viewer: pembaruan outcome hanya tersedia untuk role analyst atau lebih tinggi.")
     try:
-        data=get_dashboard_data(limit=1000)
+        data=get_dashboard_data(limit=1000, owner_id=_owner_id())
         latest,history,outcomes=data.get("latest"),data.get("history") or [],data.get("outcomes") or []
     except Exception as exc:
         st.error(f"Database performa tidak dapat dibaca: {type(exc).__name__}: {exc}")
