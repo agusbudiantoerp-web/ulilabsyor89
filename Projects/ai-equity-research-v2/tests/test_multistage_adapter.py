@@ -102,10 +102,6 @@ class MultiStageAdapterFXTests(unittest.TestCase):
         self.assertFalse(result["warnings"])
         mock_dcf.assert_called_once()
 
-if __name__ == "__main__":
-    unittest.main()
-
-
     @patch("multistage_adapter.project_multistage_dcf")
     def test_critical_statement_period_mismatch_requires_manual_review(self, mock_dcf):
         mock_dcf.return_value = {"available": True}
@@ -133,3 +129,7 @@ if __name__ == "__main__":
         self.assertTrue(result["critical_data_quality_warnings"])
         self.assertTrue(result["data_quality_override"])
         mock_dcf.assert_called_once()
+
+
+if __name__ == "__main__":
+    unittest.main()
