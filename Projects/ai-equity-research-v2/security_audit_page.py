@@ -127,10 +127,29 @@ def render_security_audit(identity: dict, secrets) -> None:
             "resource_type", "resource_id", "details_json", "event_hash",
         ]
         frame = frame[[column for column in visible if column in frame.columns]]
-        st.dataframe(frame, use_container_width=True, hide_index=True)
+        filter_col1, filter_col2 = st.columns(2)
+        actor_values = ["Semua pengguna"] + sorted(frame["actor_id"].astype(str).unique().tolist())
+        action_values = ["Semua aksi"] + sorted(frame["action"].astype(str).unique().tolist())
+        selected_actor = filter_col1.selectbox("Filter pengguna", actor_values, key="audit_actor_filter")
+        selected_action = filter_col2.selectbox("Filter aksi", action_values, key="audit_action_filter")
+        search_text = st.text_input("Cari resource atau detail", key="audit_search_text").strip().lower()
+        filtered = frame.copy()
+        if selected_actor != "Semua pengguna":
+            filtered = filtered[filtered["actor_id"].astype(str) == selected_actor]
+        if selected_action != "Semua aksi":
+            filtered = filtered[filtered["action"].astype(str) == selected_action]
+        if search_text:
+            searchable = (
+                filtered["resource_type"].astype(str) + " "
+                + filtered["resource_id"].astype(str) + " "
+                + filtered["details_json"].astype(str)
+            ).str.lower()
+            filtered = filtered[searchable.str.contains(search_text, regex=False, na=False)]
+        st.caption(f"Menampilkan {len(filtered)} dari {len(frame)} event terbaru.")
+        st.dataframe(filtered, use_container_width=True, hide_index=True)
         st.download_button(
             "Unduh audit log CSV",
-            frame.to_csv(index=False).encode("utf-8-sig"),
+            filtered.to_csv(index=False).encode("utf-8-sig"),
             file_name="ai_equity_research_audit_log.csv",
             mime="text/csv",
         )
