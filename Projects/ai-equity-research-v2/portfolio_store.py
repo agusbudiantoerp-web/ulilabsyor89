@@ -47,7 +47,7 @@ def initialize(path: str | None = None) -> None:
 
 def save_book(book_id: str, name: str, positions: pd.DataFrame,
               path: str | None = None) -> int:
-    if not book_id.strip() or not name.strip():
+    if not isinstance(book_id, str) or not book_id.strip() or not isinstance(name, str) or not name.strip():
         raise ValueError("ID dan nama portfolio wajib diisi.")
     required = {"Market", "Ticker", "Shares", "Average Cost"}
     if not required.issubset(positions.columns):
@@ -67,9 +67,13 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     if (frame[["Shares", "Average Cost"]] < 0).any().any():
         raise ValueError("Jumlah saham dan harga rata-rata tidak boleh negatif.")
     frame["Cost Value"] = frame["Shares"] * frame["Average Cost"]
+    if not all(math.isfinite(float(value)) for value in frame["Cost Value"].to_numpy()):
+        raise ValueError("Nilai modal posisi melampaui rentang numerik yang didukung.")
     frame = frame.groupby(["Market", "Ticker"], as_index=False).agg(
         {"Shares": "sum", "Cost Value": "sum"}
     )
+    if not all(math.isfinite(float(value)) for value in frame[["Shares", "Cost Value"]].to_numpy().ravel()):
+        raise ValueError("Agregasi posisi menghasilkan nilai non-finite.")
     frame["Average Cost"] = frame.apply(
         lambda row: row["Cost Value"] / row["Shares"] if row["Shares"] > 0 else 0.0,
         axis=1,
