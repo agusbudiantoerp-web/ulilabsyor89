@@ -11,7 +11,7 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 3. **Portfolio & Risk Management** — position weights, sector/market/currency exposure, correlations, volatility, historical VaR, drawdown, price/FX scenarios and indicative candidate allocation.
 4. **Backtesting** — fee/slippage-aware single-ticker backtest, chronological walk-forward evaluation, multi-asset simulation and owner-scoped saved run history.
 5. **Performance & Learning** — owner-scoped PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
-6. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export and on-demand hash-chain integrity verification.
+6. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export, on-demand hash-chain integrity verification and read-only PostgreSQL connectivity/schema/privilege diagnostics.
 
 ## Advanced screener and scoring
 
