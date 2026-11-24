@@ -147,6 +147,8 @@ def save_run(
     symbols_json = _safe_json([str(item).strip().upper() for item in symbols if str(item).strip()])
     parameters_json = _safe_json(parameters)
     result_json = _safe_json(result)
+    # Ensure the schema exists before the first INSERT on both SQLite and PostgreSQL.
+    initialize(path)
     if backend_name(path) == "PostgreSQL":
         from psycopg.types.json import Jsonb
         with _connect_postgres() as db:
