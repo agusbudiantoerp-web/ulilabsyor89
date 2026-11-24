@@ -10,7 +10,7 @@ from market_intelligence import (
     classify_market_regime, relative_strength,
 )
 from multi_asset_backtest import run_multi_asset_backtest
-from portfolio_store import backend_name as portfolio_backend, list_books, load_book, save_book
+from portfolio_store import list_books, load_book, save_book
 from research_reporting import build_excel_report, build_pdf_report
 
 
