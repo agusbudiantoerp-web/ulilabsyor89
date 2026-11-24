@@ -287,6 +287,10 @@ def render_portfolio_risk() -> None:
             st.dataframe(pd.DataFrame(result["errors"]), use_container_width=True, hide_index=True)
     st.caption("Nilai IDR dan USD tidak dijumlahkan tanpa kurs FX. Bobot dan risiko dihitung per mata uang.")
     analysis = analyze_portfolio(frame, result["returns"])
+    st.session_state["portfolio_exposure_report_frame"] = analysis["position_exposure"].copy()
+    st.session_state["portfolio_risk_report_frame"] = analysis["risk"].copy()
+    if not analysis["sector_exposure"].empty:
+        st.session_state["portfolio_sector_report_frame"] = analysis["sector_exposure"].copy()
     st.subheader("Bobot setiap posisi")
     st.dataframe(analysis["position_exposure"], use_container_width=True, hide_index=True)
     ccy = pd.DataFrame([{"Currency":k,"Market Value":v} for k,v in analysis["currency_exposure"].items()])
@@ -313,6 +317,14 @@ def render_portfolio_risk() -> None:
     st.caption("Rekomendasi bobot long-only berbasis histori return. Optimizer hanya berjalan untuk satu mata uang; tidak mencampur return IDR dan USD.")
     try:
         optimization = optimize_portfolio(frame, result["returns"])
+        st.session_state["portfolio_risk_parity_report_frame"] = optimization["risk_parity"].copy()
+        st.session_state["portfolio_max_sharpe_report_frame"] = optimization["max_sharpe"].copy()
+        st.session_state["portfolio_optimization_metrics"] = {
+            "currency": optimization["currency"],
+            "observations": optimization["observations"],
+            "risk_parity_annualized_volatility_pct": optimization["risk_parity_metrics"].get("annualized_volatility_pct"),
+            "max_sharpe_ratio": optimization["max_sharpe_metrics"].get("sharpe_ratio"),
+        }
         opt_left, opt_right = st.columns(2)
         with opt_left:
             st.markdown("**Risk parity**")
@@ -338,6 +350,10 @@ def render_portfolio_risk() -> None:
                 "Severe correction -20%": {ticker: -20.0 for ticker in frame["Ticker"]},
             },
         )
+        st.session_state["portfolio_institutional_risk_frame"] = institutional_risk["risk"].copy()
+        st.session_state["portfolio_concentration_frame"] = institutional_risk["concentration"].copy()
+        st.session_state["portfolio_stress_frame"] = institutional_risk["stress"].copy()
+        st.session_state["portfolio_limit_breaches_frame"] = institutional_risk["limit_breaches"].copy()
         risk_col, concentration_col = st.columns(2)
         with risk_col:
             st.markdown("**Risk metrics**")
@@ -409,6 +425,7 @@ def render_portfolio_risk() -> None:
         key="portfolio_scenario_editor",
     )
     scenario = scenario_analysis(frame,dict(zip(scenario_edited["Ticker"],scenario_edited["Shock %"])))
+    st.session_state["portfolio_price_scenario_frame"] = scenario.copy()
     st.dataframe(scenario,use_container_width=True,hide_index=True)
     st.dataframe(scenario.groupby("Currency")[["Estimated P/L","Scenario Value"]].sum().reset_index(),use_container_width=True,hide_index=True)
     with st.expander("Simulasi risiko kurs USD/IDR"):
@@ -418,6 +435,7 @@ def render_portfolio_risk() -> None:
         fx_shock = fx_col2.slider("Perubahan kurs USD/IDR (%)", -30, 30, 0, key="portfolio_fx_shock")
         if usd_idr_spot > 0:
             fx_result = fx_scenario_analysis(frame, usd_idr_spot, fx_shock)
+            st.session_state["portfolio_fx_scenario_metrics"] = fx_result
             fx_a, fx_b, fx_c = st.columns(3)
             fx_a.metric("Nilai portfolio IDR", f"Rp {fx_result['current_portfolio_idr']:,.0f}")
             fx_b.metric("Nilai skenario IDR", f"Rp {fx_result['scenario_portfolio_idr']:,.0f}")
