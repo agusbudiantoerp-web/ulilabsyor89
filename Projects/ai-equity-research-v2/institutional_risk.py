@@ -34,7 +34,7 @@ def analyze_institutional_risk(
         raise ValueError("confidence_level harus finite dan antara 0.90 dan 0.999.")
 
     frame = positions.copy()
-    frame["Ticker"] = frame["Ticker"].astype(str).str.strip()
+    frame["Ticker"] = frame["Ticker"].astype(str).str.upper().str.strip()
     frame["Currency"] = frame["Currency"].astype(str).str.upper().str.strip()
     frame["Market Value"] = pd.to_numeric(frame["Market Value"], errors="coerce")
     if frame["Market Value"].isna().any() or not frame["Market Value"].map(math.isfinite).all():
@@ -43,6 +43,9 @@ def analyze_institutional_risk(
         raise ValueError("Market Value tidak boleh negatif.")
     if (frame["Ticker"] == "").any() or (frame["Currency"] == "").any():
         raise ValueError("Ticker dan Currency wajib diisi.")
+    if "Sector" in frame.columns:
+        frame["Sector"] = frame["Sector"].fillna("Unknown").astype(str).str.strip()
+        frame.loc[frame["Sector"] == "", "Sector"] = "Unknown"
     frame = frame[frame["Market Value"] > 0].copy()
     if frame.empty:
         raise ValueError("Tidak ada posisi dengan market value positif.")
