@@ -156,6 +156,29 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
 
     initialize(path)
     now = datetime.now(timezone.utc).isoformat()
+    if backend_name(path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO portfolio_books(owner_id,id,name,updated_at)
+                    VALUES(%s,%s,%s,%s)
+                    ON CONFLICT(owner_id,id) DO UPDATE SET
+                        name=EXCLUDED.name, updated_at=EXCLUDED.updated_at
+                """, (owner, book_id, name, now))
+                cur.execute(
+                    "DELETE FROM portfolio_positions WHERE owner_id=%s AND book_id=%s",
+                    (owner, book_id),
+                )
+                cur.executemany("""
+                    INSERT INTO portfolio_positions(
+                        owner_id,book_id,market,ticker,shares,average_cost
+                    ) VALUES(%s,%s,%s,%s,%s,%s)
+                """, [
+                    (owner, book_id, row["Market"], row["Ticker"],
+                     float(row["Shares"]), float(row["Average Cost"]))
+                    for row in frame.to_dict("records")
+                ])
+        return len(frame)
     with _connect(path) as db:
         # Serialize ownership check and write so concurrent users cannot race
         # a book-ID collision and overwrite another owner's positions.
@@ -188,6 +211,14 @@ def list_books(path: str | None = None, owner_id: str | None = None) -> list[dic
     if not owner:
         raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
+    if backend_name(path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(
+                    "SELECT id,name,updated_at FROM portfolio_books WHERE owner_id=%s ORDER BY name",
+                    (owner,),
+                )
+                return [dict(row) for row in cur.fetchall()]
     with _connect(path) as db:
         rows = db.execute(
             "SELECT id, name, updated_at FROM portfolio_books WHERE owner_id=? ORDER BY name",
@@ -201,6 +232,32 @@ def load_book(book_id: str, path: str | None = None, owner_id: str | None = None
     if not owner:
         raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
+    if backend_name(path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(
+                    "SELECT owner_id FROM portfolio_books WHERE id=%s AND owner_id=%s",
+                    (book_id, owner),
+                )
+                book = cur.fetchone()
+                if not book:
+                    cur.execute(
+                        "SELECT 1 FROM portfolio_books WHERE id=%s", (book_id,)
+                    )
+                    if cur.fetchone():
+                        raise PermissionError("Portfolio ini dimiliki pengguna lain; akses ditolak.")
+                    raise KeyError("Portfolio tidak ditemukan.")
+                cur.execute("""
+                    SELECT market,ticker,shares,average_cost
+                    FROM portfolio_positions
+                    WHERE owner_id=%s AND book_id=%s ORDER BY market,ticker
+                """, (owner, book_id))
+                rows = cur.fetchall()
+        return pd.DataFrame([
+            {"Market": row["market"], "Ticker": row["ticker"],
+             "Shares": row["shares"], "Average Cost": row["average_cost"]}
+            for row in rows
+        ], columns=["Market", "Ticker", "Shares", "Average Cost"])
     with _connect(path) as db:
         book = db.execute(
             "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
@@ -225,6 +282,14 @@ def delete_book(book_id: str, path: str | None = None, owner_id: str | None = No
     if not owner:
         raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
+    if backend_name(path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM portfolio_books WHERE id=%s AND owner_id=%s RETURNING id",
+                    (book_id, owner),
+                )
+                return cur.fetchone() is not None
     with _connect(path) as db:
         book = db.execute(
             "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
