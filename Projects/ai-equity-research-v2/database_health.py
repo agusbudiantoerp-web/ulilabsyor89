@@ -111,3 +111,29 @@ def check_postgres_health(secrets: Any = None) -> dict:
             "privilege_issues": [],
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
+
+
+
+def initialize_required_postgres_schema(
+    secrets: Any = None, actor_id: str = "", actor_role: str = ""
+) -> dict:
+    """Run the application's idempotent PostgreSQL schema initializers, then verify."""
+    if not _resolve_database_url(secrets):
+        raise RuntimeError("DATABASE_URL belum dikonfigurasi; skema PostgreSQL tidak diubah.")
+
+    from daily_signal_storage import initialize as initialize_daily_signals
+    from portfolio_store import initialize as initialize_portfolios
+    from research_run_store import initialize as initialize_research_runs
+    from security_controls import record_audit_event
+
+    initialize_daily_signals()
+    initialize_portfolios()
+    initialize_research_runs()
+    record_audit_event(
+        actor_id,
+        actor_role,
+        "DATABASE_SCHEMA_INITIALIZE",
+        "database_schema",
+        details={"tables": sorted(REQUIRED_TABLES)},
+    )
+    return check_postgres_health(secrets)
