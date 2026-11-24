@@ -87,3 +87,13 @@ def test_pdf_research_pack_contains_valuation_sections():
     )
     assert payload.startswith(b"%PDF")
     assert len(payload) > 1000
+
+
+
+def test_equity_excel_report_escapes_formula_like_ticker_text():
+    data = sample_data()
+    data["ticker"] = "=HYPERLINK(\"https://evil.example\",\"click\")"
+    payload = make_excel_report(data)
+    workbook = load_workbook(BytesIO(payload), read_only=True, data_only=False)
+    assert workbook["Summary"]["A2"].value.startswith("'=")
+    workbook.close()
