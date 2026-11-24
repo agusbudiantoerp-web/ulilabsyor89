@@ -73,7 +73,7 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Added an administrator-only, read-only PostgreSQL health diagnostic for connectivity, required tables and basic table privileges; its results are also audit-logged.
 - Added a confirmed administrator action to initialize the idempotent PostgreSQL schemas before running the read-only health check.
 - Added a final Preview multi-user release test plan covering OIDC callbacks, role matrix, tenant isolation, audit, backtesting, exports and backup/restore.
-- Hardened Excel report generation against formula injection from untrusted provider or ticker text.
+- Hardened Excel and CSV report generation against formula injection from untrusted provider, ticker or audit text; PDF text fields are escaped before rendering.
 - Fixed research-run storage initialization so the schema is created before the first SQLite/PostgreSQL save.
 - Added `database_backup.py` for integrity-checked SQLite backups and PostgreSQL logical dumps with SHA-256 manifests, plus staging-first restore guidance.
 - Added regression tests for owner-scoped research-run storage, PostgreSQL health diagnostics, detailed Excel workbook sheets and formula-injection protection. GitHub Actions is configured to run automatically on branch/PR updates. An earlier automatic run reported 173 passed and 3 failed because the first research-run save did not initialize its table; the initialization fix has been committed. The latest post-fix code still requires a fresh CI result and the planned end-to-end Preview validation before release.
