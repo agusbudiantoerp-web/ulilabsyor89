@@ -11,6 +11,7 @@
 - Audit payloads reject credential-like keys recursively, including common nested and naming variants.
 - Portfolio books are scoped by the authenticated issuer-bound OIDC principal in PostgreSQL when `DATABASE_URL` is configured, with local SQLite fallback. Existing pre-migration local books are assigned `legacy-unassigned` and are hidden from authenticated users; they are not automatically uploaded to PostgreSQL.
 - Daily scans, signals, forward outcomes and learning analytics are scoped to the authenticated issuer-bound OIDC principal in both SQLite and PostgreSQL. Existing records are migrated to `legacy-unassigned` and hidden from authenticated principals.
+- Single-ticker, walk-forward and multi-asset research runs are stored in `research_runs`; list, read and delete operations filter by the authenticated owner. Local SQLite research history is separate from cloud PostgreSQL.
 - Performance history can use PostgreSQL, but production use still requires managed database operations, tenant-aware backups and operational security.
 
 ## Important release status
@@ -24,7 +25,7 @@ Portfolio books, learning/performance records and research/backtest runs are sco
 1. Configure exactly one trusted OIDC provider in Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
 2. Map issuer-bound immutable provider subject IDs to server-managed roles; deny access if identity or role is missing.
 3. Enforce authorization server-side on every portfolio read/write/delete, report export, model configuration change, and user administration action. The audit console is admin-only, but its page-level gate must be complemented by endpoint-level checks if new audit APIs are added.
-4. Extend tenant/user ownership keys to any remaining private data tables and migrate legacy records with an explicit owner. Portfolio and learning records are owner-scoped; audit storage and other private records remain to be reviewed.
+4. Extend tenant/user ownership keys to any remaining private data tables and migrate legacy records with an explicit owner. Portfolio, learning/performance and research-run records are owner-scoped; audit events remain system-wide and are restricted to administrators.
 5. Use managed PostgreSQL with least-privilege credentials, TLS, connection limits, backups, and tested point-in-time recovery.
 6. Export audit events to access-controlled append-only or WORM storage. The PostgreSQL/SQLite hash chain is tamper-evident, not immutable against an administrator who can rewrite the database.
 7. Redact secrets and personal data from logs; rotate credentials and document incident response.
