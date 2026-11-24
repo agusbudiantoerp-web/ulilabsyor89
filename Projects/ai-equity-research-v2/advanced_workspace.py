@@ -94,7 +94,7 @@ def render_market_intelligence() -> None:
 
 def render_portfolio_persistence(positions: pd.DataFrame) -> None:
     st.subheader("Simpan & Muat Portfolio")
-    st.caption(f"Penyimpanan portfolio: {portfolio_backend()}. Nama dan posisi disimpan agar dapat digunakan kembali.")
+    st.caption("Penyimpanan portfolio: SQLite lokal. File berada di komputer/instance yang menjalankan aplikasi; penyimpanan cloud belum diaktifkan karena belum ada isolasi akun per pengguna.")
     with st.expander("Kelola portfolio tersimpan", expanded=False):
         try:
             books = list_books()
