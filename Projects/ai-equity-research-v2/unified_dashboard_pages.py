@@ -18,6 +18,7 @@ from institutional_risk import analyze_institutional_risk
 from portfolio_optimization import optimize_portfolio
 from security_controls import has_permission, require_permission, record_audit_event
 from research_run_store import save_run
+from report_export_utils import safe_csv_bytes
 from daily_signal_portfolio import allocate_candidates
 from advanced_workspace import (
     render_market_intelligence, render_portfolio_persistence,
@@ -62,7 +63,7 @@ def _show_scan(scan: dict) -> None:
         frame = frame[[c for c in preferred if c in frame.columns]]
         st.dataframe(frame, use_container_width=True, hide_index=True)
         st.download_button(
-            "Unduh hasil scan CSV", frame.to_csv(index=False).encode("utf-8-sig"),
+            "Unduh hasil scan CSV", safe_csv_bytes(frame),
             file_name="daily_stock_signal.csv", mime="text/csv",
             on_click=lambda: _audit_action(
                 "REPORT_EXPORT", "daily_signal_scan", str(scan.get("scan_id", "")),
@@ -204,7 +205,7 @@ def render_daily_signal() -> None:
                 st.dataframe(visible, use_container_width=True, hide_index=True)
                 st.download_button(
                     "Unduh ranking screener CSV",
-                    visible.to_csv(index=False).encode("utf-8-sig"),
+                    safe_csv_bytes(visible),
                     "advanced_stock_screener.csv", "text/csv",
                     on_click=lambda: _audit_action(
                         "REPORT_EXPORT", "stock_screener", details={"format": "csv", "rows": len(visible)}
@@ -534,7 +535,7 @@ def render_backtesting() -> None:
                 st.subheader("Detail transaksi")
                 st.dataframe(trades,use_container_width=True,hide_index=True)
                 st.download_button(
-                    "Unduh transaksi CSV", trades.to_csv(index=False).encode("utf-8-sig"),
+                    "Unduh transaksi CSV", safe_csv_bytes(trades),
                     "backtest_trades.csv", "text/csv",
                     on_click=lambda: _audit_action(
                         "REPORT_EXPORT", "backtest_trades",
@@ -659,7 +660,7 @@ def render_performance_dashboard() -> None:
         if has_permission(st.session_state.get("_auth_role"), "export_reports"):
             st.download_button(
                 "Unduh histori sinyal CSV",
-                frame[cols].to_csv(index=False).encode("utf-8-sig"),
+                safe_csv_bytes(frame[cols]),
                 "signal_history.csv", "text/csv",
                 on_click=lambda: _audit_action(
                     "REPORT_EXPORT", "signal_history", details={"format": "csv", "rows": len(frame)}
