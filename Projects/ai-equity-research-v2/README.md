@@ -24,6 +24,18 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 
 See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for methodology and limitations.
 
+## Additional intelligence tools
+
+The existing five menus also include these extensions:
+
+- **Daily Stock Signal:** market-regime classification for the IDX Composite (^JKSE) or SPY, relative strength of a selected stock versus its market benchmark over matched sessions, and OHLCV/fundamental data-quality checks. Negative valuation multiples are flagged for interpretation rather than automatically treated as invalid; quote/reporting-currency mismatches are surfaced.
+- **Portfolio & Risk Management:** named portfolio books can be saved and reloaded. PostgreSQL is used when the configured cloud database is available; otherwise a local SQLite portfolio database is used. Duplicate ticker rows are consolidated using share-weighted average cost.
+- **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps.
+- **Performance & Learning:** export a research pack to Excel and a concise PDF summary.
+
+The multi-asset backtest is a separate fixed-rule trend simulation, not a broker execution model. Missing price bars are not forward-filled; uninvested cash earns zero. Benchmark comparisons are price-only and do not include dividends. Local SQLite files may be ephemeral on hosted instances; PostgreSQL is preferred for persistent cloud storage.
+
+
 ## Windows PowerShell setup
 
 Run these commands from the repository root:
