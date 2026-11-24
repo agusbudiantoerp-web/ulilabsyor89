@@ -20,7 +20,7 @@ def _seed(tmp_path):
             },
         ],
     }
-    scan_id = save_scan(scan, db_path=db_path)
+    scan_id = save_scan(scan, db_path=db_path, owner_id='test-owner')
     return db_path, scan_id
 
 
@@ -29,13 +29,13 @@ def test_outcome_summary_includes_median_and_segments(tmp_path):
 
     # Three completed outcomes for the same ruleset/signal segment.
     from daily_signal_storage import signal_history
-    rows = signal_history(limit=10, db_path=db_path)
+    rows = signal_history(limit=10, db_path=db_path, owner_id='test-owner')
     ids = {row["ticker"]: row["id"] for row in rows}
-    record_outcome(ids["AAA.JK"], 1, "2026-01-06", 110.0, db_path=db_path)
+    record_outcome(ids["AAA.JK"], 1, "2026-01-06", 110.0, db_path=db_path, owner_id='test-owner')
     record_outcome(ids["AAA.JK"], 3, "2026-01-08", 90.0, db_path=db_path)
     record_outcome(ids["BBB.JK"], 1, "2026-01-06", 220.0, db_path=db_path)
 
-    summary = outcome_summary(db_path=db_path)
+    summary = outcome_summary(db_path=db_path, owner_id='test-owner')
     overall_1d = next(
         row for row in summary
         if row["horizon"] == 1 and row["ruleset_version"] == "ALL"
