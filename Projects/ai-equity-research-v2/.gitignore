@@ -25,3 +25,6 @@ logs/
 *.sqlite3
 *.db
 data/
+
+# Generated database backups and manifests
+backups/
