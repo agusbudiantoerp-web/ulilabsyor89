@@ -146,6 +146,7 @@ def render_multi_asset_backtest() -> None:
         fee = c5.number_input("Fee per sisi (bps)", min_value=0.0, max_value=500.0, value=10.0, key="mab_fee")
         slippage = c6.number_input("Slippage per sisi (bps)", min_value=0.0, max_value=500.0, value=10.0, key="mab_slippage")
         cap_weight = st.slider("Batas bobot per saham (%)", 5, 100, 20, key="mab_weight")
+        st.caption("Semua nominal mengikuti mata uang pasar yang dipilih: IDR untuk IDX atau USD untuk US.")
         if st.button("Jalankan multi-asset backtest", key="mab_run", type="primary"):
             symbols = list(dict.fromkeys(x.strip().upper() for x in raw.replace("\n", ",").split(",") if x.strip()))
             if not symbols:
@@ -182,6 +183,11 @@ def render_multi_asset_backtest() -> None:
             m3.metric("Max drawdown", f"{result['max_drawdown_pct']:.2f}%")
             m4.metric("Sharpe", f"{result['sharpe_ratio']:.2f}")
             m5.metric("Final equity", f"{result['final_equity']:,.2f}")
+            st.caption(
+                f"Average exposure {result['average_exposure_pct']:.1f}% · "
+                f"Average positions {result['average_active_positions']:.1f} · "
+                f"Estimated costs {result['estimated_cost_paid']:,.2f}"
+            )
             st.caption(f"Benchmark price return: {result['benchmark_return_pct']:.2f}%" if result["benchmark_return_pct"] is not None else "Benchmark tidak tersedia.")
             curve = pd.DataFrame(result["curve"])
             if not curve.empty:
