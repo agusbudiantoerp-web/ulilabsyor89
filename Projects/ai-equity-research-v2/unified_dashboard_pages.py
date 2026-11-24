@@ -15,6 +15,10 @@ from daily_signal_backtest import backtest, walk_forward_backtest
 from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
 from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scenario_analysis
 from daily_signal_portfolio import allocate_candidates
+from advanced_workspace import (
+    render_market_intelligence, render_portfolio_persistence,
+    render_multi_asset_backtest, render_research_exports,
+)
 
 
 def _show_scan(scan: dict) -> None:
@@ -174,6 +178,9 @@ def render_daily_signal() -> None:
                     st.dataframe(pd.DataFrame(result["errors"]), use_container_width=True, hide_index=True)
         st.caption("Skor 0–100 adalah model kuantitatif berbasis aturan yang transparan, bukan model machine learning terlatih atau jaminan return. Data fundamental Yahoo Finance dapat kosong/berbeda mata uang; nilai kosong tidak diisi dengan perkiraan.")
 
+    render_market_intelligence()
+
+
 def render_portfolio_risk() -> None:
     st.header("Portfolio & Risk Management")
     st.caption("Analisis posisi, konsentrasi, korelasi, risiko per mata uang, dan skenario harga. Tidak mengirim order.")
@@ -189,6 +196,7 @@ def render_portfolio_risk() -> None:
         }, key="portfolio_editor",
     )
     st.session_state["portfolio_input"] = edited
+    render_portfolio_persistence(edited)
     if st.button("Hitung portfolio intelligence", type="primary"):
         positions, return_series, errors = [], {}, []
         for _, row in edited.iterrows():
@@ -234,6 +242,7 @@ def render_portfolio_risk() -> None:
         st.info("Posisi disimpan dalam sesi browser. Masukkan saham dan jumlah kepemilikan untuk memulai.")
         return
     frame = result["positions"].copy()
+    st.session_state["portfolio_report_frame"] = frame.copy()
     st.subheader("Posisi & valuasi")
     st.dataframe(frame, use_container_width=True, hide_index=True)
     if result.get("errors"):
@@ -423,6 +432,9 @@ def render_backtesting() -> None:
             st.caption(r["method"])
             st.warning(r["limitations"])
 
+    render_multi_asset_backtest()
+
+
 def render_performance_dashboard() -> None:
     st.header("Performance & Learning Dashboard")
     st.caption("Histori scan, kualitas sinyal, dan forward return aktual setelah 1/3/5/10/20 sesi perdagangan.")
@@ -486,3 +498,4 @@ def render_performance_dashboard() -> None:
     else:
         st.info("Outcome forward belum tercatat. Sistem menunggu harga penutupan untuk setiap horizon tersedia.")
     st.caption("Return historis adalah hasil observasi setelah tanggal sinyal, bukan prediksi. Evaluasi per sinyal belum menghilangkan seluruh bias survivorship dan data vendor.")
+    render_research_exports(latest, history)
