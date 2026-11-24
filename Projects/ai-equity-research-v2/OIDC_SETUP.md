@@ -76,12 +76,16 @@ After Streamlit assigns the preview app URL:
 
 Initially keep the Google OAuth consent screen in Testing and add only approved test accounts.
 
-## 5. Security and release limitations
+## 5. Administrator console
+
+The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, recent audit events, CSV export, hash-chain verification and the selected storage backend for signals, portfolio books, research runs and audit events. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
+
+## 6. Security and release limitations
 
 - OIDC login and subject-to-role mapping do not by themselves prove complete tenant isolation.
 - Audit events use shared PostgreSQL when `DATABASE_URL` is configured; otherwise they use local SQLite. The hash chain is tamper-evident, not WORM/immutable.
-- Portfolio books and learning/performance records have owner scoping, but audit storage and other private records still need separate access-control review.
-- Every export, write, delete, model-configuration action, and audit viewer must be individually permission-checked before production release.
+- Portfolio books, learning/performance records and saved research/backtest runs have owner scoping. Audit events are system-wide and visible only through the admin-only console; they still need protected external retention.
+- Page entry points and selected write/delete/export operations have server-side permission checks. Complete review of every privileged operation and any future API endpoint is still required before production release.
 - Use managed PostgreSQL, immutable/append-only central audit storage, backup restoration tests, and security testing before inviting multiple users.
 - Keep client secrets, cookie secrets, database URLs, and API tokens only in Streamlit Secrets or a private local secrets file.
 - This authentication change must be reviewed and tested before merging or deploying. It does not certify the application as production-ready.
