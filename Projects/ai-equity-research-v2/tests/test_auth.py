@@ -97,5 +97,6 @@ def test_logout_is_not_blocked_by_audit_storage_failure(monkeypatch):
         logout=lambda: setattr(fake_st, "logged_out", True),
         logged_out=False,
     )
-    logout(fake_st, {"subject_id": "issuer|subject", "role": "analyst"})
+    audited = logout(fake_st, {"subject_id": "issuer|subject", "role": "analyst"})
+    assert audited is False
     assert fake_st.logged_out is True
