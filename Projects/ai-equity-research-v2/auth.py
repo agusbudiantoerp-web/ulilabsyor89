@@ -80,15 +80,21 @@ def audit_login_once(st_module: Any, identity: dict) -> None:
     st_module.session_state[key] = True
 
 
-def logout(st_module: Any, identity: dict) -> None:
-    """Audit logout before invoking Streamlit's OIDC logout."""
-    audit_path = st_module.secrets.get("audit_db_path", "data/audit_log.sqlite3")
-    record_audit_event(
-        identity["subject_id"],
-        identity["role"],
-        "LOGOUT",
-        "streamlit_session",
-        details={"authentication": "OIDC"},
-        path=str(audit_path),
-    )
-    st_module.logout()
+def logout(st_module: Any, identity: dict) -> bool:
+    """Always terminate the OIDC session; report whether the audit append succeeded."""
+    audited = True
+    try:
+        audit_path = st_module.secrets.get("audit_db_path", "data/audit_log.sqlite3")
+        record_audit_event(
+            identity["subject_id"],
+            identity["role"],
+            "LOGOUT",
+            "streamlit_session",
+            details={"authentication": "OIDC"},
+            path=str(audit_path),
+        )
+    except Exception:
+        audited = False
+    finally:
+        st_module.logout()
+    return audited
