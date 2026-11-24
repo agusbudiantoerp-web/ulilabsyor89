@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-import pytest
 
 from daily_signal_backtest import backtest
 from daily_signal_engine import calculate_indicators
