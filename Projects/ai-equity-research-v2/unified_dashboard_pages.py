@@ -493,8 +493,28 @@ def render_performance_dashboard() -> None:
         st.subheader("Forward outcome (observasi aktual)")
         outcome_frame=pd.DataFrame(outcomes)
         outcome_frame["Horizon"]=outcome_frame["horizon"].astype(str)+" sesi"
-        outcome_frame=outcome_frame.rename(columns={"observations":"Observasi","avg_forward_return_pct":"Rata-rata return (%)","positive_rate_pct":"Outcome positif (%)"})
-        st.dataframe(outcome_frame[["Horizon","Observasi","Rata-rata return (%)","Outcome positif (%)"]],use_container_width=True,hide_index=True)
+        outcome_frame=outcome_frame.rename(columns={
+            "ruleset_version":"Ruleset",
+            "signal_type":"Jenis sinyal",
+            "observations":"Observasi",
+            "avg_forward_return_pct":"Rata-rata return (%)",
+            "median_forward_return_pct":"Median return (%)",
+            "positive_rate_pct":"Outcome positif (%)",
+            "negative_rate_pct":"Outcome negatif (%)",
+            "zero_rate_pct":"Tidak berubah (%)",
+            "best_return_pct":"Return terbaik (%)",
+            "worst_return_pct":"Return terburuk (%)",
+        })
+        display_columns = [
+            "Horizon", "Ruleset", "Jenis sinyal", "Observasi",
+            "Rata-rata return (%)", "Median return (%)",
+            "Outcome positif (%)", "Outcome negatif (%)",
+            "Tidak berubah (%)", "Return terbaik (%)", "Return terburuk (%)",
+        ]
+        st.dataframe(
+            outcome_frame[[column for column in display_columns if column in outcome_frame.columns]],
+            use_container_width=True, hide_index=True,
+        )
     else:
         st.info("Outcome forward belum tercatat. Sistem menunggu harga penutupan untuk setiap horizon tersedia.")
     st.caption("Return historis adalah hasil observasi setelah tanggal sinyal, bukan prediksi. Evaluasi per sinyal belum menghilangkan seluruh bias survivorship dan data vendor.")
