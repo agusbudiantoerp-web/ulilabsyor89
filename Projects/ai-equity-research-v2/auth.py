@@ -37,7 +37,7 @@ def get_claim(user: Any, key: str, default: Any = "") -> Any:
         try:
             return user[key]
         except (KeyError, TypeError, AttributeError):
-            return default
+            return getattr(user, key, default)
 
 
 def resolve_streamlit_identity(user: Any, secrets: Any) -> dict:
