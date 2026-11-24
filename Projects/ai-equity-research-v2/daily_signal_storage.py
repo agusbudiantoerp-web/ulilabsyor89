@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import math
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -309,16 +310,60 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
 
 
 def outcome_summary(db_path: str | None = None):
+    """Summarize realized forward returns overall and by ruleset/signal type.
+
+    Only rows already present in outcomes are included, so incomplete forward
+    horizons are never treated as zero-return observations.
+    """
     initialize(db_path)
     query = """
-        SELECT horizon,COUNT(*) AS observations,AVG(return_pct) AS avg_forward_return_pct,
-               SUM(CASE WHEN return_pct>0 THEN 1 ELSE 0 END)*100.0/COUNT(*) AS positive_rate_pct
-        FROM outcomes GROUP BY horizon ORDER BY horizon
+        SELECT o.horizon, o.return_pct, s.signal, s.score, s.payload
+        FROM outcomes o
+        JOIN signals s ON s.id=o.signal_id
+        WHERE o.return_pct IS NOT NULL
+        ORDER BY o.horizon
     """
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
                 cur.execute(query)
-                return [dict(row) for row in cur.fetchall()]
-    with _connect_sqlite(db_path) as db:
-        return [dict(row) for row in db.execute(query).fetchall()]
+                records = [dict(row) for row in cur.fetchall()]
+    else:
+        with _connect_sqlite(db_path) as db:
+            records = [dict(row) for row in db.execute(query).fetchall()]
+
+    groups = {}
+    for record in records:
+        payload = _decode_payload(record.get("payload"))
+        payload = payload if isinstance(payload, dict) else {}
+        ruleset = payload.get("ruleset_version") or "unknown"
+        signal_type = record.get("signal") or payload.get("signal") or "unknown"
+        value = float(record["return_pct"])
+        if not math.isfinite(value):
+            continue
+        horizon = int(record["horizon"])
+        keys = [
+            (horizon, "ALL", "ALL"),
+            (horizon, str(ruleset), "ALL"),
+            (horizon, str(ruleset), str(signal_type)),
+        ]
+        for key in keys:
+            groups.setdefault(key, []).append(value)
+
+    output = []
+    for (horizon, ruleset, signal_type), values in sorted(groups.items()):
+        count = len(values)
+        output.append({
+            "horizon": horizon,
+            "ruleset_version": ruleset,
+            "signal_type": signal_type,
+            "observations": count,
+            "avg_forward_return_pct": sum(values) / count,
+            "median_forward_return_pct": float(__import__("statistics").median(values)),
+            "positive_rate_pct": sum(value > 0 for value in values) / count * 100,
+            "negative_rate_pct": sum(value < 0 for value in values) / count * 100,
+            "zero_rate_pct": sum(value == 0 for value in values) / count * 100,
+            "best_return_pct": max(values),
+            "worst_return_pct": min(values),
+        })
+    return output
