@@ -19,6 +19,12 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
         raise ValueError("Market Value tidak boleh negatif.")
     if (frame["Ticker"] == "").any() or (frame["Currency"] == "").any():
         raise ValueError("Ticker dan Currency wajib diisi.")
+    frame["Market"] = frame["Market"].astype(str).str.upper().str.strip()
+    if (frame["Market"] == "").any():
+        raise ValueError("Market wajib diisi.")
+    if "Sector" in frame.columns:
+        frame["Sector"] = frame["Sector"].fillna("Unknown").astype(str).str.strip()
+        frame.loc[frame["Sector"] == "", "Sector"] = "Unknown"
     frame = frame[frame["Market Value"] > 0].copy()
     if frame.empty:
         raise ValueError("Tidak ada posisi dengan nilai pasar positif.")
