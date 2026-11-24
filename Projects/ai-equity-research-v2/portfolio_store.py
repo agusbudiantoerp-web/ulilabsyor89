@@ -148,7 +148,9 @@ def load_book(book_id: str, path: str | None = None, owner_id: str | None = None
         book = db.execute(
             "SELECT owner_id FROM portfolio_books WHERE id=?", (book_id,)
         ).fetchone()
-        if book and book["owner_id"] != owner:
+        if not book:
+            raise KeyError("Portfolio tidak ditemukan.")
+        if book["owner_id"] != owner:
             raise PermissionError("Portfolio ini dimiliki pengguna lain; akses ditolak.")
         rows = db.execute("""
             SELECT market, ticker, shares, average_cost
