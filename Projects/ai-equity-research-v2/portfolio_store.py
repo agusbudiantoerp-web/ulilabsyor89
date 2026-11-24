@@ -58,7 +58,7 @@ def initialize(path: str | None = None) -> None:
 
 
 def save_book(book_id: str, name: str, positions: pd.DataFrame,
-              path: str | None = None, owner_id: str = "local") -> int:
+              path: str | None = None, owner_id: str | None = None) -> int:
     if not isinstance(book_id, str) or not book_id.strip() or not isinstance(name, str) or not name.strip():
         raise ValueError("ID dan nama portfolio wajib diisi.")
     owner = str(owner_id or "").strip()
@@ -126,7 +126,7 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     return len(frame)
 
 
-def list_books(path: str | None = None, owner_id: str = "local") -> list[dict]:
+def list_books(path: str | None = None, owner_id: str | None = None) -> list[dict]:
     owner = str(owner_id or "").strip()
     if not owner:
         raise ValueError("Owner portfolio wajib diisi.")
@@ -139,7 +139,7 @@ def list_books(path: str | None = None, owner_id: str = "local") -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def load_book(book_id: str, path: str | None = None, owner_id: str = "local") -> pd.DataFrame:
+def load_book(book_id: str, path: str | None = None, owner_id: str | None = None) -> pd.DataFrame:
     owner = str(owner_id or "").strip()
     if not owner:
         raise ValueError("Owner portfolio wajib diisi.")
@@ -161,7 +161,7 @@ def load_book(book_id: str, path: str | None = None, owner_id: str = "local") ->
     ], columns=["Market", "Ticker", "Shares", "Average Cost"])
 
 
-def delete_book(book_id: str, path: str | None = None, owner_id: str = "local") -> bool:
+def delete_book(book_id: str, path: str | None = None, owner_id: str | None = None) -> bool:
     owner = str(owner_id or "").strip()
     if not owner:
         raise ValueError("Owner portfolio wajib diisi.")
