@@ -132,7 +132,7 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
                 for key, value in (multistage_dcf.get("assumptions") or {}).items()
             )
             pd.DataFrame(ms_rows).to_excel(writer, sheet_name="MultiStage Valuation", index=False)
-            ms_warnings = list(multistage_dcf.get("warnings") or []) + list(multistage_dcf.get("data_quality_warnings") or [])
+            ms_warnings = list(multistage_dcf.get("warnings") or []) + list(multistage_dcf.get("data_quality_warnings") or []) + list(multistage_dcf.get("model_warnings") or [])
             pd.DataFrame({"Review notes": ms_warnings or ["No model warning returned; independent source verification is still required."]}).to_excel(
                 writer, sheet_name="Valuation Review", index=False
             )
@@ -364,7 +364,7 @@ def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | 
             ("PADDING", (0, 0), (-1, -1), 4),
         ]))
         story += [ms_table, Spacer(1, 8)]
-        for warning in list(multistage_dcf.get("warnings") or []) + list(multistage_dcf.get("data_quality_warnings") or []):
+        for warning in list(multistage_dcf.get("warnings") or []) + list(multistage_dcf.get("data_quality_warnings") or []) + list(multistage_dcf.get("model_warnings") or []):
             story.append(Paragraph("Review: " + escape(str(warning)), styles["BodyText"]))
 
     if scenario_result and scenario_result.get("available"):
