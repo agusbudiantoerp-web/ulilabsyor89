@@ -67,6 +67,7 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Added an administrator-only Security & Audit console with OIDC role-map visibility, recent audit events, CSV export, hash-chain verification and configured storage-backend visibility.
 - Logout audit events now follow the configured cloud PostgreSQL backend unless an explicit local audit database path is set.
 - Added owner-scoped persistence for single-ticker, walk-forward and multi-asset research runs. Users can list, reload and delete only their own saved runs.
+- Added confirmed owner-scoped deletion for saved portfolio books and audit events for portfolio and research-run operations.
 - Expanded the Excel research pack to include available daily scan results, screener output, portfolio exposure/risk/optimization/stress scenarios, market intelligence diagnostics, backtest equity curves, trade details, walk-forward folds and saved-run metadata.
 - Added `database_backup.py` for integrity-checked SQLite backups and PostgreSQL logical dumps with SHA-256 manifests, plus staging-first restore guidance.
 - Added regression tests for owner-scoped research-run storage and detailed Excel workbook sheets. These tests have been authored but intentionally not executed; consolidated validation remains deferred until the development scope is complete.
