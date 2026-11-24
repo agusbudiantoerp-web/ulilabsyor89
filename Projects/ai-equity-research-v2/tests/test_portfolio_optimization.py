@@ -31,6 +31,7 @@ def test_optimizer_returns_valid_risk_parity_and_max_sharpe_weights():
         assert (table["Weight %"] <= 40.000001).all()
     assert result["observations"] == 120
     assert result["max_sharpe_metrics"]["method"].startswith("Deterministic")
+    assert result["risk_parity"]["Risk Contribution %"].sum() == pytest.approx(100, abs=1e-5)
 
 
 def test_optimizer_rejects_mixed_currencies_and_short_history():
