@@ -39,11 +39,11 @@ def test_oidc_configuration_requires_shared_settings_and_one_provider():
 
 
 def test_identity_uses_subject_not_email_for_role_resolution():
-    user = FakeUser(sub="immutable-sub-001", email="person@example.com", name="Person")
+    user = FakeUser(iss="https://accounts.google.com", sub="immutable-sub-001", email="person@example.com", name="Person")
     identity = resolve_streamlit_identity(
-        user, {"auth_roles": {"immutable-sub-001": "portfolio_manager"}}
+        user, {"auth_roles": {"https://accounts.google.com|immutable-sub-001": "portfolio_manager"}}
     )
-    assert identity["subject_id"] == "immutable-sub-001"
+    assert identity["subject_id"] == "https://accounts.google.com|immutable-sub-001"
     assert identity["role"] == "portfolio_manager"
     assert identity["email"] == "person@example.com"
 
@@ -52,9 +52,9 @@ def test_identity_requires_login_subject_and_server_role():
     with pytest.raises(PermissionError, match="belum terverifikasi"):
         resolve_streamlit_identity({"sub": "subject"}, {"auth_roles": {"subject": "admin"}})
     with pytest.raises(PermissionError, match="immutable subject"):
-        resolve_streamlit_identity(FakeUser(email="person@example.com"), {"auth_roles": {}})
+        resolve_streamlit_identity(FakeUser(iss="https://accounts.google.com", email="person@example.com"), {"auth_roles": {}})
     with pytest.raises(PermissionError, match="belum diberi role"):
-        resolve_streamlit_identity(FakeUser(sub="new-user"), {"auth_roles": {}})
+        resolve_streamlit_identity(FakeUser(iss="https://accounts.google.com", sub="new-user"), {"auth_roles": {}})
 
 
 def test_audit_login_is_written_once_per_session(tmp_path):
@@ -76,3 +76,9 @@ def test_claim_reader_supports_mapping_and_attribute_only_user():
     assert get_claim({"sub": "subject"}, "sub") == "subject"
     assert get_claim(SimpleNamespace(sub="subject"), "sub") == "subject"
     assert get_claim(SimpleNamespace(), "missing", "fallback") == "fallback"
+
+
+def test_identity_requires_issuer_to_prevent_cross_provider_subject_collision():
+    user = FakeUser(sub="same-subject")
+    with pytest.raises(PermissionError, match="issuer"):
+        resolve_streamlit_identity(user, {"auth_roles": {"same-subject": "admin"}})
