@@ -20,6 +20,30 @@ DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
 
 Never commit the real connection URI, database password, or service credentials. Keep `.streamlit/secrets.toml` out of Git.
 
+## Backup and recovery operations
+
+The administrator console reports which backend is selected from configuration; it does not prove that the database is reachable or that a backup is restorable. Before multi-user production use:
+
+1. Enable the database provider's automated backups and point-in-time recovery where available. Confirm retention, recovery-point objective and recovery-time objective with the provider; availability may depend on the selected service plan.
+2. Keep a separate encrypted backup copy under administrator-controlled access. Never commit backup files or connection strings to Git.
+3. For a manual PostgreSQL logical backup from a trusted administrator workstation, configure `DATABASE_URL` privately in the PowerShell process environment, then run:
+
+~~~powershell
+New-Item -ItemType Directory -Force .\backups | Out-Null
+$backupFile = ".\backups\ai-equity-research-$(Get-Date -Format 'yyyyMMdd-HHmmss').dump"
+pg_dump --dbname="$env:DATABASE_URL" --format=custom --no-owner --file="$backupFile"
+~~~
+
+4. A restore must be rehearsed against a separate staging database first. The following command can replace objects in the target database; do not run it against production without a verified backup and an approved maintenance window:
+
+~~~powershell
+pg_restore --clean --if-exists --no-owner --dbname="$env:DATABASE_URL" ".\backups\ai-equity-research-YYYYMMDD-HHMMSS.dump"
+~~~
+
+5. Back up role mappings and OIDC configuration separately through the provider's secure secret-management process. Do not include client secrets or database credentials in the database dump procedure or in support messages.
+
+The application does not currently automate provider-level snapshots, PITR configuration, off-site backup replication or restore orchestration. Those remain administrator/provider operations and must be included in release validation.
+
 ## Forward outcome recording
 
 The Performance Dashboard's **Perbarui outcome 1/3/5/10/20 sesi** action checks Yahoo Finance daily closes after each stored signal's bar date. It records a missing horizon only when the corresponding future trading-session close exists. Existing outcome rows are retained and not re-counted; unavailable future observations remain blank.
