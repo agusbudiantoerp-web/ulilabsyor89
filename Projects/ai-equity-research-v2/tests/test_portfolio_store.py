@@ -1,6 +1,6 @@
 import pandas as pd
 
-from portfolio_store import delete_book, list_books, load_book, save_book
+from portfolio_store import backend_name, delete_book, list_books, load_book, save_book
 
 
 def test_portfolio_book_round_trip_and_weighted_average_cost(tmp_path):
@@ -107,3 +107,9 @@ def test_portfolio_load_and_delete_fail_closed_for_unknown_book(tmp_path):
     with pytest.raises(KeyError, match="tidak ditemukan"):
         load_book("missing", path=path, owner_id="issuer|alice")
     assert delete_book("missing", path=path, owner_id="issuer|alice") is False
+
+
+def test_portfolio_backend_uses_postgres_when_cloud_url_is_configured(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@example.invalid/db")
+    assert backend_name() == "PostgreSQL"
+    assert backend_name(path=str(tmp_path / "explicit-local.sqlite3")) == "SQLite"
