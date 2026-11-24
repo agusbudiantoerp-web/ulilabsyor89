@@ -172,6 +172,19 @@ def project_scenario(financials: dict, assumptions: dict, years: int = 5) -> dic
 
     enterprise_value = pv_fcff + pv_terminal
     equity_value = enterprise_value - net_debt
+    terminal_value_share_pct = (
+        pv_terminal / enterprise_value * 100 if enterprise_value > 0 else None
+    )
+    model_warnings = []
+    if terminal_value_share_pct is not None and terminal_value_share_pct > 75:
+        model_warnings.append(
+            f"PV terminal value represents {terminal_value_share_pct:.1f}% of Enterprise Value; "
+            "valuation is highly sensitive to terminal assumptions."
+        )
+    if any(item["fcff"] < 0 for item in forecast):
+        model_warnings.append(
+            "One or more forecast years have negative FCFF; review operating margin, CAPEX and working-capital assumptions."
+        )
 
     if equity_value <= 0:
         return {
@@ -200,6 +213,8 @@ def project_scenario(financials: dict, assumptions: dict, years: int = 5) -> dic
         "terminal_fcff": terminal_fcff,
         "terminal_value": terminal_value,
         "pv_terminal": pv_terminal,
+        "terminal_value_share_pct": terminal_value_share_pct,
+        "model_warnings": model_warnings,
         "enterprise_value": enterprise_value,
         "net_debt": net_debt,
         "equity_value": equity_value,
