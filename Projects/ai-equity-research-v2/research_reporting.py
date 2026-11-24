@@ -10,6 +10,7 @@ def build_excel_report(
     portfolio: pd.DataFrame | None = None,
     metrics: dict | None = None,
     history: pd.DataFrame | None = None,
+    extra_sheets: dict[str, pd.DataFrame] | None = None,
 ) -> bytes:
     output = BytesIO()
 
@@ -30,6 +31,19 @@ def build_excel_report(
                        if isinstance(value, (str, int, float, bool)) or value is None]
         pd.DataFrame(metric_rows or [{"Metric": "Status", "Value": "No summary metrics supplied"}]).to_excel(
             writer, sheet_name="Summary", index=False)
+        used_names = {sheet.title for sheet in writer.book.worksheets}
+        for requested_name, extra_frame in (extra_sheets or {}).items():
+            if extra_frame is None or extra_frame.empty:
+                continue
+            base_name = str(requested_name).strip()[:31] or "Details"
+            sheet_name = base_name
+            suffix = 2
+            while sheet_name in used_names:
+                ending = f" {suffix}"
+                sheet_name = base_name[:31 - len(ending)] + ending
+                suffix += 1
+            excel_safe(extra_frame).to_excel(writer, sheet_name=sheet_name, index=False)
+            used_names.add(sheet_name)
         for sheet in writer.book.worksheets:
             sheet.freeze_panes = "A2"
             sheet.auto_filter.ref = sheet.dimensions
