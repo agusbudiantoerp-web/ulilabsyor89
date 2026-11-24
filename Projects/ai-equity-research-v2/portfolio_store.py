@@ -10,9 +10,36 @@ from datetime import datetime, timezone
 import pandas as pd
 
 
+def _database_url() -> str | None:
+    value = os.getenv("DATABASE_URL") or os.getenv("CLOUD_DATABASE_URL")
+    if value:
+        return value.strip()
+    try:
+        import streamlit as st
+        value = st.secrets.get("DATABASE_URL") or st.secrets.get("CLOUD_DATABASE_URL")
+        if not value:
+            database = st.secrets.get("database", {})
+            value = database.get("url") if hasattr(database, "get") else None
+        return str(value).strip() if value else None
+    except Exception:
+        return None
+
+
 def backend_name(path: str | None = None) -> str:
-    """Holdings stay local until per-user cloud authentication and isolation exist."""
-    return "SQLite"
+    """Use owner-scoped PostgreSQL in cloud; explicit paths remain isolated SQLite."""
+    return "SQLite" if path is not None or not _database_url() else "PostgreSQL"
+
+
+def _connect_postgres():
+    url = _database_url()
+    if not url:
+        raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
+    try:
+        import psycopg
+        from psycopg.rows import dict_row
+    except ImportError as exc:
+        raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
+    return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
 
 
 def _connect(path: str | None = None):
@@ -25,6 +52,36 @@ def _connect(path: str | None = None):
 
 
 def initialize(path: str | None = None) -> None:
+    if backend_name(path) == "PostgreSQL":
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS portfolio_books(
+                        owner_id TEXT NOT NULL,
+                        id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        PRIMARY KEY(owner_id,id)
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS portfolio_positions(
+                        owner_id TEXT NOT NULL,
+                        book_id TEXT NOT NULL,
+                        market TEXT NOT NULL,
+                        ticker TEXT NOT NULL,
+                        shares DOUBLE PRECISION NOT NULL,
+                        average_cost DOUBLE PRECISION NOT NULL,
+                        PRIMARY KEY(owner_id,book_id,market,ticker),
+                        FOREIGN KEY(owner_id,book_id)
+                            REFERENCES portfolio_books(owner_id,id) ON DELETE CASCADE
+                    )
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_portfolio_books_owner
+                    ON portfolio_books(owner_id,updated_at DESC)
+                """)
+        return
     with _connect(path) as db:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS portfolio_books(
