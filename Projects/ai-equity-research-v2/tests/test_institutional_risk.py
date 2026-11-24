@@ -63,3 +63,28 @@ def test_drawdown_includes_loss_from_initial_capital_baseline():
         positions, {"AAA": pd.Series([-0.01] * 30, index=dates)}
     )
     assert result["risk"].iloc[0]["Max drawdown %"] < 0
+
+
+def test_institutional_risk_rejects_negative_market_value_and_blank_currency():
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": -1}
+    ])
+    with pytest.raises(ValueError, match="tidak boleh negatif"):
+        analyze_institutional_risk(positions, {})
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "", "Market Value": 100}
+    ])
+    with pytest.raises(ValueError, match="wajib diisi"):
+        analyze_institutional_risk(positions, {})
+
+
+def test_institutional_risk_rejects_nan_confidence_and_unknown_limits():
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": 100}
+    ])
+    with pytest.raises(ValueError, match="confidence_level"):
+        analyze_institutional_risk(positions, {}, confidence_level=float("nan"))
+    with pytest.raises(ValueError, match="tidak dikenal"):
+        analyze_institutional_risk(positions, {}, risk_limits={"unknown_limit": 5})
+    with pytest.raises(ValueError, match="0–100"):
+        analyze_institutional_risk(positions, {}, risk_limits={"max_position_weight_pct": 101})
