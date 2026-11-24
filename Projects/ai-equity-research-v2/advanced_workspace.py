@@ -164,7 +164,7 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
         if selected_label in names:
             confirm_delete = st.checkbox(
                 "Saya memahami portfolio terpilih akan dihapus permanen.",
-                key="confirm_delete_saved_portfolio",
+                key=f"confirm_delete_saved_portfolio_{names[selected_label]}",
             )
             if st.button(
                 "Hapus portfolio tersimpan",
@@ -348,7 +348,15 @@ def render_research_run_history(owner_id: str) -> None:
             st.rerun()
         except Exception as exc:
             st.error(f"Hasil backtest tidak dapat dimuat: {type(exc).__name__}: {exc}")
-    if delete_col.button("Hapus hasil tersimpan", key="delete_research_run"):
+    confirm_run_delete = delete_col.checkbox(
+        "Konfirmasi hapus run terpilih",
+        key=f"confirm_delete_research_run_{run_id}",
+    )
+    if delete_col.button(
+        "Hapus hasil tersimpan",
+        key="delete_research_run",
+        disabled=not confirm_run_delete,
+    ):
         try:
             deleted = delete_run(owner_id=owner_id, run_id=run_id)
             if deleted:
@@ -358,6 +366,7 @@ def render_research_run_history(owner_id: str) -> None:
                 )
                 st.success("Hasil backtest dihapus dari penyimpanan pengguna ini.")
                 st.session_state.pop("research_run_history_select", None)
+                st.session_state.pop(f"confirm_delete_research_run_{run_id}", None)
                 st.rerun()
             else:
                 st.info("Hasil sudah tidak tersedia.")
