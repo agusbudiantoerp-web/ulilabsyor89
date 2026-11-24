@@ -19,6 +19,7 @@ This plan is intentionally separate from feature development. Run it only after 
 - Run **Uji koneksi, skema & hak akses PostgreSQL**. Confirm the connection, required tables and least-privilege grants pass.
 - Confirm the console identifies PostgreSQL for cloud-backed signals, portfolio books and research runs. Audit storage may intentionally use SQLite only when an explicit `audit_db_path` override is configured.
 - Do not use production database credentials for Preview validation.
+- Optional automated PostgreSQL storage integration tests are available in `tests/test_postgres_integration.py`. Set `AI_EQUITY_RESEARCH_TEST_DATABASE_URL` only to a disposable test database; the tests create and delete uniquely identified test records and must never target production.
 
 ## 3. Multi-user isolation
 
