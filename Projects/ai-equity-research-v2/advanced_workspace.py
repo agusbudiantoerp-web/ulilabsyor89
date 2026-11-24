@@ -12,7 +12,7 @@ from market_intelligence import (
 from multi_asset_backtest import run_multi_asset_backtest
 from portfolio_store import list_books, load_book, save_book
 from research_reporting import build_excel_report, build_pdf_report
-from security_controls import has_permission
+from security_controls import has_permission, require_permission, record_audit_event
 
 
 def _download_benchmark(market: str, period: str) -> pd.DataFrame:
@@ -99,6 +99,11 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
     if not str(owner_id or "").strip():
         st.error("Owner identity tidak tersedia; penyimpanan portfolio dikunci.")
         return
+    try:
+        require_permission(st.session_state.get("_auth_role"), "manage_portfolio")
+    except PermissionError:
+        st.error("Role Anda tidak memiliki izin mengelola portfolio.")
+        return
     with st.expander("Kelola portfolio tersimpan", expanded=False):
         try:
             books = list_books(owner_id=owner_id)
@@ -112,6 +117,11 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
             if selected_label in names:
                 try:
                     loaded = load_book(names[selected_label], owner_id=owner_id)
+                    record_audit_event(
+                        owner_id, st.session_state.get("_auth_role"), "PORTFOLIO_LOAD",
+                        "portfolio_book", names[selected_label],
+                        details={"position_count": len(loaded)},
+                    )
                     st.session_state["portfolio_input"] = loaded
                     st.session_state.pop("portfolio_result", None)
                     st.success("Portfolio dimuat. Jalankan kembali Hitung portfolio intelligence.")
@@ -125,6 +135,14 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
                 existing_id = names.get(selected_label)
                 book_id = existing_id or uuid.uuid4().hex
                 count = save_book(book_id, name.strip(), positions, owner_id=owner_id)
+                try:
+                    record_audit_event(
+                        owner_id, st.session_state.get("_auth_role"), "PORTFOLIO_SAVE",
+                        "portfolio_book", book_id,
+                        details={"position_count": count},
+                    )
+                except Exception as audit_exc:
+                    st.warning(f"Portfolio tersimpan, tetapi audit event gagal dicatat: {type(audit_exc).__name__}. Hubungi administrator.")
                 st.success(f"{count} posisi disimpan. ID: {book_id}")
                 st.rerun()
             except Exception as exc:
