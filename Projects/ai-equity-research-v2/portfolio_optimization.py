@@ -91,22 +91,35 @@ def optimize_portfolio(
     n = len(tickers)
     budget = np.full(n, 1 / n)
     weights = np.full(n, 1 / n)
-    # Equal risk contribution fixed-point iteration.
+    # Equal risk contribution fixed-point iteration. Do not silently label
+    # equal-weight fallback as risk parity when negative covariance blocks convergence.
+    converged = False
     for _ in range(10000):
         marginal = covariance @ weights
         if np.any(marginal <= 1e-14):
-            break
+            raise ValueError(
+                "Risk parity tidak stabil: ada marginal risk contribution non-positif. "
+                "Periksa histori return, korelasi dan aset yang dipilih."
+            )
         updated = budget / marginal
         updated = _project_capped_simplex(updated, float(max_weight))
         if np.max(np.abs(updated - weights)) < 1e-10:
             weights = updated
+            converged = True
             break
         weights = updated
+    if not converged:
+        raise ValueError(
+            "Risk parity tidak mencapai konvergensi dalam 10.000 iterasi; "
+            "hasil tidak ditampilkan agar tidak memberi label optimasi yang keliru."
+        )
 
     risk = math.sqrt(max(float(weights @ covariance @ weights), 0.0))
     marginal = covariance @ weights
     contributions = weights * marginal / risk if risk > 0 else np.zeros(n)
-    contribution_pct = contributions / contributions.sum() * 100 if contributions.sum() > 0 else np.zeros(n)
+    if np.any(contributions < -1e-10) or contributions.sum() <= 0:
+        raise ValueError("Risk contribution tidak valid untuk solusi long-only ini.")
+    contribution_pct = contributions / contributions.sum() * 100
 
     rng = np.random.default_rng(seed)
     candidates = rng.dirichlet(np.ones(n), size=simulations)
