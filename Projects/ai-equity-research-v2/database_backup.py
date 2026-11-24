@@ -76,6 +76,14 @@ def _postgres_environment(database_url: str, base_env: dict[str, str] | None = N
         raise ValueError("Port PostgreSQL pada DATABASE_URL tidak valid.") from exc
 
     env = dict(os.environ if base_env is None else base_env)
+    # Do not let unrelated inherited PG* settings silently override this URL.
+    for key in (
+        "PGHOST", "PGHOSTADDR", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE",
+        "PGSERVICE", "PGSERVICEFILE", "PGSSLMODE", "PGSSLCERT", "PGSSLKEY",
+        "PGSSLROOTCERT", "PGSSLCRL", "PGAPPNAME", "PGCONNECT_TIMEOUT",
+        "PGTARGETSESSIONATTRS", "PGGSSENCMODE", "PGCHANNELBINDING",
+    ):
+        env.pop(key, None)
     env["PGHOST"] = unquote(parsed.hostname)
     env["PGDATABASE"] = database
     if parsed.username:
