@@ -285,6 +285,14 @@ def render_portfolio_risk() -> None:
                 st.dataframe(pd.DataFrame(errors), use_container_width=True, hide_index=True)
         else:
             st.session_state["portfolio_result"] = {"positions":pd.DataFrame(positions),"returns":return_series,"errors":errors}
+            _audit_action(
+                "PORTFOLIO_ANALYSIS_RUN", "portfolio_analysis",
+                details={
+                    "position_count": len(positions),
+                    "markets": sorted({item["Market"] for item in positions}),
+                    "failed_positions": len(errors),
+                },
+            )
     result = st.session_state.get("portfolio_result")
     if not result:
         st.info("Posisi disimpan dalam sesi browser. Masukkan saham dan jumlah kepemilikan untuk memulai.")
