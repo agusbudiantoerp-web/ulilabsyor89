@@ -11,20 +11,21 @@
 - Audit payloads reject credential-like keys recursively, including common nested and naming variants.
 - Portfolio books are scoped by the authenticated issuer-bound OIDC principal in SQLite. Existing pre-migration books are assigned `legacy-unassigned` and are hidden from authenticated users until an administrator explicitly migrates ownership.
 - The portfolio database remains local SQLite and is not encrypted or suitable for shared multi-instance deployment.
-- Performance/learning history can use PostgreSQL, but this database is not a substitute for tenant authorization.
+- Daily scans, signals, forward outcomes and learning analytics are scoped to the authenticated issuer-bound OIDC principal in both SQLite and PostgreSQL. Existing records are migrated to `legacy-unassigned` and hidden from authenticated principals.
+- Performance history can use PostgreSQL, but production use still requires managed database operations, tenant-aware backups and operational security.
 
 ## Important release status
 
 **OIDC login and page-level role gates are implemented, but the application is not yet certified or configured for production multi-user deployment.** The identity provider and role mapping still need to be configured in Streamlit Secrets, and tenant isolation and operation-level authorization remain incomplete.
 
-Portfolio-book queries are scoped by issuer-bound owner ID, but shared learning/performance history and other private database records are not yet fully tenant-scoped. Page-level gates and selected action-level checks are present; every privileged operation still needs a complete authorization and audit review. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
+Portfolio books and learning/performance records are scoped by issuer-bound owner ID. Other private data sources, audit storage and model configuration still require separate tenant/role controls. Page-level gates and selected action-level checks are present; every privileged operation still needs a complete authorization and audit review. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
 
 ## Required before enabling multiple users
 
 1. Configure exactly one trusted OIDC provider in Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
 2. Map issuer-bound immutable provider subject IDs to server-managed roles; deny access if identity or role is missing.
 3. Enforce authorization server-side on every portfolio read/write/delete, report export, model configuration change, user administration action, and audit-log access; current page-level checks are not sufficient.
-4. Extend tenant/user ownership keys to all private data tables and migrate legacy portfolio books with an explicit owner. Current portfolio-book owner scoping is only a first step.
+4. Extend tenant/user ownership keys to any remaining private data tables and migrate legacy records with an explicit owner. Portfolio and learning records are owner-scoped; audit storage and other private records remain to be reviewed.
 5. Use managed PostgreSQL with least-privilege credentials, TLS, connection limits, backups, and tested point-in-time recovery.
 6. Export audit events to access-controlled append-only or WORM storage. The local hash chain is tamper-evident, not immutable against an administrator who can rewrite the database.
 7. Redact secrets and personal data from logs; rotate credentials and document incident response.
