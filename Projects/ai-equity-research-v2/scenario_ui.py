@@ -8,6 +8,18 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     st.subheader("Scenario Analysis")
     st.caption("Bear, Base, and Bull valuation based on explicit operating assumptions.")
 
+    st.caption("Catatan katalis dan risiko diisi analis; sistem tidak mengarang peristiwa korporasi.")
+    catalyst_notes = st.text_area(
+        "Katalis utama (opsional, sertakan tanggal/sumber bila tersedia)",
+        value="", key="scenario_catalysts",
+        help="Contoh: ekspansi kapasitas, kontrak baru, perubahan regulasi. Cantumkan sumber dan tanggal."
+    )
+    risk_notes = st.text_area(
+        "Risiko utama (opsional, sertakan tanggal/sumber bila tersedia)",
+        value="", key="scenario_risks",
+        help="Contoh: leverage, volatilitas bahan baku, risiko proyek, likuiditas."
+    )
+
     ratios = data.get("ratios", {})
 
     revenue = ratios.get("Revenue")
@@ -212,4 +224,20 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
         "results": results.get("scenarios", {}),
         "sensitivity": sensitivity,
         "selected_scenario": selected_scenario,
+        "research_context": {
+            "catalysts": catalyst_notes.strip(),
+            "risks": risk_notes.strip(),
+            "analyst_note": "Katalis dan risiko merupakan catatan analis yang dimasukkan manual; bukan hasil verifikasi otomatis.",
+        },
+        "source_metadata": {
+            "provider": data.get("data_source", "Yahoo Finance"),
+            "generated_at_utc": data.get("as_of"),
+            "latest_price_date": data.get("latest_price_date"),
+            "income_statement_period": data.get("latest_financial_period"),
+            "balance_sheet_period": data.get("latest_balance_period"),
+            "cash_flow_period": data.get("latest_cashflow_period"),
+            "financial_currency": financial_currency,
+            "quote_currency": quote_currency,
+            "fx_rate": effective_fx,
+        },
     }
