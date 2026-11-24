@@ -6,6 +6,7 @@ from auth import (
     audit_login_once,
     get_claim,
     oidc_is_configured,
+    oidc_provider_name,
     logout,
     resolve_streamlit_identity,
 )
@@ -37,6 +38,49 @@ def test_oidc_configuration_requires_shared_settings_and_one_provider():
             "microsoft": {"client_id": "id", "client_secret": "secret", "server_metadata_url": "https://example.org"},
         }
     })
+
+
+def test_oidc_configuration_accepts_default_google_auth_block():
+    secrets = {
+        "auth": {
+            "redirect_uri": "https://example.streamlit.app/oauth2callback",
+            "cookie_secret": "private",
+            "client_id": "id",
+            "client_secret": "secret",
+            "server_metadata_url": "https://accounts.google.com/.well-known/openid-configuration",
+        }
+    }
+    assert oidc_is_configured(secrets)
+    assert oidc_provider_name(secrets) is None
+
+
+def test_oidc_provider_name_selects_one_named_provider_and_rejects_ambiguous_config():
+    base = {
+        "redirect_uri": "https://example.streamlit.app/oauth2callback",
+        "cookie_secret": "private",
+    }
+    named = {
+        "auth": {
+            **base,
+            "google": {
+                "client_id": "id",
+                "client_secret": "secret",
+                "server_metadata_url": "https://accounts.google.com/.well-known/openid-configuration",
+            },
+        }
+    }
+    assert oidc_is_configured(named)
+    assert oidc_provider_name(named) == "google"
+    ambiguous = {
+        "auth": {
+            **base,
+            "client_id": "id",
+            "client_secret": "secret",
+            "server_metadata_url": "https://accounts.google.com/.well-known/openid-configuration",
+            "google": named["auth"]["google"],
+        }
+    }
+    assert not oidc_is_configured(ambiguous)
 
 
 def test_identity_uses_subject_not_email_for_role_resolution():
