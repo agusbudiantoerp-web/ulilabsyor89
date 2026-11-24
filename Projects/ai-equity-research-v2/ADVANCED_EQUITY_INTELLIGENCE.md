@@ -77,10 +77,10 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 ## 7. Saved Portfolio Books
 
 - Named portfolio books and their positions can be saved, loaded and deleted through a storage layer.
-- PostgreSQL is selected when a database URL is configured; an explicit local database path always selects SQLite.
+- Portfolio books use local SQLite by design. Personal holdings are not written to the shared cloud PostgreSQL database because per-user authentication/tenant isolation is not yet implemented.
 - Repeated rows for the same market/ticker are consolidated. Average cost is share-weighted, not a simple arithmetic average.
 - Portfolio book persistence stores market, ticker, shares and average cost; market prices, sector classifications and risk analytics are refreshed when the user recalculates the portfolio.
-- A hosted instance using local SQLite may not retain data across instance replacement. Configure PostgreSQL for persistent hosted storage.
+- A hosted Streamlit instance using local SQLite may not retain data across instance replacement. Do not store sensitive holdings in a public hosted deployment; per-user cloud persistence is deferred until authentication and tenant isolation are implemented.
 
 ## 8. Multi-Asset Portfolio Backtest
 
