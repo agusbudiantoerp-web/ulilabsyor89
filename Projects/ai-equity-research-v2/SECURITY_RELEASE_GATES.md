@@ -4,7 +4,9 @@
 
 - Telegram chat access remains fail-closed: an empty allowlist authorizes nobody.
 - `security_controls.py` provides role names and permission checks for viewer, analyst, portfolio_manager and admin.
-- A fail-closed helper maps an immutable, verified identity-provider subject to a server-managed role; it does not authenticate a user by itself.
+- Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, uses the verified immutable `sub` claim, and fails closed when login or role mapping is missing.
+- Server-side page-level permission checks restrict research, signal, portfolio/risk, backtest and performance pages by role. This is not yet a substitute for checks on every sensitive operation inside those pages.
+- Login/logout audit events are recorded once per session when the local audit store is available; audit write failure blocks dashboard access.
 - `security_controls.py` provides a SQLite hash-linked audit event log, serialized append operations, and a chain-verification routine.
 - Audit payloads reject credential-like keys recursively, including common nested and naming variants.
 - Portfolio books remain local SQLite by design; no shared cloud portfolio store is enabled.
