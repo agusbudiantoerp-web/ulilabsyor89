@@ -10,14 +10,14 @@ def test_portfolio_book_round_trip_and_weighted_average_cost(tmp_path):
         {"Market": "IDX", "Ticker": "BBCA", "Shares": 300, "Average Cost": 10000},
         {"Market": "US", "Ticker": "NVDA", "Shares": 2, "Average Cost": 100},
     ])
-    assert save_book("book-1", "Core", positions, path=db_path) == 2
-    books = list_books(path=db_path)
+    assert save_book("book-1", "Core", positions, path=db_path, owner_id="local") == 2
+    books = list_books(path=db_path, owner_id="local")
     assert len(books) == 1 and books[0]["name"] == "Core"
-    loaded = load_book("book-1", path=db_path)
+    loaded = load_book("book-1", path=db_path, owner_id="local")
     bbca = loaded[loaded["Ticker"] == "BBCA"].iloc[0]
     assert bbca["Shares"] == 400
     assert bbca["Average Cost"] == 9750
-    assert delete_book("book-1", path=db_path)
+    assert delete_book("book-1", path=db_path, owner_id="local")
     assert list_books(path=db_path) == []
 
 
@@ -30,7 +30,7 @@ def test_portfolio_store_rejects_infinite_holdings(tmp_path):
         {"Market": "IDX", "Ticker": "BBCA", "Shares": float("inf"), "Average Cost": 9000}
     ])
     with pytest.raises(ValueError, match="finite"):
-        save_book("book-invalid", "Invalid", positions, path=db_path)
+        save_book("book-invalid", "Invalid", positions, path=db_path, owner_id="local")
 
 
 def test_portfolio_store_rejects_overflowing_position_cost(tmp_path):
@@ -87,3 +87,15 @@ def test_legacy_portfolio_books_are_quarantined_from_authenticated_owners(tmp_pa
     assert list_books(path=db_path, owner_id="legacy-unassigned") == [
         {"id": "old-book", "name": "Legacy", "updated_at": "2025-01-01"}
     ]
+
+
+def test_portfolio_store_requires_explicit_owner_identity(tmp_path):
+    import pytest
+    positions = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100, "Average Cost": 9000}
+    ])
+    path = str(tmp_path / "portfolio.sqlite3")
+    with pytest.raises(ValueError, match="Owner portfolio"):
+        save_book("no-owner", "No owner", positions, path=path)
+    with pytest.raises(ValueError, match="Owner portfolio"):
+        list_books(path=path)
