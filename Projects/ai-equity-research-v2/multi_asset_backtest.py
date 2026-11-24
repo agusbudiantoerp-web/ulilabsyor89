@@ -1,0 +1,97 @@
+"""Long-only multi-asset daily portfolio simulation with lagged signals and costs."""
+from __future__ import annotations
+
+import math
+import pandas as pd
+
+
+def run_multi_asset_backtest(
+    bars_by_symbol: dict[str, pd.DataFrame],
+    benchmark_bars: pd.DataFrame | None = None,
+    initial_capital: float = 100_000_000.0,
+    fee_bps: float = 10.0,
+    slippage_bps: float = 10.0,
+    max_positions: int = 8,
+    max_weight_pct: float = 20.0,
+    min_history: int = 220,
+) -> dict:
+    """Equal-weight active trend candidates; signals are lagged one session before returns."""
+    if not bars_by_symbol:
+        raise ValueError("Masukkan minimal satu instrumen.")
+    if initial_capital <= 0 or fee_bps < 0 or slippage_bps < 0:
+        raise ValueError("Modal dan biaya harus valid.")
+    if max_positions < 1 or not 0 < max_weight_pct <= 100:
+        raise ValueError("Batas posisi/bobot tidak valid.")
+    closes, signals = {}, {}
+    rejected = []
+    for symbol, bars in bars_by_symbol.items():
+        if bars is None or bars.empty or "Close" not in bars:
+            rejected.append({"ticker": symbol, "reason": "Data close tidak tersedia."})
+            continue
+        frame = bars.copy().sort_index()
+        close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
+        if len(close) < min_history:
+            rejected.append({"ticker": symbol, "reason": f"Histori kurang dari {min_history} sesi."})
+            continue
+        ema20 = close.ewm(span=20, adjust=False).mean()
+        ema50 = close.ewm(span=50, adjust=False).mean()
+        ema200 = close.ewm(span=200, adjust=False).mean()
+        delta = close.diff()
+        gain = delta.clip(lower=0).ewm(alpha=1/14, adjust=False).mean()
+        loss = (-delta.clip(upper=0)).ewm(alpha=1/14, adjust=False).mean()
+        rs = gain / loss.replace(0, float("nan"))
+        rsi = 100 - 100 / (1 + rs)
+        rsi.loc[(loss == 0) & (gain > 0)] = 100
+        signal = ((close > ema20) & (ema20 > ema50) & (close > ema200) & (rsi >= 50) & (rsi <= 75)).astype(float)
+        closes[str(symbol)] = close.rename(str(symbol))
+        signals[str(symbol)] = signal.rename(str(symbol))
+    if not closes:
+        raise ValueError("Tidak ada instrumen dengan histori memadai.")
+    close_frame = pd.concat(closes.values(), axis=1).sort_index()
+    daily_returns = close_frame.pct_change().replace([float("inf"), -float("inf")], pd.NA).fillna(0.0)
+    signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).fillna(0.0)
+    # Shift by one full bar: information from day t can only earn day t+1 return.
+    active = signal_frame.shift(1).fillna(0.0)
+    weights = pd.DataFrame(0.0, index=active.index, columns=active.columns)
+    for date, row in active.iterrows():
+        chosen = row[row > 0].sort_index().index[:max_positions]
+        if len(chosen):
+            weight = min(1.0 / len(chosen), max_weight_pct / 100.0)
+            weights.loc[date, chosen] = weight
+    turnover = weights.diff().abs().sum(axis=1)
+    if len(turnover):
+        turnover.iloc[0] = weights.iloc[0].abs().sum()
+    cost_rate = (fee_bps + slippage_bps) / 10_000.0
+    gross = (weights * daily_returns.reindex_like(weights).fillna(0.0)).sum(axis=1)
+    net = gross - turnover * cost_rate
+    equity = (1 + net).cumprod() * float(initial_capital)
+    peak = equity.cummax()
+    drawdown = (equity / peak - 1) * 100
+    elapsed_days = max(1, (equity.index[-1] - equity.index[0]).days)
+    years = elapsed_days / 365.25
+    total_return = (float(equity.iloc[-1]) / initial_capital - 1) * 100
+    cagr = ((float(equity.iloc[-1]) / initial_capital) ** (1 / years) - 1) * 100 if years > 0 and equity.iloc[-1] > 0 else -100.0
+    vol = float(net.std(ddof=1) * math.sqrt(252)) if len(net) > 1 else 0.0
+    sharpe = float(net.mean() / net.std(ddof=1) * math.sqrt(252)) if len(net) > 1 and net.std(ddof=1) > 0 else 0.0
+    benchmark_return = None
+    if benchmark_bars is not None and not benchmark_bars.empty and "Close" in benchmark_bars:
+        benchmark = pd.to_numeric(benchmark_bars["Close"], errors="coerce").dropna()
+        aligned = pd.concat([benchmark.rename("benchmark"), close_frame.mean(axis=1).rename("assets")], axis=1, join="inner").dropna()
+        if len(aligned) > 1:
+            benchmark_return = float((aligned["benchmark"].iloc[-1] / aligned["benchmark"].iloc[0] - 1) * 100)
+    curve = pd.DataFrame({"equity": equity, "daily_return_pct": net * 100, "drawdown_pct": drawdown,
+                          "gross_return_pct": gross * 100, "turnover": turnover})
+    curve.index.name = "date"
+    return {
+        "initial_capital": float(initial_capital), "final_equity": float(equity.iloc[-1]),
+        "total_return_pct": float(total_return), "cagr_pct": float(cagr),
+        "max_drawdown_pct": float(drawdown.min()), "annualized_volatility_pct": vol * 100,
+        "sharpe_ratio": sharpe, "benchmark_return_pct": benchmark_return,
+        "active_symbols": list(closes), "rejected_symbols": rejected,
+        "average_active_positions": float((weights > 0).sum(axis=1).mean()),
+        "average_exposure_pct": float(weights.sum(axis=1).mean() * 100),
+        "estimated_cost_paid": float((turnover * cost_rate * equity.shift(1).fillna(initial_capital)).sum()),
+        "curve": curve.reset_index().to_dict("records"),
+        "method": "Long-only equal-weight trend portfolio; signals use completed bar t and returns start at t+1; turnover costs applied on weight changes.",
+        "limitations": "Simulation only. No dividends, taxes, borrow costs, intraday execution, market impact, corporate-action reconciliation or survivorship correction. Missing prices are not forward-filled; uninvested cash earns zero. Benchmark is price-only.",
+    }
