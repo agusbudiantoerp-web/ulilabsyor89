@@ -585,6 +585,8 @@ def calculate_dcf(
             intrinsic_value *= fx_rate
             display_currency = quote_currency
             conversion_applied = True
+    if not math.isfinite(intrinsic_value):
+        return {"available": False, "reason": "Intrinsic value per share melampaui rentang numerik yang didukung."}
 
     return {
         "available": True,
@@ -653,7 +655,7 @@ def dcf_sensitivity(
             "reason": "Debt, cash, atau shares outstanding tidak tersedia."
         }
 
-    if not isinstance(years, int) or not 1 <= years <= 20:
+    if not isinstance(years, int) or isinstance(years, bool) or not 1 <= years <= 20:
         return {"available": False, "reason": "Periode proyeksi harus 1 sampai 20 tahun."}
 
     growth_rates = list(growth_rates if growth_rates is not None else [0.00, 0.05, 0.10])
@@ -663,8 +665,8 @@ def dcf_sensitivity(
         return {"available": False, "reason": "Skenario growth dan WACC tidak boleh kosong."}
 
     terminal_growth = _number(terminal_growth)
-    if terminal_growth is None or terminal_growth <= -1:
-        return {"available": False, "reason": "Terminal growth tidak valid."}
+    if terminal_growth is None or not -1 < terminal_growth < 1:
+        return {"available": False, "reason": "Terminal growth harus di antara -100% dan 100%."}
 
     financial_currency = data.get("financial_currency") or data.get("currency", "Unknown")
     quote_currency = data.get("currency", "Unknown")
@@ -684,8 +686,8 @@ def dcf_sensitivity(
     for growth_rate in growth_rates:
         g = _number(growth_rate)
 
-        if g is None or g <= -1:
-            return {"available": False, "reason": "Growth scenario harus lebih besar dari -100%."}
+        if g is None or not -1 < g <= 1:
+            return {"available": False, "reason": "Growth scenario harus lebih besar dari -100% dan maksimal 100%."}
 
         share_row = {"FCF growth": g}
         ev_row = {"FCF growth": g}
@@ -693,7 +695,7 @@ def dcf_sensitivity(
         for discount_rate in wacc_rates:
             w = _number(discount_rate)
 
-            if w is None or w <= terminal_growth:
+            if w is None or not terminal_growth < w <= 1:
                 return {
                     "available": False,
                     "reason": "Setiap WACC harus lebih tinggi daripada terminal growth."
@@ -717,6 +719,13 @@ def dcf_sensitivity(
 
             if conversion_applied:
                 per_share *= fx_rate
+            if not all(math.isfinite(value) for value in (
+                pv, terminal_fcf, terminal_value, pv_terminal, ev, equity, per_share
+            )):
+                return {
+                    "available": False,
+                    "reason": "Sensitivity menghasilkan numerical overflow; periksa growth, WACC, dan kurs.",
+                }
 
             column = f"WACC {w:.1%}"
             ev_row[column] = ev
