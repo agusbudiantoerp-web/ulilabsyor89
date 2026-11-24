@@ -45,12 +45,18 @@ def resolve_streamlit_identity(user: Any, secrets: Any) -> dict:
     if not bool(getattr(user, "is_logged_in", False)):
         raise PermissionError("Sesi login belum terverifikasi.")
     subject = str(get_claim(user, "sub", "") or "").strip()
-    if not subject:
-        raise PermissionError("Provider tidak memberikan immutable subject (sub).")
+    issuer = str(get_claim(user, "iss", "") or "").strip().rstrip("/")
+    if not subject or not issuer:
+        raise PermissionError("Provider tidak memberikan immutable issuer (iss) dan subject (sub).")
+    # Subject identifiers are unique only within an issuer. Bind both to avoid
+    # accidental role reuse if the configured identity provider is changed.
+    principal_id = f"{issuer}|{subject}"
     role_mapping = secrets.get("auth_roles", {})
-    role = resolve_role_for_subject(subject, role_mapping)
+    role = resolve_role_for_subject(principal_id, role_mapping)
     return {
-        "subject_id": subject,
+        "subject_id": principal_id,
+        "provider_subject": subject,
+        "issuer": issuer,
         "role": role,
         "email": str(get_claim(user, "email", "") or ""),
         "name": str(get_claim(user, "name", "") or ""),
