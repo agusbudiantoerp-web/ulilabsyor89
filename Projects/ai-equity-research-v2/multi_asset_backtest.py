@@ -74,11 +74,23 @@ def run_multi_asset_backtest(
     vol = float(net.std(ddof=1) * math.sqrt(252)) if len(net) > 1 else 0.0
     sharpe = float(net.mean() / net.std(ddof=1) * math.sqrt(252)) if len(net) > 1 and net.std(ddof=1) > 0 else 0.0
     benchmark_return = None
-    if benchmark_bars is not None and not benchmark_bars.empty and "Close" in benchmark_bars:
-        benchmark = pd.to_numeric(benchmark_bars["Close"], errors="coerce").dropna()
-        aligned = pd.concat([benchmark.rename("benchmark"), close_frame.mean(axis=1).rename("assets")], axis=1, join="inner").dropna()
-        if len(aligned) > 1:
-            benchmark_return = float((aligned["benchmark"].iloc[-1] / aligned["benchmark"].iloc[0] - 1) * 100)
+    if benchmark_bars is not None and not benchmark_bars.empty:
+        if isinstance(benchmark_bars.columns, pd.MultiIndex):
+            matches = [i for i, col in enumerate(benchmark_bars.columns)
+                       if "Close" in {str(part).title() for part in (col if isinstance(col, tuple) else (col,))}]
+            benchmark_close = benchmark_bars.iloc[:, matches[0]] if matches else pd.Series(dtype=float)
+        else:
+            matches = [col for col in benchmark_bars.columns if str(col).strip().lower() == "close"]
+            benchmark_close = benchmark_bars[matches[0]] if matches else pd.Series(dtype=float)
+        if isinstance(benchmark_close, pd.DataFrame):
+            benchmark_close = benchmark_close.iloc[:, 0]
+        benchmark_close = pd.to_numeric(benchmark_close, errors="coerce").dropna()
+        benchmark_close.index = pd.to_datetime(benchmark_close.index)
+        if getattr(benchmark_close.index, "tz", None) is not None:
+            benchmark_close.index = benchmark_close.index.tz_localize(None)
+        aligned_benchmark = benchmark_close.reindex(net.index).dropna()
+        if len(aligned_benchmark) > 1:
+            benchmark_return = float((aligned_benchmark.iloc[-1] / aligned_benchmark.iloc[0] - 1) * 100)
     curve = pd.DataFrame({"equity": equity, "daily_return_pct": net * 100, "drawdown_pct": drawdown,
                           "gross_return_pct": gross * 100, "turnover": turnover})
     curve.index.name = "date"
