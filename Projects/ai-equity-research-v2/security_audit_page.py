@@ -21,6 +21,22 @@ from security_controls import (
 )
 
 
+def _record_admin_audit_safely(
+    actor_id: str, actor_role: str, action: str, resource_type: str,
+    details: dict, path: str | None = None,
+) -> None:
+    try:
+        record_audit_event(
+            actor_id, actor_role, action, resource_type,
+            details=details, path=path,
+        )
+    except Exception as exc:
+        st.warning(
+            f"Event audit tidak berhasil dicatat ({type(exc).__name__}). "
+            "Detail error disembunyikan."
+        )
+
+
 def render_security_audit(identity: dict, secrets) -> None:
     """Render audit visibility and role-map review for administrators only."""
     actor_id = str(identity.get("subject_id") or "").strip()
@@ -177,7 +193,7 @@ def render_security_audit(identity: dict, secrets) -> None:
                     f"{result.get('failed_event_id')}."
                 )
         except Exception as exc:
-            st.error(f"Verifikasi gagal: {type(exc).__name__}: {exc}")
+            st.error(f"Verifikasi gagal ({type(exc).__name__}). Detail koneksi dan error disembunyikan.")
     st.warning(
         "Hash chain bersifat tamper-evident, bukan penyimpanan WORM. Administrator "
         "database dengan hak tulis masih dapat mengubah seluruh rantai; gunakan "
@@ -218,9 +234,9 @@ def render_security_audit(identity: dict, secrets) -> None:
             safe_csv_bytes(filtered),
             file_name="ai_equity_research_audit_log.csv",
             mime="text/csv",
-            on_click=lambda: record_audit_event(
+            on_click=lambda: _record_admin_audit_safely(
                 actor_id, actor_role, "AUDIT_EXPORT", "audit_log",
-                details={"format": "csv", "event_count": len(filtered)},
+                {"format": "csv", "event_count": len(filtered)},
                 path=audit_path_value,
             ),
         )
