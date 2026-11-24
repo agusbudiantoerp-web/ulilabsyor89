@@ -44,3 +44,46 @@ def test_portfolio_store_rejects_overflowing_position_cost(tmp_path):
             "book-overflow", "Overflow", positions,
             path=str(tmp_path / "portfolio.sqlite3"),
         )
+
+
+def test_portfolio_books_are_isolated_by_oidc_owner(tmp_path):
+    import pytest
+
+    db_path = str(tmp_path / "portfolio.sqlite3")
+    positions = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100, "Average Cost": 9000}
+    ])
+    save_book("shared-id", "Alice book", positions, path=db_path, owner_id="issuer|alice")
+    assert len(list_books(path=db_path, owner_id="issuer|alice")) == 1
+    assert list_books(path=db_path, owner_id="issuer|bob") == []
+    with pytest.raises(PermissionError, match="pengguna lain"):
+        load_book("shared-id", path=db_path, owner_id="issuer|bob")
+    with pytest.raises(PermissionError, match="pengguna lain"):
+        save_book("shared-id", "Hijack", positions, path=db_path, owner_id="issuer|bob")
+    with pytest.raises(PermissionError, match="pengguna lain"):
+        delete_book("shared-id", path=db_path, owner_id="issuer|bob")
+    assert len(list_books(path=db_path, owner_id="issuer|alice")) == 1
+
+
+def test_legacy_portfolio_books_are_quarantined_from_authenticated_owners(tmp_path):
+    import sqlite3
+    from portfolio_store import initialize
+
+    db_path = str(tmp_path / "legacy.sqlite3")
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE portfolio_books(
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE TABLE portfolio_positions(
+                book_id TEXT NOT NULL, market TEXT NOT NULL, ticker TEXT NOT NULL,
+                shares REAL NOT NULL, average_cost REAL NOT NULL,
+                PRIMARY KEY(book_id, market, ticker)
+            );
+            INSERT INTO portfolio_books VALUES('old-book', 'Legacy', '2025-01-01');
+        """)
+    initialize(db_path)
+    assert list_books(path=db_path, owner_id="issuer|new-user") == []
+    assert list_books(path=db_path, owner_id="legacy-unassigned") == [
+        {"id": "old-book", "name": "Legacy", "updated_at": "2025-01-01"}
+    ]
