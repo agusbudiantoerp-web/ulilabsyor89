@@ -24,7 +24,9 @@ def _url() -> str | None:
 
 
 def backend_name(path: str | None = None) -> str:
-    return "SQLite" if path is not None else ("PostgreSQL" if _url() else "SQLite")
+    """Portfolio books stay in a private local SQLite file until per-user cloud auth exists."""
+    return "SQLite"
+
 
 
 def _connect(path: str | None = None):
