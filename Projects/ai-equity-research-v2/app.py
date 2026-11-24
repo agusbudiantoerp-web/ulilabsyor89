@@ -52,6 +52,14 @@ except PermissionError as exc:
         st.logout()
     st.stop()
 
+# Clear prior user's widget and cached portfolio/research state when the
+# authenticated OIDC principal changes within a reused Streamlit session.
+previous_principal = st.session_state.get("_auth_subject_id")
+if previous_principal != identity["subject_id"]:
+    for state_key in list(st.session_state.keys()):
+        del st.session_state[state_key]
+    st.session_state["_auth_subject_id"] = identity["subject_id"]
+
 try:
     audit_login_once(st, identity)
 except Exception:
