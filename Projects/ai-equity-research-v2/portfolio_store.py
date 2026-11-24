@@ -46,23 +46,25 @@ def _pg_connect():
 
 
 def initialize(path: str | None = None):
-    ddl = """
-    CREATE TABLE IF NOT EXISTS portfolio_books(
-        id TEXT PRIMARY KEY, name TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS portfolio_positions(
-        book_id TEXT NOT NULL, market TEXT NOT NULL, ticker TEXT NOT NULL,
-        shares DOUBLE PRECISION NOT NULL, average_cost DOUBLE PRECISION NOT NULL,
-        PRIMARY KEY(book_id, market, ticker)
-    );
-    """
+    statements = [
+        """CREATE TABLE IF NOT EXISTS portfolio_books(
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, updated_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS portfolio_positions(
+            book_id TEXT NOT NULL, market TEXT NOT NULL, ticker TEXT NOT NULL,
+            shares DOUBLE PRECISION NOT NULL, average_cost DOUBLE PRECISION NOT NULL,
+            PRIMARY KEY(book_id, market, ticker)
+        )""",
+    ]
     if backend_name() == "PostgreSQL":
         with _pg_connect() as db:
             with db.cursor() as cur:
-                cur.execute(ddl)
+                for statement in statements:
+                    cur.execute(statement)
     else:
         with _connect(path) as db:
-            db.executescript(ddl.replace("DOUBLE PRECISION", "REAL"))
+            db.executescript(";".join(statements).replace("DOUBLE PRECISION", "REAL"))
+
 
 
 def save_book(book_id: str, name: str, positions: pd.DataFrame, path: str | None = None) -> int:
@@ -80,7 +82,14 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame, path: str | None
     frame = frame[(frame["Ticker"] != "") & frame["Market"].isin(["IDX", "US"])]
     if (frame[["Shares", "Average Cost"]] < 0).any().any():
         raise ValueError("Jumlah saham dan harga rata-rata tidak boleh negatif.")
-    frame = frame.groupby(["Market", "Ticker"], as_index=False).agg({"Shares": "sum", "Average Cost": "mean"})
+    frame["Cost Value"] = frame["Shares"] * frame["Average Cost"]
+    frame = frame.groupby(["Market", "Ticker"], as_index=False).agg(
+        {"Shares": "sum", "Cost Value": "sum"}
+    )
+    frame["Average Cost"] = frame.apply(
+        lambda row: row["Cost Value"] / row["Shares"] if row["Shares"] > 0 else 0.0, axis=1
+    )
+    frame = frame.drop(columns=["Cost Value"])
     now = datetime.now(timezone.utc).isoformat()
     initialize(path)
     if backend_name() == "PostgreSQL":
