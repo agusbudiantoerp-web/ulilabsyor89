@@ -29,11 +29,22 @@ def oidc_is_configured(secrets: Any) -> bool:
         return False
 
 
+def get_claim(user: Any, key: str, default: Any = "") -> Any:
+    """Read a Streamlit OIDC claim without assuming a concrete User implementation."""
+    try:
+        return user.get(key, default)
+    except (AttributeError, TypeError):
+        try:
+            return user[key]
+        except (KeyError, TypeError, AttributeError):
+            return default
+
+
 def resolve_streamlit_identity(user: Any, secrets: Any) -> dict:
     """Resolve a logged-in Streamlit user; never derive role from email/name."""
     if not bool(getattr(user, "is_logged_in", False)):
         raise PermissionError("Sesi login belum terverifikasi.")
-    subject = str(user.get("sub", "") or "").strip()
+    subject = str(get_claim(user, "sub", "") or "").strip()
     if not subject:
         raise PermissionError("Provider tidak memberikan immutable subject (sub).")
     role_mapping = secrets.get("auth_roles", {})
@@ -41,8 +52,8 @@ def resolve_streamlit_identity(user: Any, secrets: Any) -> dict:
     return {
         "subject_id": subject,
         "role": role,
-        "email": str(user.get("email", "") or ""),
-        "name": str(user.get("name", "") or ""),
+        "email": str(get_claim(user, "email", "") or ""),
+        "name": str(get_claim(user, "name", "") or ""),
     }
 
 
