@@ -17,7 +17,7 @@ from reportlab.platypus import (
 )
 
 
-def make_excel_report(data: dict, dcf: dict | None = None) -> bytes:
+def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | None = None, scenario_result: dict | None = None) -> bytes:
     out = BytesIO()
 
     ratios = pd.DataFrame([
@@ -108,6 +108,69 @@ def make_excel_report(data: dict, dcf: dict | None = None) -> bytes:
                 "DCF status": [reason]
             }).to_excel(writer, sheet_name="DCF Valuation", index=False)
 
+        if multistage_dcf and multistage_dcf.get("available"):
+            pd.DataFrame(multistage_dcf.get("forecast", [])).to_excel(
+                writer, sheet_name="MultiStage Forecast", index=False
+            )
+            ms_rows = [
+                {"Metric": "Enterprise value", "Value": multistage_dcf.get("enterprise_value")},
+                {"Metric": "Equity value", "Value": multistage_dcf.get("equity_value")},
+                {"Metric": "Net debt", "Value": multistage_dcf.get("net_debt")},
+                {"Metric": "PV forecast FCFF", "Value": multistage_dcf.get("pv_fcff")},
+                {"Metric": "PV terminal value", "Value": multistage_dcf.get("pv_terminal")},
+                {"Metric": "Terminal value", "Value": multistage_dcf.get("terminal_value")},
+                {"Metric": "Intrinsic value per share", "Value": multistage_dcf.get("intrinsic_value_per_share")},
+                {"Metric": "Quote currency", "Value": multistage_dcf.get("quote_currency")},
+                {"Metric": "Financial currency", "Value": multistage_dcf.get("financial_currency")},
+                {"Metric": "FX rate applied", "Value": multistage_dcf.get("fx_rate_applied")},
+                {"Metric": "FX reference date", "Value": multistage_dcf.get("fx_source_date")},
+                {"Metric": "EBITDA source", "Value": multistage_dcf.get("ebitda_source")},
+                {"Metric": "EBITDA used", "Value": multistage_dcf.get("ebitda_used")},
+            ]
+            ms_rows.extend(
+                {"Metric": "Assumption: " + str(key), "Value": value}
+                for key, value in (multistage_dcf.get("assumptions") or {}).items()
+            )
+            pd.DataFrame(ms_rows).to_excel(writer, sheet_name="MultiStage Valuation", index=False)
+            ms_warnings = list(multistage_dcf.get("warnings") or []) + list(multistage_dcf.get("data_quality_warnings") or [])
+            pd.DataFrame({"Review notes": ms_warnings or ["No model warning returned; independent source verification is still required."]}).to_excel(
+                writer, sheet_name="Valuation Review", index=False
+            )
+
+        if scenario_result and scenario_result.get("available"):
+            scenario_rows = []
+            for name, result in (scenario_result.get("results") or {}).items():
+                scenario_rows.append({
+                    "Scenario": name,
+                    "Status": "Available" if result.get("available") else "Not available",
+                    "Intrinsic value per share": result.get("intrinsic_value_per_share"),
+                    "Upside / Downside %": result.get("upside_downside_pct"),
+                    "Enterprise value": result.get("enterprise_value"),
+                    "Equity value": result.get("equity_value"),
+                    "Reason": result.get("reason"),
+                })
+                if result.get("forecast"):
+                    pd.DataFrame(result["forecast"]).to_excel(
+                        writer, sheet_name=(str(name)[:20] + " Forecast"), index=False
+                    )
+            if scenario_rows:
+                pd.DataFrame(scenario_rows).to_excel(writer, sheet_name="Bear Base Bull", index=False)
+            sensitivity = scenario_result.get("sensitivity") or {}
+            sensitivity_rows = []
+            for row in sensitivity.get("sensitivity", []):
+                for index, cell in enumerate(row.get("values", [])):
+                    growth_values = sensitivity.get("terminal_growth_values", [])
+                    sensitivity_rows.append({
+                        "WACC": row.get("wacc"),
+                        "Terminal growth": growth_values[index] if index < len(growth_values) else None,
+                        "Available": cell.get("available"),
+                        "Value per share": cell.get("value_per_share"),
+                        "Equity value": cell.get("equity_value"),
+                        "Reason": cell.get("reason"),
+                    })
+            if sensitivity_rows:
+                pd.DataFrame(sensitivity_rows).to_excel(writer, sheet_name="Scenario Sensitivity", index=False)
+
         for ws in writer.book.worksheets:
             ws.freeze_panes = "A2"
             ws.auto_filter.ref = ws.dimensions
@@ -126,7 +189,7 @@ def make_excel_report(data: dict, dcf: dict | None = None) -> bytes:
     return out.getvalue()
 
 
-def make_pdf_report(data: dict, dcf: dict | None = None) -> bytes:
+def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | None = None, scenario_result: dict | None = None) -> bytes:
     out = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -282,6 +345,52 @@ def make_pdf_report(data: dict, dcf: dict | None = None) -> bytes:
             Paragraph(escape(reason), styles["BodyText"]),
             Spacer(1, 10)
         ]
+
+    if multistage_dcf and multistage_dcf.get("available"):
+        story += [
+            Paragraph("Multi-Stage DCF Valuation", styles["Heading2"]),
+        ]
+        ms_rows = [["Metric", "Value"]]
+        for key in ("enterprise_value", "equity_value", "net_debt", "pv_fcff",
+                    "pv_terminal", "intrinsic_value_per_share", "financial_currency",
+                    "quote_currency", "fx_rate_applied", "fx_source_date", "ebitda_source"):
+            ms_rows.append([key.replace("_", " ").title(), str(multistage_dcf.get(key))])
+        ms_table = Table(ms_rows, colWidths=[210, 250], repeatRows=1)
+        ms_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163447")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), .3, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("PADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story += [ms_table, Spacer(1, 8)]
+        for warning in list(multistage_dcf.get("warnings") or []) + list(multistage_dcf.get("data_quality_warnings") or []):
+            story.append(Paragraph("Review: " + escape(str(warning)), styles["BodyText"]))
+
+    if scenario_result and scenario_result.get("available"):
+        story.append(Paragraph("Bear / Base / Bull Scenario Analysis", styles["Heading2"]))
+        scenario_rows = [["Scenario", "Status", "Value / Share", "Upside / Downside"]]
+        for name, result in (scenario_result.get("results") or {}).items():
+            scenario_rows.append([
+                str(name),
+                "Available" if result.get("available") else "N/M",
+                str(result.get("intrinsic_value_per_share")),
+                str(result.get("upside_downside_pct")),
+            ])
+        scenario_table = Table(scenario_rows, colWidths=[90, 65, 145, 160], repeatRows=1)
+        scenario_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163447")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), .3, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("PADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story += [scenario_table, Spacer(1, 8)]
+        story.append(Paragraph(
+            "Scenario assumptions and sensitivity are assumption-driven. "
+            "Review the accompanying Excel workbook for detailed assumptions and forecasts.",
+            styles["BodyText"],
+        ))
 
     story += [
         Paragraph("Important limitations", styles["Heading2"]),
