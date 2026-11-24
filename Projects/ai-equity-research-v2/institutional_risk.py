@@ -61,6 +61,11 @@ def analyze_institutional_risk(
     frame = frame.groupby(["Ticker", "Currency"], as_index=False).agg(
         {"Market Value": "sum", **({"Sector": "first"} if "Sector" in frame.columns else {})}
     )
+    if not frame["Market Value"].map(math.isfinite).all():
+        raise ValueError("Agregasi market value melampaui rentang numerik yang didukung.")
+    currency_totals = frame.groupby("Currency")["Market Value"].sum()
+    if not currency_totals.map(math.isfinite).all():
+        raise ValueError("Total market value per mata uang melampaui rentang numerik.")
     frame["Weight %"] = (
         frame["Market Value"]
         / frame.groupby("Currency")["Market Value"].transform("sum") * 100
@@ -171,6 +176,8 @@ def analyze_institutional_risk(
                     raise ValueError("Shock saham harus finite dan tidak boleh di bawah -100%.")
                 pnl += float(item["Market Value"]) * shock / 100
             base = float(group["Market Value"].sum())
+            if not math.isfinite(pnl) or not math.isfinite(base + pnl):
+                raise ValueError("Hasil stress test melampaui rentang numerik yang didukung.")
             stress_rows.append({
                 "Scenario": scenario_name, "Currency": currency,
                 "Estimated P/L": pnl, "Scenario Value": base + pnl,
