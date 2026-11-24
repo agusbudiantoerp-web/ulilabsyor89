@@ -31,10 +31,21 @@ def allocate_candidates(
     selected, skipped = [], []
     used = 0.0
     seen = set()
-    for item in sorted(candidates, key=lambda x: x.get("score", 0), reverse=True):
-        if not isinstance(item, dict):
+    valid_candidates = []
+    for candidate in candidates:
+        if isinstance(candidate, dict):
+            valid_candidates.append(candidate)
+        else:
             skipped.append({"ticker": None, "reason": "Format kandidat tidak valid."})
-            continue
+
+    def _score(item):
+        try:
+            value = float(item.get("score", 0) or 0)
+            return value if math.isfinite(value) else 0.0
+        except (TypeError, ValueError, OverflowError):
+            return 0.0
+
+    for item in sorted(valid_candidates, key=_score, reverse=True):
         if item.get("signal") != "BUY_CANDIDATE":
             continue
         market = str(item.get("market", "IDX")).upper().strip()
@@ -59,8 +70,14 @@ def allocate_candidates(
                 close, atr, capital, risk_pct=risk,
                 max_position_pct=single_cap,
             )
-            remaining = capital * total_cap / 100 - used
-            allowed = int(max(0, remaining) / close)
+            total_limit = capital * total_cap / 100
+            if not math.isfinite(total_limit):
+                raise ValueError("Batas exposure total melampaui rentang numerik.")
+            remaining = total_limit - used
+            allowed_raw = max(0, remaining) / close
+            if not math.isfinite(allowed_raw):
+                raise ValueError("Jumlah saham yang diizinkan melampaui rentang numerik.")
+            allowed = int(allowed_raw)
             lot_size = 100 if market == "IDX" else 1
             raw_shares = min(plan["shares"], allowed)
             plan["shares"] = (raw_shares // lot_size) * lot_size
@@ -84,6 +101,8 @@ def allocate_candidates(
             "score": item.get("score"), "plan": plan,
         })
         used += plan["position_value"]
+        if not math.isfinite(used):
+            raise ValueError("Total alokasi melampaui rentang numerik.")
     return {
         "portfolio_value": capital, "allocated_value": used,
         "exposure_pct": used / capital * 100,
