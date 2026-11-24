@@ -65,7 +65,7 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD="1"
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider .\tests
 ~~~
 
-The test suite is intended to validate deterministic logic and local SQLite storage. It does not prove live Yahoo Finance availability, Streamlit Cloud deployment, PostgreSQL credentials/network access, or broker execution behavior.
+A GitHub Actions workflow also runs compile checks and the complete test suite on updates to `feature/advanced-equity-intelligence`. The test suite validates deterministic logic and local SQLite storage. It does not prove live Yahoo Finance availability, Streamlit Cloud deployment, PostgreSQL credentials/network access, or broker execution behavior.
 
 ## Authentication and access control
 
