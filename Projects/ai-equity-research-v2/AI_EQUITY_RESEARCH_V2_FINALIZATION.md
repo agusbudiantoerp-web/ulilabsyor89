@@ -69,5 +69,8 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Added owner-scoped persistence for single-ticker, walk-forward and multi-asset research runs. Users can list, reload and delete only their own saved runs.
 - Added confirmed owner-scoped deletion for saved portfolio books and audit events for portfolio and research-run operations.
 - Expanded the Excel research pack to include available daily scan results, screener output, portfolio exposure/risk/optimization/stress scenarios, market intelligence diagnostics, backtest equity curves, trade details, walk-forward folds and saved-run metadata.
+- Added audit events for Excel/PDF report downloads and administrator audit-log CSV exports.
+- Hardened Excel report generation against formula injection from untrusted provider or ticker text.
+- Fixed research-run storage initialization so the schema is created before the first SQLite/PostgreSQL save.
 - Added `database_backup.py` for integrity-checked SQLite backups and PostgreSQL logical dumps with SHA-256 manifests, plus staging-first restore guidance.
 - Added regression tests for owner-scoped research-run storage and detailed Excel workbook sheets. These tests have been authored but intentionally not executed; consolidated validation remains deferred until the development scope is complete.
