@@ -405,7 +405,8 @@ def render_backtesting() -> None:
             c4,c5,c6=st.columns(3)
             fee=c4.number_input("Fee (bps per sisi)",0.0,500.0,10.0,1.0,key="bt_fee")
             slippage=c5.number_input("Slippage (bps per sisi)",0.0,500.0,10.0,1.0,key="bt_slippage")
-            risk=c6.number_input("Risk budget per trade (%)",0.1,5.0,1.0,0.1,key="bt_risk")
+            sell_tax=c6.number_input("Pajak penjualan (bps)",0.0,500.0,0.0,1.0,key="bt_sell_tax")
+            risk=st.number_input("Risk budget per trade (%)",0.1,5.0,1.0,0.1,key="bt_risk")
             c7,c8=st.columns(2)
             allocation=c7.slider("Maksimum alokasi posisi (%)",1,100,100,key="bt_alloc")/100
             holding=c8.slider("Holding maksimum (sesi)",1,5,5,key="bt_holding")
@@ -414,7 +415,7 @@ def render_backtesting() -> None:
             try:
                 with st.spinner(f"Mengunduh data historis {ticker.upper()}..."):
                     bars,meta=load_daily_history(ticker,market,period)
-                    result=backtest(bars,fee_bps=fee,slippage_bps=slippage,risk_fraction=risk/100,max_allocation=allocation,max_holding_sessions=holding)
+                    result=backtest(bars,fee_bps=fee,slippage_bps=slippage,sell_tax_bps=sell_tax,risk_fraction=risk/100,max_allocation=allocation,max_holding_sessions=holding)
                 st.session_state["backtest_result"]={"ticker":meta.get("ticker",ticker.upper()),"market":market,"result":result}
             except Exception as exc:
                 st.error(f"Backtest gagal: {type(exc).__name__}: {exc}")
@@ -458,13 +459,14 @@ def render_backtesting() -> None:
             w6,w7,w8=st.columns(3)
             wf_fee=w6.number_input("Fee per sisi (bps)",0.0,500.0,10.0,key="wf_fee")
             wf_slippage=w7.number_input("Slippage per sisi (bps)",0.0,500.0,10.0,key="wf_slippage")
-            wf_risk=w8.number_input("Risk per trade (%)",0.1,5.0,1.0,key="wf_risk")
+            wf_sell_tax=st.number_input("Pajak penjualan walk-forward (bps)",0.0,500.0,0.0,key="wf_sell_tax")
+            wf_risk=st.number_input("Risk per trade (%)",0.1,5.0,1.0,key="wf_risk")
             wf_submit=st.form_submit_button("Jalankan walk-forward",type="primary")
         if wf_submit:
             try:
                 with st.spinner("Menjalankan evaluasi out-of-sample per fold..."):
                     bars,meta=load_daily_history(wf_ticker,wf_market,wf_period)
-                    result=walk_forward_backtest(bars,train_months=train_months,test_months=test_months,fee_bps=wf_fee,slippage_bps=wf_slippage,risk_fraction=wf_risk/100)
+                    result=walk_forward_backtest(bars,train_months=train_months,test_months=test_months,fee_bps=wf_fee,slippage_bps=wf_slippage,sell_tax_bps=wf_sell_tax,risk_fraction=wf_risk/100)
                 st.session_state["walk_forward_result"]={"ticker":meta.get("ticker",wf_ticker),"market":wf_market,"result":result}
             except Exception as exc:
                 st.error(f"Walk-forward gagal: {type(exc).__name__}: {exc}")
