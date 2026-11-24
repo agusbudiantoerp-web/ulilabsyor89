@@ -10,7 +10,15 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
     if not required.issubset(positions.columns):
         raise ValueError(f"Kolom posisi wajib: {sorted(required)}")
     frame = positions.copy()
-    frame["Market Value"] = pd.to_numeric(frame["Market Value"], errors="coerce").fillna(0)
+    frame["Ticker"] = frame["Ticker"].astype(str).str.upper().str.strip()
+    frame["Currency"] = frame["Currency"].astype(str).str.upper().str.strip()
+    frame["Market Value"] = pd.to_numeric(frame["Market Value"], errors="coerce")
+    if frame["Market Value"].isna().any() or not frame["Market Value"].map(math.isfinite).all():
+        raise ValueError("Market Value harus berupa angka finite.")
+    if (frame["Market Value"] < 0).any():
+        raise ValueError("Market Value tidak boleh negatif.")
+    if (frame["Ticker"] == "").any() or (frame["Currency"] == "").any():
+        raise ValueError("Ticker dan Currency wajib diisi.")
     frame = frame[frame["Market Value"] > 0].copy()
     if frame.empty:
         raise ValueError("Tidak ada posisi dengan nilai pasar positif.")
@@ -109,6 +117,10 @@ def scenario_analysis(positions: pd.DataFrame, shocks: dict[str, float]) -> pd.D
         ticker = str(item.get("Ticker", ""))
         market_value = float(item.get("Market Value", 0) or 0)
         shock = float(shocks.get(ticker, 0))
+        if not math.isfinite(market_value) or market_value < 0:
+            raise ValueError("Market Value skenario harus finite dan tidak negatif.")
+        if not math.isfinite(shock) or shock < -100:
+            raise ValueError("Shock saham harus finite dan tidak boleh di bawah -100%.")
         rows.append({
             "Ticker": ticker,
             "Currency": item.get("Currency"),
@@ -122,9 +134,21 @@ def scenario_analysis(positions: pd.DataFrame, shocks: dict[str, float]) -> pd.D
 
 def fx_scenario_analysis(positions: pd.DataFrame, usd_idr: float, fx_shock_pct: float = 0.0) -> dict:
     """Isolate USD/IDR translation risk using a user-supplied spot rate."""
-    if usd_idr <= 0 or fx_shock_pct <= -100:
-        raise ValueError("Kurs USD/IDR harus positif dan shock FX harus lebih besar dari -100%.")
-    grouped = positions.groupby("Currency")["Market Value"].sum().to_dict()
+    if (
+        not math.isfinite(float(usd_idr))
+        or not math.isfinite(float(fx_shock_pct))
+        or usd_idr <= 0 or fx_shock_pct <= -100
+    ):
+        raise ValueError("Kurs USD/IDR harus finite dan positif; shock FX harus finite dan lebih besar dari -100%.")
+    if not {"Currency", "Market Value"}.issubset(positions.columns):
+        raise ValueError("Kolom Currency dan Market Value wajib tersedia.")
+    values = pd.to_numeric(positions["Market Value"], errors="coerce")
+    if values.isna().any() or not values.map(math.isfinite).all() or (values < 0).any():
+        raise ValueError("Market Value FX harus finite dan tidak negatif.")
+    fx_positions = positions.copy()
+    fx_positions["Currency"] = fx_positions["Currency"].astype(str).str.upper().str.strip()
+    fx_positions["Market Value"] = values
+    grouped = fx_positions.groupby("Currency")["Market Value"].sum().to_dict()
     idr_value = float(grouped.get("IDR", 0.0))
     usd_value = float(grouped.get("USD", 0.0))
     unsupported = set(grouped) - {"IDR", "USD"}
