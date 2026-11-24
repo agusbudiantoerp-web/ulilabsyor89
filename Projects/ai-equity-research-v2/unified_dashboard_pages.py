@@ -17,10 +17,11 @@ from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scen
 from institutional_risk import analyze_institutional_risk
 from portfolio_optimization import optimize_portfolio
 from security_controls import has_permission
+from research_run_store import save_run
 from daily_signal_portfolio import allocate_candidates
 from advanced_workspace import (
     render_market_intelligence, render_portfolio_persistence,
-    render_multi_asset_backtest, render_research_exports,
+    render_multi_asset_backtest, render_research_exports, render_research_run_history,
 )
 
 
@@ -424,7 +425,24 @@ def render_backtesting() -> None:
                 with st.spinner(f"Mengunduh data historis {ticker.upper()}..."):
                     bars,meta=load_daily_history(ticker,market,period)
                     result=backtest(bars,fee_bps=fee,slippage_bps=slippage,sell_tax_bps=sell_tax,risk_fraction=risk/100,max_allocation=allocation,max_holding_sessions=holding)
-                st.session_state["backtest_result"]={"ticker":meta.get("ticker",ticker.upper()),"market":market,"result":result}
+                normalized_ticker = meta.get("ticker", ticker.upper())
+                st.session_state["backtest_result"]={"ticker":normalized_ticker,"market":market,"result":result}
+                try:
+                    save_run(
+                        owner_id=_owner_id(), run_type="single_ticker", market=market,
+                        symbols=[normalized_ticker],
+                        parameters={
+                            "period": period, "fee_bps": fee, "slippage_bps": slippage,
+                            "sell_tax_bps": sell_tax, "risk_fraction": risk / 100,
+                            "max_allocation": allocation, "max_holding_sessions": holding,
+                        },
+                        result=result,
+                    )
+                except Exception as persist_exc:
+                    st.warning(
+                        "Backtest selesai pada sesi ini, tetapi belum tersimpan permanen: "
+                        f"{type(persist_exc).__name__}: {persist_exc}"
+                    )
             except Exception as exc:
                 st.error(f"Backtest gagal: {type(exc).__name__}: {exc}")
         saved=st.session_state.get("backtest_result")
@@ -475,7 +493,25 @@ def render_backtesting() -> None:
                 with st.spinner("Menjalankan evaluasi out-of-sample per fold..."):
                     bars,meta=load_daily_history(wf_ticker,wf_market,wf_period)
                     result=walk_forward_backtest(bars,train_months=train_months,test_months=test_months,fee_bps=wf_fee,slippage_bps=wf_slippage,sell_tax_bps=wf_sell_tax,risk_fraction=wf_risk/100)
-                st.session_state["walk_forward_result"]={"ticker":meta.get("ticker",wf_ticker),"market":wf_market,"result":result}
+                normalized_ticker = meta.get("ticker", wf_ticker)
+                st.session_state["walk_forward_result"]={"ticker":normalized_ticker,"market":wf_market,"result":result}
+                try:
+                    save_run(
+                        owner_id=_owner_id(), run_type="walk_forward", market=wf_market,
+                        symbols=[normalized_ticker],
+                        parameters={
+                            "period": wf_period, "train_months": train_months,
+                            "test_months": test_months, "fee_bps": wf_fee,
+                            "slippage_bps": wf_slippage, "sell_tax_bps": wf_sell_tax,
+                            "risk_fraction": wf_risk / 100,
+                        },
+                        result=result,
+                    )
+                except Exception as persist_exc:
+                    st.warning(
+                        "Walk-forward selesai pada sesi ini, tetapi belum tersimpan permanen: "
+                        f"{type(persist_exc).__name__}: {persist_exc}"
+                    )
             except Exception as exc:
                 st.error(f"Walk-forward gagal: {type(exc).__name__}: {exc}")
         saved=st.session_state.get("walk_forward_result")
@@ -492,7 +528,8 @@ def render_backtesting() -> None:
             st.caption(r["method"])
             st.warning(r["limitations"])
 
-    render_multi_asset_backtest()
+    render_multi_asset_backtest(_owner_id())
+    render_research_run_history(_owner_id())
 
 
 def render_performance_dashboard() -> None:
