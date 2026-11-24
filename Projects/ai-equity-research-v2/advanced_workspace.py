@@ -132,10 +132,9 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
             if selected_label in names:
                 try:
                     loaded = load_book(names[selected_label], owner_id=owner_id)
-                    record_audit_event(
-                        owner_id, st.session_state.get("_auth_role"), "PORTFOLIO_LOAD",
-                        "portfolio_book", names[selected_label],
-                        details={"position_count": len(loaded)},
+                    _audit_event_safely(
+                        owner_id, "PORTFOLIO_LOAD", "portfolio_book",
+                        names[selected_label], details={"position_count": len(loaded)},
                     )
                     st.session_state["portfolio_input"] = loaded
                     st.session_state.pop("portfolio_result", None)
