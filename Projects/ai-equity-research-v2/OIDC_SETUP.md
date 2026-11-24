@@ -80,13 +80,13 @@ Supported roles:
 | `portfolio_manager` | Analyst access plus portfolio and risk management |
 | `admin` | All application pages, including shared performance history, and administrative permission primitives |
 
-The current UI page gate is enforced server-side. Performance history is restricted to admin because the learning database is not yet tenant-scoped. Sensitive operations inside individual pages still require a separate complete authorization review before production multi-user use.
+The current UI page gate is enforced server-side. Performance history is now filtered by the authenticated issuer-bound owner ID. Sensitive operations inside individual pages still require a separate complete authorization review before production multi-user use.
 
 ## 4. Important release limitations
 
 - OIDC login and subject-to-role mapping do not by themselves provide tenant isolation.
 - Audit events currently use a local SQLite file unless `audit_db_path` is configured. Hosted local storage may be ephemeral.
-- Portfolio books are scoped by the issuer-bound `iss|sub` principal in local SQLite. Other private records and shared learning/performance history are not yet fully tenant-scoped.
+- Portfolio books are scoped by the issuer-bound `iss|sub` principal in local SQLite. Learning/performance records are also scoped by issuer-bound owner ID in SQLite and PostgreSQL. Audit storage and other private records still need separate access controls.
 - Every export, write, delete, model-configuration action, and audit viewer must be individually permission-checked before production release.
 - Use managed PostgreSQL, immutable/append-only central audit storage, backup restoration tests, and security testing before inviting multiple users.
 - Keep `client_secret`, `cookie_secret`, database URLs and API tokens only in Streamlit Secrets or a private local secrets file.
