@@ -99,3 +99,11 @@ def test_portfolio_store_requires_explicit_owner_identity(tmp_path):
         save_book("no-owner", "No owner", positions, path=path)
     with pytest.raises(ValueError, match="Owner portfolio"):
         list_books(path=path)
+
+
+def test_portfolio_load_and_delete_fail_closed_for_unknown_book(tmp_path):
+    import pytest
+    path = str(tmp_path / "portfolio.sqlite3")
+    with pytest.raises(KeyError, match="tidak ditemukan"):
+        load_book("missing", path=path, owner_id="issuer|alice")
+    assert delete_book("missing", path=path, owner_id="issuer|alice") is False
