@@ -77,3 +77,28 @@ def test_backtest_report_is_readable_and_includes_limitations():
     assert "Maximum drawdown" in report
     assert "Buy-and-hold benchmark" in report
     assert "Simulasi sederhana" in report
+
+
+def test_benchmark_uses_entry_exit_costs_including_sell_tax():
+    from daily_signal_engine import calculate_indicators, DEFAULT_CONFIG
+
+    bars = sample_bars()
+    result = backtest(bars, fee_bps=10, slippage_bps=20, sell_tax_bps=15)
+    evaluated = calculate_indicators(bars).dropna(subset=[
+        "SMA50", "EMA9", "EMA21", "RSI14", "MACD", "MACD_SIGNAL", "ATR14", "REL_VOLUME"
+    ])
+    first_close = float(evaluated.Close.iloc[0])
+    last_close = float(evaluated.Close.iloc[-1])
+    entry_cost = 30 / 10000
+    exit_cost = 45 / 10000
+    expected = (
+        last_close * (1 - exit_cost) / (first_close * (1 + entry_cost)) - 1
+    ) * 100
+    assert result["benchmark_buy_hold_pct"] == pytest.approx(expected)
+    assert result["cost_bps_round_trip"] == pytest.approx(75)
+    assert result["transaction_costs"]["sell_tax_bps_on_exit"] == pytest.approx(15)
+
+
+def test_backtest_rejects_non_finite_transaction_costs():
+    with pytest.raises(ValueError, match="finite"):
+        backtest(sample_bars(), sell_tax_bps=float("nan"))
