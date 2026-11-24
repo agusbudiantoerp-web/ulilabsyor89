@@ -14,12 +14,18 @@ def build_excel_report(
 ) -> bytes:
     output = BytesIO()
 
+    def safe_excel_cell(value):
+        if isinstance(value, (dict, list, tuple, set)):
+            value = str(value)
+        if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+            # Prevent untrusted ticker/provider text from being interpreted as a formula.
+            return "'" + value
+        return value
+
     def excel_safe(frame: pd.DataFrame) -> pd.DataFrame:
         safe = frame.copy()
         for column in safe.columns:
-            safe[column] = safe[column].map(
-                lambda value: str(value) if isinstance(value, (dict, list, tuple, set)) else value
-            )
+            safe[column] = safe[column].map(safe_excel_cell)
         return safe
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -29,8 +35,9 @@ def build_excel_report(
             excel_safe(history).to_excel(writer, sheet_name="Signal History", index=False)
         metric_rows = [{"Metric": key, "Value": value} for key, value in (metrics or {}).items()
                        if isinstance(value, (str, int, float, bool)) or value is None]
-        pd.DataFrame(metric_rows or [{"Metric": "Status", "Value": "No summary metrics supplied"}]).to_excel(
-            writer, sheet_name="Summary", index=False)
+        excel_safe(pd.DataFrame(
+            metric_rows or [{"Metric": "Status", "Value": "No summary metrics supplied"}]
+        )).to_excel(writer, sheet_name="Summary", index=False)
         used_names = {sheet.title for sheet in writer.book.worksheets}
         for requested_name, extra_frame in (extra_sheets or {}).items():
             if extra_frame is None or extra_frame.empty:
