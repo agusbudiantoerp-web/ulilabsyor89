@@ -97,14 +97,14 @@ def logout(st_module: Any, identity: dict) -> bool:
     """Always terminate the OIDC session; report whether the audit append succeeded."""
     audited = True
     try:
-        audit_path = st_module.secrets.get("audit_db_path", "data/audit_log.sqlite3")
+        audit_path = st_module.secrets.get("audit_db_path")
         record_audit_event(
             identity["subject_id"],
             identity["role"],
             "LOGOUT",
             "streamlit_session",
             details={"authentication": "OIDC"},
-            path=str(audit_path),
+            path=str(audit_path) if audit_path else None,
         )
     except Exception:
         audited = False
