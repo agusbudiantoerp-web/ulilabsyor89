@@ -252,8 +252,8 @@ def render_multi_asset_backtest(owner_id: str) -> None:
 
 
 def render_research_run_history(owner_id: str) -> None:
-    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     """Owner-scoped history for single, walk-forward and multi-asset backtests."""
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     st.subheader("Riwayat Research & Backtest Tersimpan")
     if not str(owner_id or "").strip():
         st.info("Riwayat tersimpan memerlukan identitas pengguna yang terverifikasi.")
@@ -335,6 +335,7 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
     st.caption("Ekspor ringkasan performa dan histori sinyal ke Excel atau PDF.")
     frame = pd.DataFrame(history or [])
     metrics = {}
+    extra_sheets: dict[str, pd.DataFrame] = {}
     if latest:
         counts = latest.get("counts", {})
         metrics = {"Scan ID": latest.get("scan_id"), "Scanned": counts.get("scanned"),
@@ -396,7 +397,6 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "Index return 20 sessions %": regime.get("return_20d_pct"),
         })
     multi_result = st.session_state.get("multi_asset_backtest_result")
-    extra_sheets: dict[str, pd.DataFrame] = {}
     if multi_result:
         metrics.update({
             "Multi-asset return %": multi_result.get("total_return_pct"),
