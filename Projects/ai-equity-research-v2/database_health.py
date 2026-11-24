@@ -115,7 +115,8 @@ def check_postgres_health(secrets: Any = None) -> dict:
 
 
 def initialize_required_postgres_schema(
-    secrets: Any = None, actor_id: str = "", actor_role: str = ""
+    secrets: Any = None, actor_id: str = "", actor_role: str = "",
+    audit_path: str | None = None,
 ) -> dict:
     """Run the application's idempotent PostgreSQL schema initializers, then verify."""
     if not _resolve_database_url(secrets):
@@ -135,5 +136,6 @@ def initialize_required_postgres_schema(
         "DATABASE_SCHEMA_INITIALIZE",
         "database_schema",
         details={"tables": sorted(REQUIRED_TABLES)},
+        path=audit_path,
     )
     return check_postgres_health(secrets)
