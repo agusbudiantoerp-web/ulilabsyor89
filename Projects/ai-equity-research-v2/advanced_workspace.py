@@ -16,6 +16,19 @@ from security_controls import has_permission, require_permission, record_audit_e
 from research_run_store import delete_run, get_run, list_runs, save_run
 
 
+def _audit_event_safely(
+    owner_id: str, action: str, resource_type: str, resource_id: str = "",
+    details: dict | None = None,
+) -> None:
+    try:
+        record_audit_event(
+            owner_id, st.session_state.get("_auth_role"), action,
+            resource_type, resource_id, details=details or {},
+        )
+    except Exception as exc:
+        st.warning(f"Data berhasil diproses, tetapi audit event gagal dicatat: {type(exc).__name__}: {exc}")
+
+
 def _download_benchmark(market: str, period: str) -> pd.DataFrame:
     import yfinance as yf
     ticker = BENCHMARKS[market]
@@ -212,9 +225,8 @@ def render_multi_asset_backtest(owner_id: str) -> None:
                             result=result,
                         )
                         st.session_state["multi_asset_backtest_run_id"] = run_id
-                        record_audit_event(
-                            owner_id, st.session_state.get("_auth_role"),
-                            "BACKTEST_RUN", "research_run", run_id,
+                        _audit_event_safely(
+                            owner_id, "BACKTEST_RUN", "research_run", run_id,
                             details={"run_type": "multi_asset", "market": market, "symbols": symbols},
                         )
                     except Exception as persist_exc:
@@ -304,9 +316,8 @@ def render_research_run_history(owner_id: str) -> None:
                 }
             elif saved["run_type"] == "multi_asset":
                 st.session_state["multi_asset_backtest_result"] = saved["result"]
-            record_audit_event(
-                owner_id, st.session_state.get("_auth_role"),
-                "RESEARCH_RUN_LOAD", "research_run", run_id,
+            _audit_event_safely(
+                owner_id, "RESEARCH_RUN_LOAD", "research_run", run_id,
                 details={"run_type": saved["run_type"], "market": saved["market"]},
             )
             st.success("Hasil backtest berhasil dimuat.")
@@ -317,9 +328,8 @@ def render_research_run_history(owner_id: str) -> None:
         try:
             deleted = delete_run(owner_id=owner_id, run_id=run_id)
             if deleted:
-                record_audit_event(
-                    owner_id, st.session_state.get("_auth_role"),
-                    "RESEARCH_RUN_DELETE", "research_run", run_id,
+                _audit_event_safely(
+                    owner_id, "RESEARCH_RUN_DELETE", "research_run", run_id,
                     details={"scope": "owner"},
                 )
                 st.success("Hasil backtest dihapus dari penyimpanan pengguna ini.")
