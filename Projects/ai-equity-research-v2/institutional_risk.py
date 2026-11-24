@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from statistics import NormalDist
 import pandas as pd
 
 
@@ -116,7 +117,7 @@ def analyze_institutional_risk(
         tail = series[series <= tail_q]
         mean = float(series.mean())
         std = float(series.std(ddof=1))
-        z_score = 1.6448536269514722 if abs(confidence_level - 0.95) < 1e-9 else 2.3263478740408408
+        z_score = NormalDist().inv_cdf(float(confidence_level))
         parametric_var = max(0.0, -(mean - z_score * std)) * 100
         growth = (1 + series).cumprod()
         drawdown = (growth / growth.cummax() - 1).min() * 100
