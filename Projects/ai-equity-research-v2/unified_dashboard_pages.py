@@ -14,6 +14,7 @@ from daily_signal_storage import backend_name
 from daily_signal_backtest import backtest, walk_forward_backtest
 from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
 from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scenario_analysis
+from institutional_risk import analyze_institutional_risk
 from daily_signal_portfolio import allocate_candidates
 from advanced_workspace import (
     render_market_intelligence, render_portfolio_persistence,
@@ -272,6 +273,35 @@ def render_portfolio_risk() -> None:
         st.dataframe(analysis["risk"],use_container_width=True,hide_index=True)
         for currency, series in analysis["returns"].items():
             st.line_chart((1+series).cumprod().rename(f"{currency} portfolio growth"))
+    st.subheader("Institutional Risk Management")
+    st.caption("VaR historis, Expected Shortfall, VaR parametrik, konsentrasi dan stress test. Risiko dihitung per mata uang asli dan coverage ditampilkan.")
+    try:
+        institutional_risk = analyze_institutional_risk(
+            frame, result["returns"],
+            stress_scenarios={
+                "Market correction -10%": {ticker: -10.0 for ticker in frame["Ticker"]},
+                "Severe correction -20%": {ticker: -20.0 for ticker in frame["Ticker"]},
+            },
+        )
+        risk_col, concentration_col = st.columns(2)
+        with risk_col:
+            st.markdown("**Risk metrics**")
+            st.dataframe(institutional_risk["risk"], use_container_width=True, hide_index=True)
+        with concentration_col:
+            st.markdown("**Concentration limits**")
+            st.dataframe(institutional_risk["concentration"], use_container_width=True, hide_index=True)
+        if not institutional_risk["limit_breaches"].empty:
+            st.warning("Ada indikator yang melewati risk limit default. Tinjau konsentrasi dan eksposur.")
+            st.dataframe(institutional_risk["limit_breaches"], use_container_width=True, hide_index=True)
+        else:
+            st.success("Tidak ada pelanggaran terhadap risk limit default pada metrik yang dapat dihitung.")
+        st.markdown("**Stress testing**")
+        st.dataframe(institutional_risk["stress"], use_container_width=True, hide_index=True)
+        st.caption(institutional_risk["methodology"])
+        st.caption(institutional_risk["limitations"])
+    except Exception as exc:
+        st.error(f"Institutional risk analysis gagal: {type(exc).__name__}: {exc}")
+
     if analysis["correlations"]:
         st.subheader("Matriks korelasi")
         for currency,matrix in analysis["correlations"].items():
