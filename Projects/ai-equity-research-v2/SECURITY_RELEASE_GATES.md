@@ -6,7 +6,7 @@
 - `security_controls.py` provides role names and permission checks for viewer, analyst, portfolio_manager and admin.
 - Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, uses the verified issuer-bound immutable `iss|sub` principal, and fails closed when login or role mapping is missing.
 - Server-side page-level permission checks restrict research, signal, portfolio/risk, backtest and performance pages by role. This is not yet a substitute for checks on every sensitive operation inside those pages.
-- Login/logout audit events are recorded once per session when the local audit store is available; audit write failure blocks dashboard access.
+- Login/logout audit events are recorded when the local audit store is available. Login audit failure blocks dashboard access; logout remains available even if the audit store fails.
 - `security_controls.py` provides a SQLite hash-linked audit event log, serialized append operations, and a chain-verification routine.
 - Audit payloads reject credential-like keys recursively, including common nested and naming variants.
 - Portfolio books are scoped by the authenticated issuer-bound OIDC principal in SQLite. Existing pre-migration books are assigned `legacy-unassigned` and are hidden from authenticated users until an administrator explicitly migrates ownership.
