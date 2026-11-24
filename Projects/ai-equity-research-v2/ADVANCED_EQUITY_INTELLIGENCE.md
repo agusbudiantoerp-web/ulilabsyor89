@@ -63,3 +63,38 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - The score, signal, valuation and portfolio scenario outputs are research tools, not personalized investment advice.
 - No broker connection or automated order execution is included.
 - Local Telegram/Ollama scheduling continues to use SQLite unless a database URL is deliberately configured in that local environment.
+
+
+## 6. Market Regime, Relative Strength and Data Quality
+
+- IDX market regime uses the Jakarta Composite Index (^JKSE); US market regime uses SPY as a broad-market proxy.
+- Regime labels are rule-based from the latest available close, EMA50, EMA200 and 20-session price return: bullish, bearish, recovery/transition, weak/transition, or sideways/mixed.
+- Relative strength compares the selected stock and benchmark over matched dates for 1-month, 3-month, 6-month and 1-year windows when enough observations exist.
+- OHLCV checks flag missing/non-numeric bars, invalid OHLC relationships, non-positive prices, negative volume, duplicate dates, stale latest bars and short history.
+- Fundamental checks surface missing values, non-finite/invalid market capitalization, negative valuation multiples requiring context, unknown currency, and a difference between quote currency and financial reporting currency.
+- These are diagnostic flags, not independent verification of issuer filings or exchange data.
+
+## 7. Saved Portfolio Books
+
+- Named portfolio books and their positions can be saved, loaded and deleted through a storage layer.
+- PostgreSQL is selected when a database URL is configured; an explicit local database path always selects SQLite.
+- Repeated rows for the same market/ticker are consolidated. Average cost is share-weighted, not a simple arithmetic average.
+- Portfolio book persistence stores market, ticker, shares and average cost; market prices, sector classifications and risk analytics are refreshed when the user recalculates the portfolio.
+- A hosted instance using local SQLite may not retain data across instance replacement. Configure PostgreSQL for persistent hosted storage.
+
+## 8. Multi-Asset Portfolio Backtest
+
+- Fixed long-only trend rule using price/EMA20/EMA50/EMA200 alignment and RSI bounds.
+- Signals are shifted by one complete session: information from close t can only earn the return beginning at t+1.
+- Active names are selected deterministically up to the configured maximum number of positions, with an equal-weight target capped per position.
+- Turnover-based transaction costs include user-supplied fee and slippage assumptions.
+- Reports total return, CAGR, maximum drawdown, annualized volatility, Sharpe ratio, average exposure, estimated cost and benchmark price return over overlapping dates.
+- No implicit forward-fill is applied to missing close values. Uninvested cash earns zero.
+
+Limitations: this is a simplified daily close simulation. It excludes dividends, taxes, borrow costs, market impact, intraday execution, corporate-action reconciliation and survivorship correction. The benchmark is price-only.
+
+## 9. Research Pack Exports
+
+- Excel output can include portfolio positions, signal history and scalar performance summary metrics.
+- PDF output contains a timestamped summary and method/limitation notes.
+- Exports are analytical summaries, not official broker statements, tax reports or investment recommendations.
