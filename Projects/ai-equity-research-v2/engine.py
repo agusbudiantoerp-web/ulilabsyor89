@@ -460,6 +460,9 @@ def calculate_dcf(
 ) -> dict:
     """Calculate DCF enterprise value, equity value and intrinsic value per share."""
 
+    if not isinstance(data, dict):
+        return {"available": False, "reason": "Data saham tidak valid."}
+
     if is_financial_institution(data):
         return {
             "available": False,
@@ -493,8 +496,8 @@ def calculate_dcf(
             "reason": "Shares outstanding tidak tersedia atau tidak valid."
         }
 
-    if not isinstance(years, int) or not 1 <= years <= 20:
-        return {"available": False, "reason": "Periode proyeksi harus 1 sampai 20 tahun."}
+    if not isinstance(years, int) or isinstance(years, bool) or not 1 <= years <= 20:
+        return {"available": False, "reason": "Periode proyeksi harus bilangan bulat 1 sampai 20 tahun."}
 
     growth = _number(growth)
     wacc = _number(wacc)
@@ -503,8 +506,14 @@ def calculate_dcf(
     if any(x is None for x in (growth, wacc, terminal_growth)):
         return {"available": False, "reason": "Asumsi DCF harus berupa angka valid."}
 
-    if growth <= -1 or wacc <= -1 or terminal_growth <= -1:
-        return {"available": False, "reason": "Growth dan tingkat diskonto tidak boleh <= -100%."}
+    if growth <= -1 or growth > 1:
+        return {"available": False, "reason": "FCF growth harus lebih besar dari -100% dan tidak boleh melebihi 100%."}
+
+    if not 0 < wacc <= 1:
+        return {"available": False, "reason": "WACC harus lebih besar dari 0% dan maksimal 100%."}
+
+    if not -1 < terminal_growth < 1:
+        return {"available": False, "reason": "Terminal growth harus di antara -100% dan 100%."}
 
     if wacc <= terminal_growth:
         return {
@@ -535,6 +544,18 @@ def calculate_dcf(
     enterprise_value = pv_sum + terminal_pv
     net_debt = debt - cash
     equity_value = enterprise_value - net_debt
+    if not all(math.isfinite(value) for value in (
+        pv_sum, terminal_value, terminal_pv, enterprise_value, net_debt, equity_value
+    )):
+        return {"available": False, "reason": "Hasil DCF mengandung nilai non-finite."}
+    if equity_value <= 0:
+        return {
+            "available": False,
+            "reason": "Equity value tidak positif setelah dikurangi net debt; intrinsic value per saham tidak layak ditampilkan.",
+            "enterprise_value": enterprise_value,
+            "net_debt": net_debt,
+            "equity_value": equity_value,
+        }
     intrinsic_value = equity_value / shares
 
     financial_currency = (
