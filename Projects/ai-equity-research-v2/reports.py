@@ -200,6 +200,11 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
             ).to_excel(writer, sheet_name="Sources & Dates", index=False)
 
         for ws in writer.book.worksheets:
+            for row in ws.iter_rows():
+                for cell in row:
+                    if isinstance(cell.value, str) and cell.value.lstrip().startswith(("=", "+", "-", "@")):
+                        # Treat untrusted provider/analyst text as text, never as an Excel formula.
+                        cell.value = "'" + cell.value
             ws.freeze_panes = "A2"
             ws.auto_filter.ref = ws.dimensions
 
