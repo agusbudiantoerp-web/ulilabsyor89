@@ -1,40 +1,33 @@
 # OIDC Authentication Setup
 
-The Streamlit application now uses Streamlit's native OIDC login. It supports a single configured OIDC provider at a time (for example, Google or Microsoft Entra ID). The application does not contain provider credentials.
+The Streamlit application uses Streamlit's native OpenID Connect (OIDC) login. This release supports one OIDC provider per app. Google is the configured provider for the current deployment.
 
-## 1. Configure the identity provider
+## 1. Register redirect URIs with Google
 
-Create an OIDC web application in the provider's administration console. Register this exact redirect URI:
+For each Streamlit app (production and preview), register its exact callback URL in the Google OAuth Web client:
 
 ```text
 https://YOUR-APP-NAME.streamlit.app/oauth2callback
 ```
 
-For local development, register the local callback separately:
+Keep the production callback registered when adding a preview callback. Do not replace it.
+
+Google discovery metadata URL:
 
 ```text
-http://localhost:8501/oauth2callback
+https://accounts.google.com/.well-known/openid-configuration
 ```
 
-Use the issuer's discovery metadata URL:
-
-- Google: `https://accounts.google.com/.well-known/openid-configuration`
-- Microsoft Entra ID: `https://login.microsoftonline.com/YOUR-TENANT-ID/v2.0/.well-known/openid-configuration`
-
-Use the client ID and client secret supplied by the identity provider. Never commit these values to Git.
+Never commit the Google client secret or Streamlit cookie secret to Git.
 
 ## 2. Configure Streamlit Secrets
 
-Open the app's Streamlit Cloud settings → Secrets. Add the shared authentication settings and exactly one provider block. Replace every placeholder privately.
-
-### Google example
+In Streamlit Community Cloud, open the specific app's Settings → Secrets. For the current single-provider Google setup, use the default `[auth]` section:
 
 ```toml
 [auth]
 redirect_uri = "https://YOUR-APP-NAME.streamlit.app/oauth2callback"
 cookie_secret = "REPLACE_WITH_A_LONG_RANDOM_PRIVATE_VALUE"
-
-[auth.google]
 client_id = "YOUR_GOOGLE_CLIENT_ID"
 client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
 server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
@@ -43,33 +36,17 @@ server_metadata_url = "https://accounts.google.com/.well-known/openid-configurat
 "ISSUER_URL|IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
 ```
 
-### Microsoft Entra ID example
+Replace all placeholders privately in Streamlit Secrets. The `[auth]` values above are the default provider configuration; the application calls Streamlit's default OIDC provider. Do not paste secrets into chat, GitHub files, screenshots, or issue reports.
 
-Use this provider block instead of the Google block:
+A named provider section such as `[auth.google]` is also supported by the application, but do not configure both the default provider keys and a named provider at the same time.
 
-```toml
-[auth]
-redirect_uri = "https://YOUR-APP-NAME.streamlit.app/oauth2callback"
-cookie_secret = "REPLACE_WITH_A_LONG_RANDOM_PRIVATE_VALUE"
-
-[auth.microsoft]
-client_id = "YOUR_ENTRA_APPLICATION_CLIENT_ID"
-client_secret = "YOUR_ENTRA_CLIENT_SECRET"
-server_metadata_url = "https://login.microsoftonline.com/YOUR-TENANT-ID/v2.0/.well-known/openid-configuration"
-
-[auth_roles]
-"ISSUER_URL|IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
-```
-
-Do not configure both provider blocks at the same time in this release: the login flow intentionally requires exactly one provider.
-
-## 3. Assign roles
+## 3. Assign roles safely
 
 1. Save the provider settings and restart/reload the Streamlit app.
-2. Sign in with the intended account.
-3. If the account has no role yet, the app denies dashboard access and displays that account's exact `iss|sub` principal identifier.
-4. As the administrator, copy the exact `iss|sub` principal identifier shown by the app into `[auth_roles]` in Streamlit Secrets and assign an approved role.
-5. Repeat for each authorized user. Never assign a role based only on a display name or email address. The mapping key combines the exact OIDC issuer (`iss`) and subject (`sub`) so identical subject strings from different providers cannot inherit each other's roles.
+2. Sign in with the intended Google account.
+3. If the account has no role yet, the app denies dashboard access and displays its exact `iss|sub` principal identifier.
+4. As administrator, copy that exact identifier into `[auth_roles]` in the app's Streamlit Secrets and assign the approved role.
+5. Repeat for each authorized user. Never assign roles using display name or email alone. The mapping key combines OIDC issuer (`iss`) and immutable subject (`sub`).
 
 Supported roles:
 
@@ -78,16 +55,33 @@ Supported roles:
 | `viewer` | Read-only, owner-scoped Performance Dashboard |
 | `analyst` | Equity research, daily signals, backtesting |
 | `portfolio_manager` | Analyst access plus portfolio and risk management |
-| `admin` | All application pages, including shared performance history, and administrative permission primitives |
+| `admin` | All application pages and administrative permission primitives |
 
-The current UI page gate is enforced server-side. Performance history is now filtered by the authenticated issuer-bound owner ID. Sensitive operations inside individual pages still require a separate complete authorization review before production multi-user use.
+## 4. Preview-first rollout
 
-## 4. Important release limitations
+Create a separate Streamlit Community Cloud app using the development branch and this project entry point:
 
-- OIDC login and subject-to-role mapping do not by themselves provide tenant isolation.
-- Audit events use the shared PostgreSQL database when `DATABASE_URL` is configured; otherwise they use local SQLite. The hash chain is tamper-evident, not WORM/immutable.
-- Portfolio books are scoped by the issuer-bound `iss|sub` principal in PostgreSQL when `DATABASE_URL` is configured, with local SQLite as fallback. Learning/performance records are also scoped by owner ID in SQLite and PostgreSQL. Legacy local portfolio books are not automatically uploaded. Audit storage and other private records still need separate access controls.
+```text
+Repository: agusbudiantoerp-web/ulilabsyor89
+Branch: feature/advanced-equity-intelligence
+Main file: Projects/ai-equity-research-v2/app.py
+```
+
+After Streamlit assigns the preview app URL:
+
+- Add the preview callback URL to the same Google OAuth Web client, retaining the production callback.
+- Copy the existing secrets privately into the preview app's Secrets.
+- Change only the preview app's `redirect_uri` to its own preview callback URL.
+- Do not alter production app settings while testing.
+
+Initially keep the Google OAuth consent screen in Testing and add only approved test accounts.
+
+## 5. Security and release limitations
+
+- OIDC login and subject-to-role mapping do not by themselves prove complete tenant isolation.
+- Audit events use shared PostgreSQL when `DATABASE_URL` is configured; otherwise they use local SQLite. The hash chain is tamper-evident, not WORM/immutable.
+- Portfolio books and learning/performance records have owner scoping, but audit storage and other private records still need separate access-control review.
 - Every export, write, delete, model-configuration action, and audit viewer must be individually permission-checked before production release.
 - Use managed PostgreSQL, immutable/append-only central audit storage, backup restoration tests, and security testing before inviting multiple users.
-- Keep `client_secret`, `cookie_secret`, database URLs and API tokens only in Streamlit Secrets or a private local secrets file.
+- Keep client secrets, cookie secrets, database URLs, and API tokens only in Streamlit Secrets or a private local secrets file.
 - This authentication change must be reviewed and tested before merging or deploying. It does not certify the application as production-ready.
