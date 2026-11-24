@@ -66,7 +66,7 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD="1"
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider .\tests
 ~~~
 
-A GitHub Actions workflow also runs compile checks and the complete test suite on updates to `feature/advanced-equity-intelligence`. The test suite validates deterministic logic and local SQLite storage. It does not prove live Yahoo Finance availability, Streamlit Cloud deployment, PostgreSQL credentials/network access, or broker execution behavior.
+A GitHub Actions workflow also runs compile checks and the complete test suite on updates to `feature/advanced-equity-intelligence`. The default test suite validates deterministic logic and local SQLite storage. Opt-in PostgreSQL tenant-isolation integration tests run only when `AI_EQUITY_RESEARCH_TEST_DATABASE_URL` points to a disposable staging/test database. Neither suite proves live Yahoo Finance availability or Streamlit Cloud deployment.
 
 ## Authentication and access control
 
