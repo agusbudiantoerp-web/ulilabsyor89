@@ -180,6 +180,8 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
                             names[selected_label], details={"scope": "owner"},
                         )
                         st.success("Portfolio tersimpan berhasil dihapus.")
+                        st.session_state.pop("saved_portfolio_select", None)
+                        st.session_state.pop("confirm_delete_saved_portfolio", None)
                         st.rerun()
                     else:
                         st.info("Portfolio tidak ditemukan atau sudah dihapus.")
@@ -356,6 +358,7 @@ def render_research_run_history(owner_id: str) -> None:
                     details={"scope": "owner"},
                 )
                 st.success("Hasil backtest dihapus dari penyimpanan pengguna ini.")
+                st.session_state.pop("research_run_history_select", None)
                 st.rerun()
             else:
                 st.info("Hasil sudah tidak tersedia.")
