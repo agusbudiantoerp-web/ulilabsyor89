@@ -3,7 +3,8 @@
 The dashboard supports two isolated storage backends:
 
 - Local automation: SQLite at `DAILY_SIGNAL_DB` (default `data/daily_signals.sqlite3`). The local Telegram/Ollama scheduler continues using this database.
-- Streamlit Cloud: PostgreSQL when `DATABASE_URL` is present in Streamlit secrets or the process environment. Cloud scans, signals, forward outcomes, saved portfolio books and audit events use the same PostgreSQL connection. Private scan/portfolio records are keyed by the authenticated OIDC issuer and subject; reads and writes are filtered by that owner. Audit events are append-serialized through a database lock and linked by SHA-256 hashes.
+- Streamlit Cloud: PostgreSQL when `DATABASE_URL` is present in Streamlit secrets or the process environment. Cloud scans, signals, forward outcomes, saved portfolio books, research/backtest runs and audit events use the same PostgreSQL connection. Private records are keyed by the authenticated OIDC issuer and subject; reads and writes are filtered by that owner. Audit events are append-serialized through a database lock and linked by SHA-256 hashes.
+- Research run history stores single-ticker, walk-forward and multi-asset backtest inputs/results under the authenticated owner. Local mode uses `RESEARCH_RUNS_DB_PATH` (default `data/research_runs.sqlite3`); cloud mode uses the owner-scoped `research_runs` PostgreSQL table. No local run history is uploaded automatically.
 
 ## Streamlit Cloud configuration
 
@@ -15,7 +16,7 @@ The dashboard supports two isolated storage backends:
 DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
 ```
 
-4. Reboot the Streamlit app. On first use, the application creates or migrates the `scans`, `signals`, `outcomes`, `portfolio_books`, `portfolio_positions`, and `audit_events` tables and indexes automatically. Existing learning rows are assigned `legacy-unassigned` and are not visible to authenticated users. Local SQLite portfolio books are not automatically uploaded.
+4. Reboot the Streamlit app. On first use, the application creates or migrates the `scans`, `signals`, `outcomes`, `portfolio_books`, `portfolio_positions`, `research_runs`, and `audit_events` tables and indexes automatically. Existing learning rows are assigned `legacy-unassigned` and are not visible to authenticated users. Local SQLite portfolio books and research runs are not automatically uploaded.
 
 Never commit the real connection URI, database password, or service credentials. Keep `.streamlit/secrets.toml` out of Git.
 
