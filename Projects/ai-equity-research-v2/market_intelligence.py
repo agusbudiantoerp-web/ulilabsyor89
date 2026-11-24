@@ -124,7 +124,7 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
     if age > max_age_calendar_days:
         checks.append({"severity": "WARNING", "message": f"Bar terakhir berumur {age} hari kalender."})
     if len(frame) < 200:
-        checks.append({"severity": "INFO", "message": f"Histori hanya {len(frame)} bar; indikator jangka panjang/backtest dapat terbatas."})
+        checks.append({"severity": "WARNING", "message": f"Histori hanya {len(frame)} bar; indikator jangka panjang/backtest dapat terbatas."})
     if not checks:
         checks.append({"severity": "INFO", "message": "Pemeriksaan dasar OHLCV lolos; tetap verifikasi sumber dan corporate actions."})
     status = "FAIL" if any(x["severity"] == "ERROR" for x in checks) else ("WARNING" if any(x["severity"] == "WARNING" for x in checks) else "PASS")
