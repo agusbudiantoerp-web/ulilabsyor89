@@ -105,3 +105,12 @@ def test_institutional_risk_normalizes_ticker_and_counts_unknown_sector():
     assert concentration["Largest sector"] == "Unknown"
     assert concentration["Largest sector %"] == pytest.approx(100)
     assert result["risk"].iloc[0]["Coverage %"] == pytest.approx(100)
+
+
+def test_institutional_risk_rejects_market_value_aggregation_overflow():
+    positions = pd.DataFrame([
+        {"Ticker": "AAA", "Currency": "IDR", "Market Value": 1e308},
+        {"Ticker": "BBB", "Currency": "IDR", "Market Value": 1e308},
+    ])
+    with pytest.raises(ValueError, match="Agregasi market value"):
+        analyze_institutional_risk(positions, {})
