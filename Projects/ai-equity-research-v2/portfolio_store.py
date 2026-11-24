@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import math
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -57,6 +58,8 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     frame["Shares"] = pd.to_numeric(frame["Shares"], errors="coerce")
     frame["Average Cost"] = pd.to_numeric(frame["Average Cost"], errors="coerce")
     frame = frame.dropna(subset=["Shares", "Average Cost"])
+    if not all(math.isfinite(float(value)) for value in frame[["Shares", "Average Cost"]].to_numpy().ravel()):
+        raise ValueError("Jumlah saham dan harga rata-rata harus finite.")
     frame = frame[
         (frame["Ticker"] != "") & (frame["Ticker"].str.lower() != "nan")
         & frame["Market"].isin(["IDX", "US"])
