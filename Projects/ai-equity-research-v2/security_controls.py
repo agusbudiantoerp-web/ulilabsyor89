@@ -60,7 +60,22 @@ def require_permission(role: str | None, permission: str) -> None:
         raise PermissionError(f"Akses ditolak: role tidak memiliki izin {permission}.")
 
 
-def _connect(path: str | None = None) -> sqlite3.Connection:
+def _database_url() -> str | None:
+    value = os.getenv("DATABASE_URL") or os.getenv("CLOUD_DATABASE_URL")
+    if value:
+        return value.strip()
+    try:
+        import streamlit as st
+        value = st.secrets.get("DATABASE_URL") or st.secrets.get("CLOUD_DATABASE_URL")
+        if not value:
+            database = st.secrets.get("database", {})
+            value = database.get("url") if hasattr(database, "get") else None
+        return str(value).strip() if value else None
+    except Exception:
+        return None
+
+
+def _connect_sqlite(path: str | None = None) -> sqlite3.Connection:
     target = path or os.getenv("AUDIT_DB_PATH", "data/audit_log.sqlite3")
     Path(target).parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(target, timeout=30)
@@ -81,6 +96,46 @@ def _connect(path: str | None = None) -> sqlite3.Connection:
         )
     """)
     return db
+
+
+def _connect_postgres():
+    url = _database_url()
+    if not url:
+        raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
+    try:
+        import psycopg
+        from psycopg.rows import dict_row
+    except ImportError as exc:
+        raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
+    db = psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
+    with db.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id BIGSERIAL PRIMARY KEY,
+                occurred_at TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                actor_role TEXT NOT NULL,
+                action TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                details_json TEXT NOT NULL,
+                previous_hash TEXT NOT NULL,
+                event_hash TEXT NOT NULL UNIQUE
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS audit_chain_lock (
+                id INTEGER PRIMARY KEY CHECK (id=1)
+            )
+        """)
+        cur.execute("INSERT INTO audit_chain_lock(id) VALUES(1) ON CONFLICT(id) DO NOTHING")
+    return db
+
+
+def _connect(path: str | None = None):
+    if path is not None or not _database_url():
+        return _connect_sqlite(path)
+    return _connect_postgres()
 
 
 def _canonical_event(event: dict[str, Any]) -> str:
@@ -128,8 +183,35 @@ def record_audit_event(
     if _contains_secret_key(payload):
         raise ValueError("Audit details tidak boleh memuat kredensial atau secret.")
 
-    with _connect(path) as db:
-        # Serialize append operations so concurrent writers cannot fork the hash chain.
+    if path is None and _database_url():
+        with _connect_postgres() as db:
+            with db.cursor() as cur:
+                # A single-row lock serializes hash-chain appends across app instances.
+                cur.execute("SELECT id FROM audit_chain_lock WHERE id=1 FOR UPDATE")
+                previous = db.execute(
+                    "SELECT event_hash FROM audit_events ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+                previous_hash = str(previous["event_hash"]) if previous else "GENESIS"
+                event = {
+                    "occurred_at": datetime.now(timezone.utc).isoformat(),
+                    "actor_id": actor, "actor_role": role, "action": action_value,
+                    "resource_type": resource, "resource_id": str(resource_id or ""),
+                    "details_json": _canonical_event(payload), "previous_hash": previous_hash,
+                }
+                event_hash = hashlib.sha256(_canonical_event(event).encode("utf-8")).hexdigest()
+                cur.execute("""
+                    INSERT INTO audit_events(
+                        occurred_at,actor_id,actor_role,action,resource_type,
+                        resource_id,details_json,previous_hash,event_hash
+                    ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+                """, (
+                    event["occurred_at"], actor, role, action_value, resource,
+                    event["resource_id"], event["details_json"], previous_hash, event_hash,
+                ))
+                return int(cur.fetchone()["id"])
+
+    with _connect_sqlite(path) as db:
+        # Serialize local appends so concurrent writers cannot fork the hash chain.
         db.execute("BEGIN IMMEDIATE")
         previous = db.execute(
             "SELECT event_hash FROM audit_events ORDER BY id DESC LIMIT 1"
