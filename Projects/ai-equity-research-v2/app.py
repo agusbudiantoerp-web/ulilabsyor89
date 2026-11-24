@@ -42,10 +42,10 @@ except PermissionError as exc:
     st.error("Akses ditolak: " + str(exc))
     subject = str(get_claim(st.user, "sub", "") or "").strip()
     if subject:
-        st.caption("Immutable identity subject (sub) untuk administrator:")
+        st.caption("Principal identifier (issuer|sub) untuk administrator:")
         st.code(subject)
         st.caption(
-            "Administrator harus memasukkan subject ini ke tabel [auth_roles] "
+            "Administrator harus memasukkan principal identifier ini ke tabel [auth_roles] "
             "di Streamlit Secrets dengan role yang disetujui."
         )
     if st.button("Logout"):
