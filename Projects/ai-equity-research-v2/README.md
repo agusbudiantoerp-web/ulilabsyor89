@@ -29,7 +29,7 @@ See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for metho
 The existing five menus also include these extensions:
 
 - **Daily Stock Signal:** market-regime classification for the IDX Composite (^JKSE) or SPY, relative strength of a selected stock versus its market benchmark over matched sessions, and OHLCV/fundamental data-quality checks. Negative valuation multiples are flagged for interpretation rather than automatically treated as invalid; quote/reporting-currency mismatches are surfaced.
-- **Portfolio & Risk Management:** named portfolio books can be saved and reloaded. PostgreSQL is used when the configured cloud database is available; otherwise a local SQLite portfolio database is used. Duplicate ticker rows are consolidated using share-weighted average cost.
+- **Portfolio & Risk Management:** named portfolio books are saved in local SQLite and scoped to the authenticated OIDC issuer/subject. Duplicate ticker rows are consolidated using share-weighted average cost. Portfolio books are not yet stored in shared PostgreSQL; local SQLite is not encrypted and may be ephemeral on hosted instances. Pre-migration books are quarantined as `legacy-unassigned` until an administrator explicitly reassigns ownership.
 - **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps.
 - **Performance & Learning:** export a research pack to Excel and a concise PDF summary.
 
