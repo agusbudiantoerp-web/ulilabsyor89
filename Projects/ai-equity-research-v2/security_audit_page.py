@@ -9,7 +9,7 @@ import streamlit as st
 from daily_signal_storage import backend_name as signal_backend_name
 from portfolio_store import backend_name as portfolio_backend_name
 from research_run_store import backend_name as research_backend_name
-from database_health import check_postgres_health
+from database_health import check_postgres_health, initialize_required_postgres_schema
 from security_controls import (
     list_audit_events,
     normalize_role,
@@ -97,6 +97,30 @@ def render_security_audit(identity: dict, secrets) -> None:
         "Indikator backend di atas membaca konfigurasi. Gunakan pemeriksaan berikut untuk "
         "menguji koneksi PostgreSQL, tabel wajib, dan hak akses tanpa menulis data."
     )
+    st.caption("Jika database baru dibuat, administrator dapat menjalankan migrasi skema idempoten terlebih dahulu.")
+    confirm_schema = st.checkbox(
+        "Saya menyetujui pembuatan/migrasi tabel aplikasi pada PostgreSQL yang dikonfigurasi.",
+        key="confirm_postgres_schema_initialize",
+    )
+    if st.button(
+        "Siapkan skema PostgreSQL",
+        key="initialize_postgres_schema",
+        disabled=not confirm_schema,
+    ):
+        try:
+            prepared = initialize_required_postgres_schema(
+                secrets, actor_id=actor_id, actor_role=actor_role
+            )
+            if prepared.get("ok"):
+                st.success("Skema PostgreSQL berhasil disiapkan dan pemeriksaan dasar lulus.")
+            else:
+                st.warning("Skema telah diproses, tetapi masih ada tabel atau hak akses yang perlu diperiksa.")
+                if prepared.get("missing_tables"):
+                    st.write("Tabel belum tersedia:", ", ".join(prepared["missing_tables"]))
+                if prepared.get("privilege_issues"):
+                    st.dataframe(pd.DataFrame(prepared["privilege_issues"]), use_container_width=True, hide_index=True)
+        except Exception as exc:
+            st.error(f"Inisialisasi skema gagal: {type(exc).__name__}. Detail koneksi disembunyikan.")
     if st.button("Uji koneksi, skema & hak akses PostgreSQL", key="database_health_check"):
         health = check_postgres_health(secrets)
         if health.get("connected") and health.get("ok"):
