@@ -46,6 +46,10 @@ def optimize_portfolio(
     frame["Market Value"] = pd.to_numeric(frame["Market Value"], errors="coerce")
     if frame["Market Value"].isna().any() or not np.isfinite(frame["Market Value"]).all():
         raise ValueError("Market Value harus finite.")
+    if (frame["Market Value"] < 0).any():
+        raise ValueError("Market Value tidak boleh negatif.")
+    if (frame["Ticker"] == "").any() or (frame["Currency"] == "").any():
+        raise ValueError("Ticker dan Currency wajib diisi.")
     frame = frame[frame["Market Value"] > 0].copy()
     if frame.empty:
         raise ValueError("Tidak ada posisi bernilai positif.")
