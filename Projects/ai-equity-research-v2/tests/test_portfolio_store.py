@@ -18,7 +18,7 @@ def test_portfolio_book_round_trip_and_weighted_average_cost(tmp_path):
     assert bbca["Shares"] == 400
     assert bbca["Average Cost"] == 9750
     assert delete_book("book-1", path=db_path, owner_id="local")
-    assert list_books(path=db_path) == []
+    assert list_books(path=db_path, owner_id="local") == []
 
 
 
