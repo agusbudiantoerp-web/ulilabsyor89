@@ -67,7 +67,7 @@ Do not configure both provider blocks at the same time in this release: the logi
 
 1. Save the provider settings and restart/reload the Streamlit app.
 2. Sign in with the intended account.
-3. If the account has no role yet, the app denies dashboard access and displays that account's immutable `sub` claim.
+3. If the account has no role yet, the app denies dashboard access and displays that account's exact `iss|sub` principal identifier.
 4. As the administrator, copy the exact `iss|sub` principal identifier shown by the app into `[auth_roles]` in Streamlit Secrets and assign an approved role.
 5. Repeat for each authorized user. Never assign a role based only on a display name or email address. The mapping key combines the exact OIDC issuer (`iss`) and subject (`sub`) so identical subject strings from different providers cannot inherit each other's roles.
 
