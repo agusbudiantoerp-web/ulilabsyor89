@@ -109,7 +109,8 @@ def render_security_audit(identity: dict, secrets) -> None:
     ):
         try:
             prepared = initialize_required_postgres_schema(
-                secrets, actor_id=actor_id, actor_role=actor_role
+                secrets, actor_id=actor_id, actor_role=actor_role,
+                audit_path=audit_path_value,
             )
             if prepared.get("ok"):
                 st.success("Skema PostgreSQL berhasil disiapkan dan pemeriksaan dasar lulus.")
