@@ -496,12 +496,20 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             portfolio=st.session_state.get("portfolio_report_frame"),
             metrics=metrics, history=frame, extra_sheets=extra_sheets,
         ), file_name="ai_equity_research_pack.xlsx",
-           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+           on_click=lambda: _audit_event_safely(
+               owner_id, "REPORT_EXPORT", "research_report", "excel",
+               details={"format": "xlsx"},
+           ))
         c2.download_button("Unduh Ringkasan PDF", build_pdf_report(
             "AI Equity Research — Performance Summary", metrics,
             notes=["Forward outcomes are observations, not forecasts.",
                    "Yahoo Finance data may be incomplete or revised.",
                    "No broker execution is performed."],
-        ), file_name="ai_equity_research_summary.pdf", mime="application/pdf")
+        ), file_name="ai_equity_research_summary.pdf", mime="application/pdf",
+           on_click=lambda: _audit_event_safely(
+               owner_id, "REPORT_EXPORT", "research_report", "pdf",
+               details={"format": "pdf"},
+           ))
     else:
         st.info("Ekspor laporan memerlukan role analyst atau lebih tinggi.")
