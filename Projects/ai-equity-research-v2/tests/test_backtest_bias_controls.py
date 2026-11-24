@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+import pytest
 
 from daily_signal_backtest import backtest
 from daily_signal_engine import calculate_indicators
@@ -57,3 +58,18 @@ def test_backtest_exposes_bias_control_status():
     assert "next session open" in controls["signal_execution_timing"]
     assert controls["point_in_time_universe"] is False
     assert controls["survivorship_bias_control"] is False
+
+
+
+def test_backtest_applies_sell_side_tax_as_separate_exit_cost():
+    bars = sample_bars()
+    result = backtest(bars, fee_bps=10, slippage_bps=5, sell_tax_bps=10)
+    costs = result["transaction_costs"]
+    assert costs["entry_cost_pct"] == pytest.approx(0.15)
+    assert costs["exit_cost_pct"] == pytest.approx(0.25)
+    assert result["cost_bps_round_trip"] == pytest.approx(40)
+
+
+def test_backtest_rejects_invalid_sell_side_tax():
+    with pytest.raises(ValueError, match="sell tax"):
+        backtest(sample_bars(), sell_tax_bps=-1)
