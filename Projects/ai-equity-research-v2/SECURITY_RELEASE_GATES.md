@@ -9,7 +9,8 @@
 - Login/logout audit events are recorded once per session when the local audit store is available; audit write failure blocks dashboard access.
 - `security_controls.py` provides a SQLite hash-linked audit event log, serialized append operations, and a chain-verification routine.
 - Audit payloads reject credential-like keys recursively, including common nested and naming variants.
-- Portfolio books remain local SQLite by design; no shared cloud portfolio store is enabled.
+- Portfolio books are scoped by the authenticated issuer-bound OIDC principal in SQLite. Existing pre-migration books are assigned `legacy-unassigned` and are hidden from authenticated users until an administrator explicitly migrates ownership.
+- The portfolio database remains local SQLite and is not encrypted or suitable for shared multi-instance deployment.
 - Performance/learning history can use PostgreSQL, but this database is not a substitute for tenant authorization.
 
 ## Important release status
@@ -23,7 +24,7 @@ The application does not yet enforce tenant ownership on every portfolio/databas
 1. Configure exactly one trusted OIDC provider in Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
 2. Map issuer-bound immutable provider subject IDs to server-managed roles; deny access if identity or role is missing.
 3. Enforce authorization server-side on every portfolio read/write/delete, report export, model configuration change, user administration action, and audit-log access; current page-level checks are not sufficient.
-4. Add tenant/user ownership keys to portfolio and private data tables; migrate existing local books with an explicit owner.
+4. Extend tenant/user ownership keys to all private data tables and migrate legacy portfolio books with an explicit owner. Current portfolio-book owner scoping is only a first step.
 5. Use managed PostgreSQL with least-privilege credentials, TLS, connection limits, backups, and tested point-in-time recovery.
 6. Export audit events to access-controlled append-only or WORM storage. The local hash chain is tamper-evident, not immutable against an administrator who can rewrite the database.
 7. Redact secrets and personal data from logs; rotate credentials and document incident response.
