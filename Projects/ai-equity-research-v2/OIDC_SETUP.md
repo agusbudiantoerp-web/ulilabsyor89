@@ -86,7 +86,7 @@ The current UI page gate is enforced server-side. Sensitive operations inside in
 
 - OIDC login and subject-to-role mapping do not by themselves provide tenant isolation.
 - Audit events currently use a local SQLite file unless `audit_db_path` is configured. Hosted local storage may be ephemeral.
-- Portfolio books and other private records are not yet tenant-scoped.
+- Portfolio books are scoped by the issuer-bound `iss|sub` principal in local SQLite. Other private records and shared learning/performance history are not yet fully tenant-scoped.
 - Every export, write, delete, model-configuration action, and audit viewer must be individually permission-checked before production release.
 - Use managed PostgreSQL, immutable/append-only central audit storage, backup restoration tests, and security testing before inviting multiple users.
 - Keep `client_secret`, `cookie_secret`, database URLs and API tokens only in Streamlit Secrets or a private local secrets file.
