@@ -12,11 +12,20 @@ def build_excel_report(
     history: pd.DataFrame | None = None,
 ) -> bytes:
     output = BytesIO()
+
+    def excel_safe(frame: pd.DataFrame) -> pd.DataFrame:
+        safe = frame.copy()
+        for column in safe.columns:
+            safe[column] = safe[column].map(
+                lambda value: str(value) if isinstance(value, (dict, list, tuple, set)) else value
+            )
+        return safe
+
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         if portfolio is not None and not portfolio.empty:
-            portfolio.to_excel(writer, sheet_name="Portfolio", index=False)
+            excel_safe(portfolio).to_excel(writer, sheet_name="Portfolio", index=False)
         if history is not None and not history.empty:
-            history.to_excel(writer, sheet_name="Signal History", index=False)
+            excel_safe(history).to_excel(writer, sheet_name="Signal History", index=False)
         metric_rows = [{"Metric": key, "Value": value} for key, value in (metrics or {}).items()
                        if isinstance(value, (str, int, float, bool)) or value is None]
         pd.DataFrame(metric_rows or [{"Metric": "Status", "Value": "No summary metrics supplied"}]).to_excel(
