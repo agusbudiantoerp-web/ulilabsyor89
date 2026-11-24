@@ -48,7 +48,10 @@ def run_multi_asset_backtest(
     if not closes:
         raise ValueError("Tidak ada instrumen dengan histori memadai.")
     close_frame = pd.concat(closes.values(), axis=1).sort_index()
-    daily_returns = close_frame.pct_change(fill_method=None).replace([float("inf"), -float("inf")], float("nan")).fillna(0.0)
+    # Calculate returns on each asset's own trading calendar before aligning markets.
+    return_series = [series.pct_change(fill_method=None).rename(symbol) for symbol, series in closes.items()]
+    daily_returns = pd.concat(return_series, axis=1).reindex(close_frame.index)
+    daily_returns = daily_returns.replace([float("inf"), -float("inf")], float("nan")).fillna(0.0)
     signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).fillna(0.0)
     # Shift by one full bar: information from day t can only earn day t+1 return.
     active = signal_frame.shift(1).fillna(0.0)
