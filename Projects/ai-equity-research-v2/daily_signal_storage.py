@@ -62,7 +62,7 @@ def initialize(db_path: str | None = None):
         statements = [
             """CREATE TABLE IF NOT EXISTS scans (
                 id BIGSERIAL PRIMARY KEY, created_at TEXT NOT NULL,
-                scanned INTEGER, failed INTEGER, payload JSONB NOT NULL
+                scanned INTEGER, failed INTEGER, owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', payload JSONB NOT NULL
             )""",
             """CREATE TABLE IF NOT EXISTS signals (
                 id BIGSERIAL PRIMARY KEY,
@@ -70,7 +70,7 @@ def initialize(db_path: str | None = None):
                 market TEXT, ticker TEXT, bar_date TEXT, signal TEXT, score INTEGER,
                 close DOUBLE PRECISION, entry_low DOUBLE PRECISION, entry_high DOUBLE PRECISION,
                 stop_loss DOUBLE PRECISION, target DOUBLE PRECISION, reward_risk DOUBLE PRECISION,
-                payload JSONB NOT NULL, UNIQUE(market,ticker,bar_date)
+                owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', payload JSONB NOT NULL
             )""",
             """CREATE TABLE IF NOT EXISTS outcomes (
                 id BIGSERIAL PRIMARY KEY,
@@ -85,6 +85,23 @@ def initialize(db_path: str | None = None):
             with db.cursor() as cur:
                 for statement in statements:
                     cur.execute(statement)
+                cur.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'")
+                cur.execute("ALTER TABLE signals ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_scans_owner_id ON scans(owner_id,id DESC)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_signals_owner_date ON signals(owner_id,bar_date DESC)")
+                cur.execute("ALTER TABLE signals DROP CONSTRAINT IF EXISTS signals_market_ticker_bar_date_key")
+                cur.execute("""
+                    DO $
+                    BEGIN
+                      IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conrelid='signals'::regclass
+                          AND conname='signals_owner_market_ticker_bar_date_key'
+                      ) THEN
+                        ALTER TABLE signals ADD CONSTRAINT signals_owner_market_ticker_bar_date_key
+                          UNIQUE(owner_id,market,ticker,bar_date);
+                      END IF;
+                    END $;
+                """)
                 # Migrate the old constraint once; avoid DDL on every dashboard read.
                 cur.execute("""
                     SELECT pg_get_constraintdef(oid) AS definition
@@ -110,14 +127,14 @@ def initialize(db_path: str | None = None):
         db.executescript("""
         CREATE TABLE IF NOT EXISTS scans(
             id INTEGER PRIMARY KEY, created_at TEXT NOT NULL,
-            scanned INTEGER, failed INTEGER, payload TEXT NOT NULL
+            scanned INTEGER, failed INTEGER, owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', payload TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS signals(
             id INTEGER PRIMARY KEY, scan_id INTEGER NOT NULL,
             market TEXT, ticker TEXT, bar_date TEXT, signal TEXT, score INTEGER,
             close REAL, entry_low REAL, entry_high REAL, stop_loss REAL,
-            target REAL, reward_risk REAL, payload TEXT NOT NULL,
-            UNIQUE(market,ticker,bar_date)
+            target REAL, reward_risk REAL, owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', payload TEXT NOT NULL,
+            UNIQUE(owner_id,market,ticker,bar_date)
         );
         CREATE TABLE IF NOT EXISTS outcomes(
             id INTEGER PRIMARY KEY, signal_id INTEGER NOT NULL, horizon INTEGER NOT NULL,
@@ -126,6 +143,32 @@ def initialize(db_path: str | None = None):
         CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(bar_date DESC);
         CREATE INDEX IF NOT EXISTS idx_outcomes_horizon ON outcomes(horizon);
         """)
+        scan_columns = {row["name"] for row in db.execute("PRAGMA table_info(scans)").fetchall()}
+        if "owner_id" not in scan_columns:
+            db.execute("ALTER TABLE scans ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'")
+        signal_columns = {row["name"] for row in db.execute("PRAGMA table_info(signals)").fetchall()}
+        if "owner_id" not in signal_columns:
+            db.execute("ALTER TABLE signals RENAME TO signals_legacy")
+            db.execute("""
+                CREATE TABLE signals(
+                    id INTEGER PRIMARY KEY, scan_id INTEGER NOT NULL,
+                    market TEXT, ticker TEXT, bar_date TEXT, signal TEXT, score INTEGER,
+                    close REAL, entry_low REAL, entry_high REAL, stop_loss REAL,
+                    target REAL, reward_risk REAL,
+                    owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', payload TEXT NOT NULL,
+                    UNIQUE(owner_id,market,ticker,bar_date)
+                )
+            """)
+            db.execute("""
+                INSERT INTO signals(id,scan_id,market,ticker,bar_date,signal,score,close,
+                    entry_low,entry_high,stop_loss,target,reward_risk,owner_id,payload)
+                SELECT id,scan_id,market,ticker,bar_date,signal,score,close,
+                    entry_low,entry_high,stop_loss,target,reward_risk,'legacy-unassigned',payload
+                FROM signals_legacy
+            """)
+            db.execute("DROP TABLE signals_legacy")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_scans_owner_id ON scans(owner_id,id DESC)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_signals_owner_date ON signals(owner_id,bar_date DESC)")
 
 
 def save_scan(scan: dict, db_path: str | None = None) -> int:
