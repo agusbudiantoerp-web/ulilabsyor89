@@ -10,6 +10,7 @@ from daily_signal_storage import backend_name as signal_backend_name
 from portfolio_store import backend_name as portfolio_backend_name
 from research_run_store import backend_name as research_backend_name
 from database_health import check_postgres_health, initialize_required_postgres_schema
+from report_export_utils import safe_csv_bytes
 from security_controls import (
     list_audit_events,
     normalize_role,
@@ -207,7 +208,7 @@ def render_security_audit(identity: dict, secrets) -> None:
         st.dataframe(filtered, use_container_width=True, hide_index=True)
         st.download_button(
             "Unduh audit log CSV",
-            filtered.to_csv(index=False).encode("utf-8-sig"),
+            safe_csv_bytes(filtered),
             file_name="ai_equity_research_audit_log.csv",
             mime="text/csv",
             on_click=lambda: record_audit_event(
