@@ -264,10 +264,14 @@ def verify_audit_chain(path: str | None = None) -> dict:
 
 def list_audit_events(limit: int = 100, path: str | None = None) -> list[dict]:
     bounded = max(1, min(int(limit), 1000))
-    with _connect(path) as db:
-        rows = db.execute(
-            "SELECT id, occurred_at, actor_id, actor_role, action, resource_type, "
-            "resource_id, details_json, previous_hash, event_hash "
-            "FROM audit_events ORDER BY id DESC LIMIT ?", (bounded,)
-        ).fetchall()
+    query = (
+        "SELECT id, occurred_at, actor_id, actor_role, action, resource_type, "
+        "resource_id, details_json, previous_hash, event_hash "
+        "FROM audit_events ORDER BY id DESC LIMIT "
+    )
+    if path is None and _database_url():
+        with _connect_postgres() as db:
+            return [dict(row) for row in db.execute(query + "%s", (bounded,)).fetchall()]
+    with _connect_sqlite(path) as db:
+        rows = db.execute(query + "?", (bounded,)).fetchall()
     return [dict(row) for row in rows]
