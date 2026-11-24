@@ -74,7 +74,8 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
         tail = portfolio_returns[portfolio_returns <= portfolio_returns.quantile(0.05)] if len(portfolio_returns) > 1 else pd.Series(dtype=float)
         es95 = max(0.0, float(-tail.mean() * 100)) if not tail.empty else None
         compounded = (1 + portfolio_returns).cumprod()
-        drawdown = float((compounded / compounded.cummax() - 1).min() * 100) if len(portfolio_returns) else None
+        running_peak = compounded.cummax().clip(lower=1.0)
+        drawdown = float((compounded / running_peak - 1).min() * 100) if len(portfolio_returns) else None
         currency_groups[currency] = portfolio_returns
         correlations[currency] = aligned.corr().round(3)
         risk_rows.append({
