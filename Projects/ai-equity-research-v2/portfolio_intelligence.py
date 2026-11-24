@@ -29,8 +29,12 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
     if frame.empty:
         raise ValueError("Tidak ada posisi dengan nilai pasar positif.")
 
-    currency_exposure = frame.groupby("Currency")["Market Value"].sum().to_dict()
-    market_exposure = frame.groupby("Market")["Market Value"].sum().to_dict()
+    currency_totals = frame.groupby("Currency")["Market Value"].sum()
+    market_totals = frame.groupby("Market")["Market Value"].sum()
+    if not currency_totals.map(math.isfinite).all() or not market_totals.map(math.isfinite).all():
+        raise ValueError("Agregasi exposure melampaui rentang numerik yang didukung.")
+    currency_exposure = currency_totals.to_dict()
+    market_exposure = market_totals.to_dict()
     frame["Weight within currency %"] = (
         frame["Market Value"] / frame.groupby("Currency")["Market Value"].transform("sum") * 100
     )
@@ -127,13 +131,17 @@ def scenario_analysis(positions: pd.DataFrame, shocks: dict[str, float]) -> pd.D
             raise ValueError("Market Value skenario harus finite dan tidak negatif.")
         if not math.isfinite(shock) or shock < -100:
             raise ValueError("Shock saham harus finite dan tidak boleh di bawah -100%.")
+        pnl = market_value * shock / 100
+        scenario_value = market_value + pnl
+        if not math.isfinite(pnl) or not math.isfinite(scenario_value):
+            raise ValueError("Hasil skenario saham melampaui rentang numerik yang didukung.")
         rows.append({
             "Ticker": ticker,
             "Currency": item.get("Currency"),
             "Market Value": market_value,
             "Shock %": shock,
-            "Estimated P/L": market_value * shock / 100,
-            "Scenario Value": market_value * (1 + shock / 100),
+            "Estimated P/L": pnl,
+            "Scenario Value": scenario_value,
         })
     return pd.DataFrame(rows)
 
@@ -165,6 +173,10 @@ def fx_scenario_analysis(positions: pd.DataFrame, usd_idr: float, fx_shock_pct: 
     scenario_usd_idr = usd_value * scenario_rate
     current_total = idr_value + current_usd_idr
     scenario_total = idr_value + scenario_usd_idr
+    if not all(math.isfinite(value) for value in (
+        current_usd_idr, scenario_rate, scenario_usd_idr, current_total, scenario_total
+    )):
+        raise ValueError("Hasil translasi FX melampaui rentang numerik yang didukung.")
     return {
         "base_currency": "IDR",
         "usd_idr_spot": float(usd_idr),
