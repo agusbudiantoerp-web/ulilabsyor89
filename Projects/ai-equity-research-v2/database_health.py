@@ -11,7 +11,7 @@ REQUIRED_TABLES = {
     "signals": ("SELECT", "INSERT"),
     "outcomes": ("SELECT", "INSERT", "UPDATE"),
     "portfolio_books": ("SELECT", "INSERT", "UPDATE", "DELETE"),
-    "portfolio_positions": ("SELECT", "INSERT", "UPDATE", "DELETE"),
+    "portfolio_positions": ("SELECT", "INSERT", "DELETE"),
     "research_runs": ("SELECT", "INSERT", "DELETE"),
     "audit_events": ("SELECT", "INSERT"),
     "audit_chain_lock": ("SELECT", "INSERT", "UPDATE"),
