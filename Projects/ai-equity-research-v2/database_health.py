@@ -36,8 +36,20 @@ def _resolve_database_url(secrets: Any = None) -> str | None:
         return None
 
 
+def _required_tables(secrets: Any = None) -> dict[str, tuple[str, ...]]:
+    tables = dict(REQUIRED_TABLES)
+    try:
+        if secrets is not None and secrets.get("audit_db_path"):
+            tables.pop("audit_events", None)
+            tables.pop("audit_chain_lock", None)
+    except Exception:
+        pass
+    return tables
+
+
 def check_postgres_health(secrets: Any = None) -> dict:
     """Check connectivity, required tables and privileges without mutating data."""
+    required_tables = _required_tables(secrets)
     url = _resolve_database_url(secrets)
     if not url:
         return {
@@ -45,7 +57,7 @@ def check_postgres_health(secrets: Any = None) -> dict:
             "connected": False,
             "ok": False,
             "message": "DATABASE_URL belum dikonfigurasi.",
-            "missing_tables": sorted(REQUIRED_TABLES),
+            "missing_tables": sorted(required_tables),
             "privilege_issues": [],
             "latency_ms": None,
         }
@@ -63,12 +75,12 @@ def check_postgres_health(secrets: Any = None) -> dict:
                 cursor.execute(
                     "SELECT table_name FROM information_schema.tables "
                     "WHERE table_schema = current_schema() AND table_name = ANY(%s)",
-                    (list(REQUIRED_TABLES),),
+                    (list(required_tables),),
                 )
                 existing = {row[0] for row in cursor.fetchall()}
 
                 privilege_issues = []
-                for table, privileges in REQUIRED_TABLES.items():
+                for table, privileges in required_tables.items():
                     if table not in existing:
                         continue
                     qualified = f"{schema}.{table}"
@@ -83,7 +95,7 @@ def check_postgres_health(secrets: Any = None) -> dict:
                                 "privilege": privilege,
                             })
 
-        missing = sorted(set(REQUIRED_TABLES) - existing)
+        missing = sorted(set(required_tables) - existing)
         elapsed = round((time.perf_counter() - started) * 1000, 1)
         return {
             "configured": True,
@@ -107,7 +119,7 @@ def check_postgres_health(secrets: Any = None) -> dict:
             "connected": False,
             "ok": False,
             "message": f"Koneksi PostgreSQL gagal: {type(exc).__name__}. Detail koneksi disembunyikan.",
-            "missing_tables": sorted(REQUIRED_TABLES),
+            "missing_tables": sorted(required_tables),
             "privilege_issues": [],
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
@@ -135,7 +147,7 @@ def initialize_required_postgres_schema(
         actor_role,
         "DATABASE_SCHEMA_INITIALIZE",
         "database_schema",
-        details={"tables": sorted(REQUIRED_TABLES)},
+        details={"tables": sorted(_required_tables(secrets))},
         path=audit_path,
     )
     return check_postgres_health(secrets)
