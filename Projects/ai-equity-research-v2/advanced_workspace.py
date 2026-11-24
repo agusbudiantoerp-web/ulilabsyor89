@@ -50,7 +50,8 @@ def render_market_intelligence() -> None:
                                 "priceToBook": info.get("priceToBook"), "returnOnEquity": info.get("returnOnEquity"),
                                 "returnOnAssets": info.get("returnOnAssets"), "debtToEquity": info.get("debtToEquity"),
                                 "revenueGrowth": info.get("revenueGrowth"), "earningsGrowth": info.get("earningsGrowth"),
-                                "marketCap": info.get("marketCap"), "currency": info.get("currency"),\n                                "financialCurrency": info.get("financialCurrency"),
+                                "marketCap": info.get("marketCap"), "currency": info.get("currency"),
+                                "financialCurrency": info.get("financialCurrency"),
                             }
                     except Exception as exc:
                         fundamentals = {"provider_error": f"{type(exc).__name__}: {exc}"}
