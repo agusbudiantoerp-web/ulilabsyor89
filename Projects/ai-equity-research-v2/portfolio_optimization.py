@@ -66,6 +66,8 @@ def optimize_portfolio(
         raise ValueError("simulations harus antara 1.000 dan 200.000.")
 
     values = frame.groupby("Ticker")["Market Value"].sum()
+    if not np.isfinite(values.to_numpy(dtype=float)).all() or not math.isfinite(float(values.sum())):
+        raise ValueError("Agregasi market value optimizer melampaui rentang numerik.")
     tickers = values.index.tolist()
     if len(tickers) < 2:
         raise ValueError("Optimizer memerlukan minimal dua aset.")
