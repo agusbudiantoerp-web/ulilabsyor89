@@ -75,7 +75,7 @@ Supported roles:
 
 | Role | Access |
 |---|---|
-| `viewer` | No application page until shared performance history is tenant-scoped; reserved for future read-only views |
+| `viewer` | Read-only, owner-scoped Performance Dashboard |
 | `analyst` | Equity research, daily signals, backtesting |
 | `portfolio_manager` | Analyst access plus portfolio and risk management |
 | `admin` | All application pages, including shared performance history, and administrative permission primitives |
