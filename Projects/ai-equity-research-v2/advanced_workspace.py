@@ -10,7 +10,7 @@ from market_intelligence import (
     classify_market_regime, relative_strength,
 )
 from multi_asset_backtest import run_multi_asset_backtest
-from portfolio_store import list_books, load_book, save_book
+from portfolio_store import delete_book, list_books, load_book, save_book
 from research_reporting import build_excel_report, build_pdf_report
 from security_controls import has_permission, require_permission, record_audit_event
 from research_run_store import delete_run, get_run, list_runs, save_run
@@ -162,6 +162,29 @@ def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None
                 st.rerun()
             except Exception as exc:
                 st.error(f"Gagal menyimpan portfolio: {type(exc).__name__}: {exc}")
+        if selected_label in names:
+            confirm_delete = st.checkbox(
+                "Saya memahami portfolio terpilih akan dihapus permanen.",
+                key="confirm_delete_saved_portfolio",
+            )
+            if st.button(
+                "Hapus portfolio tersimpan",
+                key="delete_saved_portfolio",
+                disabled=not confirm_delete,
+            ):
+                try:
+                    deleted = delete_book(names[selected_label], owner_id=owner_id)
+                    if deleted:
+                        _audit_event_safely(
+                            owner_id, "PORTFOLIO_DELETE", "portfolio_book",
+                            names[selected_label], details={"scope": "owner"},
+                        )
+                        st.success("Portfolio tersimpan berhasil dihapus.")
+                        st.rerun()
+                    else:
+                        st.info("Portfolio tidak ditemukan atau sudah dihapus.")
+                except Exception as exc:
+                    st.error(f"Gagal menghapus portfolio: {type(exc).__name__}: {exc}")
         if books:
             st.dataframe(pd.DataFrame(books), use_container_width=True, hide_index=True)
         else:
