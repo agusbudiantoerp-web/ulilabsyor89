@@ -6,9 +6,25 @@ from reports import make_excel_report, make_pdf_report
 from scenario_ui import render_scenario_analysis
 from dcf_sensitivity import run_dcf_sensitivity
 from historical_ui import render_historical_analysis
+from security_controls import require_permission, record_audit_event
+
+
+def _audit_equity_export(fmt: str, ticker: str) -> None:
+    try:
+        record_audit_event(
+            st.session_state.get("_auth_subject_id", ""),
+            st.session_state.get("_auth_role", ""),
+            "REPORT_EXPORT",
+            "equity_research",
+            ticker,
+            details={"format": fmt},
+        )
+    except Exception as exc:
+        st.warning(f"Laporan berhasil disiapkan, tetapi audit ekspor gagal dicatat: {type(exc).__name__}.")
 
 
 def render_equity_research():
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     
     with st.sidebar:
         st.header("Research settings")
@@ -570,7 +586,8 @@ def render_equity_research():
             make_excel_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result),
             file_name=f"{data['ticker'].replace('.', '_')}_research.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
+            use_container_width=True,
+            on_click=lambda: _audit_equity_export("xlsx", data["ticker"]),
         )
     
         col2.download_button(
@@ -578,7 +595,8 @@ def render_equity_research():
             make_pdf_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result),
             file_name=f"{data['ticker'].replace('.', '_')}_research.pdf",
             mime="application/pdf",
-            use_container_width=True
+            use_container_width=True,
+            on_click=lambda: _audit_equity_export("pdf", data["ticker"]),
         )
     
     else:
