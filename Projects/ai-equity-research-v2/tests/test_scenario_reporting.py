@@ -97,3 +97,13 @@ def test_research_exports_include_scenario_assumptions_catalysts_risks_and_sourc
     assert "Sources & Dates" in workbook.sheetnames
     pdf = make_pdf_report(data, scenario_result=scenario)
     assert pdf.startswith(b"%PDF")
+
+
+def test_scenario_dcf_fails_closed_on_forecast_overflow():
+    financials = _financials()
+    financials["revenue_base"] = 1e308
+    assumptions = _assumptions()
+    assumptions["revenue_growth"] = 0.5
+    result = project_scenario(financials, assumptions, years=5)
+    assert not result["available"]
+    assert "overflow" in result["reason"].lower()
