@@ -67,6 +67,12 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD="1"
 
 The test suite is intended to validate deterministic logic and local SQLite storage. It does not prove live Yahoo Finance availability, Streamlit Cloud deployment, PostgreSQL credentials/network access, or broker execution behavior.
 
+## Authentication and access control
+
+The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access is permission-gated; sensitive operations within pages and tenant-level data isolation still require additional controls before production multi-user use.
+
+See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configuration. Keep provider client secrets and the cookie secret only in Streamlit Secrets.
+
 ## Cloud performance database
 
 Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates the scan, signal and outcome tables on first use. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
