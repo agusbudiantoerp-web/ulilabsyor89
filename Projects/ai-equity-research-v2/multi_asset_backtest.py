@@ -22,7 +22,7 @@ def run_multi_asset_backtest(
         raise ValueError("Modal dan biaya harus valid.")
     if max_positions < 1 or not 0 < max_weight_pct <= 100:
         raise ValueError("Batas posisi/bobot tidak valid.")
-    closes, signals = {}, {}
+    closes, signals, strengths = {}, {}, {}
     rejected = []
     for symbol, bars in bars_by_symbol.items():
         if bars is None or bars.empty or "Close" not in bars:
@@ -43,8 +43,10 @@ def run_multi_asset_backtest(
         rsi = 100 - 100 / (1 + rs)
         rsi.loc[(loss == 0) & (gain > 0)] = 100
         signal = ((close > ema20) & (ema20 > ema50) & (close > ema200) & (rsi >= 50) & (rsi <= 75)).astype(float)
+        strength = (((close / ema200) - 1) + ((ema20 / ema50) - 1)) * 100
         closes[str(symbol)] = close.rename(str(symbol))
         signals[str(symbol)] = signal.rename(str(symbol))
+        strengths[str(symbol)] = strength.where(signal > 0).rename(str(symbol))
     if not closes:
         raise ValueError("Tidak ada instrumen dengan histori memadai.")
     close_frame = pd.concat(closes.values(), axis=1).sort_index()
@@ -53,14 +55,19 @@ def run_multi_asset_backtest(
     daily_returns = pd.concat(return_series, axis=1).reindex(close_frame.index)
     daily_returns = daily_returns.replace([float("inf"), -float("inf")], float("nan")).fillna(0.0)
     signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).fillna(0.0)
-    # Shift by one full bar: information from day t can only earn day t+1 return.
+    strength_frame = pd.concat(strengths.values(), axis=1).reindex(close_frame.index)
+    # Shift signal and ranking score by one full bar to prevent look-ahead.
     active = signal_frame.shift(1).fillna(0.0)
+    active_strength = strength_frame.shift(1)
     weights = pd.DataFrame(0.0, index=active.index, columns=active.columns)
     for date, row in active.iterrows():
-        chosen = row[row > 0].sort_index().index[:max_positions]
-        if len(chosen):
-            weight = min(1.0 / len(chosen), max_weight_pct / 100.0)
-            weights.loc[date, chosen] = weight
+        candidates = row[row > 0].index
+        if len(candidates):
+            ranking = active_strength.loc[date, candidates].dropna().sort_values(ascending=False)
+            chosen = ranking.index[:max_positions]
+            if len(chosen):
+                weight = min(1.0 / len(chosen), max_weight_pct / 100.0)
+                weights.loc[date, chosen] = weight
     turnover = weights.diff().abs().sum(axis=1)
     if len(turnover):
         turnover.iloc[0] = weights.iloc[0].abs().sum()
