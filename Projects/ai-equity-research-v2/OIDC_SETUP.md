@@ -85,7 +85,7 @@ Initially keep the Google OAuth consent screen in Testing and add only approved 
 
 ## 5. Administrator console
 
-The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, recent audit events, CSV export, hash-chain verification, storage routing, a confirmed PostgreSQL schema-preparation action and read-only connectivity/schema/privilege diagnostics. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
+The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, the server-side permission matrix, recent audit events, CSV export, hash-chain verification, storage routing, a confirmed PostgreSQL schema-preparation action and read-only connectivity/schema/privilege diagnostics. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
 
 ## 6. Security and release limitations
 
