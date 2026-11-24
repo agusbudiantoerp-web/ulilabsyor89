@@ -172,7 +172,7 @@ def backtest(
         "total_return_pct": total_return * 100, "cagr_pct": cagr, "sharpe_ratio": sharpe,
         "benchmark_buy_hold_pct": benchmark_return, "risk_per_trade_pct": risk_fraction * 100,
         "max_allocation_pct": max_allocation * 100, "max_holding_sessions": max_holding_sessions,
-        "cost_bps_round_trip": 2 * (fee_bps + slippage_bps), "trades_detail": trades,
+        "cost_bps_round_trip": 2 * (fee_bps + slippage_bps) + sell_tax_bps, "trades_detail": trades,
         "equity_curve": [
             item for item in curve
             if start_ts is None or pd.Timestamp(item["date"]) >= start_ts
