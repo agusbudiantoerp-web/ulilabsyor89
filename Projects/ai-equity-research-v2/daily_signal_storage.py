@@ -6,7 +6,7 @@ import os
 import sqlite3
 import math
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 
 OUTCOME_HORIZONS = (1, 3, 5, 10, 20)
@@ -279,33 +279,50 @@ def get_pending_outcomes(limit: int = 500, db_path: str | None = None):
 
 
 def record_outcome(signal_id: int, horizon: int, observed_date: str, close: float, db_path: str | None = None):
-    if horizon not in OUTCOME_HORIZONS:
+    if isinstance(horizon, bool) or horizon not in OUTCOME_HORIZONS:
         raise ValueError("Horizon hanya 1, 3, 5, 10, atau 20 sesi.")
+    try:
+        observed = date.fromisoformat(str(observed_date))
+        observed_close = float(close)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Tanggal observasi harus ISO YYYY-MM-DD dan harga harus numerik.") from exc
+    if not math.isfinite(observed_close) or observed_close <= 0:
+        raise ValueError("Harga observasi harus finite dan positif.")
     initialize(db_path)
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute("SELECT close FROM signals WHERE id=%s", (signal_id,))
+                cur.execute("SELECT close,bar_date FROM signals WHERE id=%s", (signal_id,))
                 row = cur.fetchone()
-                if not row or not row["close"]:
+                if not row or row["close"] is None:
                     raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
-                ret = (float(close) / float(row["close"]) - 1) * 100
+                initial_close = float(row["close"])
+                if not math.isfinite(initial_close) or initial_close <= 0:
+                    raise ValueError("Harga awal signal harus finite dan positif.")
+                if observed <= date.fromisoformat(str(row["bar_date"])[:10]):
+                    raise ValueError("Tanggal observasi harus setelah tanggal signal.")
+                ret = (observed_close / initial_close - 1) * 100
                 cur.execute("""
                     INSERT INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
                     VALUES(%s,%s,%s,%s,%s)
                     ON CONFLICT(signal_id,horizon) DO UPDATE SET
                     observed_date=EXCLUDED.observed_date,close=EXCLUDED.close,return_pct=EXCLUDED.return_pct
-                """, (signal_id, horizon, observed_date, float(close), ret))
+                """, (signal_id, horizon, observed.isoformat(), observed_close, ret))
         return ret
     with _connect_sqlite(db_path) as db:
-        row = db.execute("SELECT close FROM signals WHERE id=?", (signal_id,)).fetchone()
-        if not row or not row["close"]:
+        row = db.execute("SELECT close,bar_date FROM signals WHERE id=?", (signal_id,)).fetchone()
+        if not row or row["close"] is None:
             raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
-        ret = (float(close) / float(row["close"]) - 1) * 100
+        initial_close = float(row["close"])
+        if not math.isfinite(initial_close) or initial_close <= 0:
+            raise ValueError("Harga awal signal harus finite dan positif.")
+        if observed <= date.fromisoformat(str(row["bar_date"])[:10]):
+            raise ValueError("Tanggal observasi harus setelah tanggal signal.")
+        ret = (observed_close / initial_close - 1) * 100
         db.execute("""
             INSERT OR REPLACE INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
             VALUES(?,?,?,?,?)
-        """, (signal_id, horizon, observed_date, float(close), ret))
+        """, (signal_id, horizon, observed.isoformat(), observed_close, ret))
         return ret
 
 
