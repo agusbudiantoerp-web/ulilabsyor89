@@ -3,6 +3,7 @@ import streamlit as st
 from auth import audit_login_once, get_claim, logout, oidc_is_configured, oidc_provider_name, resolve_streamlit_identity
 from equity_research_page import render_equity_research
 from security_controls import require_permission
+from security_audit_page import render_security_audit
 from unified_dashboard_pages import (
     render_daily_signal,
     render_portfolio_risk,
@@ -75,6 +76,7 @@ PAGES = {
     "3. Portfolio & Risk Management": (render_portfolio_risk, "manage_portfolio"),
     "4. Backtesting": (render_backtesting, "run_analysis"),
     "5. Performance Dashboard": (render_performance_dashboard, "view_dashboard"),
+    "6. Security & Audit (Admin)": (lambda: render_security_audit(identity, st.secrets), "view_audit"),
 }
 
 with st.sidebar:
