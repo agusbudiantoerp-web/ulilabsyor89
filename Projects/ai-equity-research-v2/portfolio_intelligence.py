@@ -42,7 +42,7 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
         if not available_tickers:
             risk_rows.append({
                 "Currency": currency, "Annualized volatility %": None,
-                "Historical VaR 95% 1d %": None, "Max drawdown %": None,
+                "Historical VaR 95% 1d %": None, "Historical ES 95% 1d %": None, "Max drawdown %": None,
                 "Observations": 0, "Market value coverage %": 0.0,
                 "Positions with data": 0, "Total positions": int(len(ticker_values)),
                 "Coverage status": "No price-return data",
@@ -51,21 +51,35 @@ def analyze_portfolio(positions: pd.DataFrame, returns: dict[str, pd.Series]) ->
         daily = pd.concat(
             [returns[ticker].rename(ticker) for ticker in available_tickers],
             axis=1,
-        ).sort_index().dropna(how="all")
+        ).sort_index()
+        daily = daily.replace([float("inf"), -float("inf")], float("nan")).dropna(how="any")
         columns = [column for column in daily.columns if column in ticker_values.index]
+        if daily.empty or not columns:
+            risk_rows.append({
+                "Currency": currency, "Annualized volatility %": None,
+                "Historical VaR 95% 1d %": None, "Historical ES 95% 1d %": None,
+                "Max drawdown %": None, "Observations": 0,
+                "Market value coverage %": round(coverage_pct, 1),
+                "Positions with data": len(available_tickers),
+                "Total positions": int(len(ticker_values)),
+                "Coverage status": "No overlapping complete return dates",
+            })
+            continue
         weights = ticker_values.reindex(columns).fillna(0)
         weights = weights / weights.sum() if weights.sum() else weights
-        aligned = daily[columns].fillna(0)
+        aligned = daily[columns]
         portfolio_returns = aligned.mul(weights, axis=1).sum(axis=1)
         vol = float(portfolio_returns.std(ddof=1) * math.sqrt(252) * 100) if len(portfolio_returns) > 1 else None
         var95 = float(-portfolio_returns.quantile(0.05) * 100) if len(portfolio_returns) > 1 else None
+        tail = portfolio_returns[portfolio_returns <= portfolio_returns.quantile(0.05)] if len(portfolio_returns) > 1 else pd.Series(dtype=float)
+        es95 = float(-tail.mean() * 100) if not tail.empty else None
         compounded = (1 + portfolio_returns).cumprod()
         drawdown = float((compounded / compounded.cummax() - 1).min() * 100) if len(portfolio_returns) else None
         currency_groups[currency] = portfolio_returns
         correlations[currency] = aligned.corr().round(3)
         risk_rows.append({
             "Currency": currency, "Annualized volatility %": vol,
-            "Historical VaR 95% 1d %": var95, "Max drawdown %": drawdown,
+            "Historical VaR 95% 1d %": var95, "Historical ES 95% 1d %": es95, "Max drawdown %": drawdown,
             "Observations": len(portfolio_returns),
             "Market value coverage %": round(coverage_pct, 1),
             "Positions with data": len(available_tickers),
