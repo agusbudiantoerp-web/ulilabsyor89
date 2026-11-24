@@ -29,7 +29,7 @@ See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for metho
 The existing five menus also include these extensions:
 
 - **Daily Stock Signal:** market-regime classification for the IDX Composite (^JKSE) or SPY, relative strength of a selected stock versus its market benchmark over matched sessions, and OHLCV/fundamental data-quality checks. Negative valuation multiples are flagged for interpretation rather than automatically treated as invalid; quote/reporting-currency mismatches are surfaced.
-- **Portfolio & Risk Management:** named portfolio books are saved in local SQLite and scoped to the authenticated OIDC issuer/subject. Duplicate ticker rows are consolidated using share-weighted average cost. Portfolio books are not yet stored in shared PostgreSQL; local SQLite is not encrypted and may be ephemeral on hosted instances. Pre-migration books are quarantined as `legacy-unassigned` until an administrator explicitly reassigns ownership.
+- **Portfolio & Risk Management:** named portfolio books are scoped to the authenticated OIDC issuer/subject and use PostgreSQL when `DATABASE_URL` is configured; local SQLite is the fallback. Duplicate ticker rows are consolidated using share-weighted average cost. Legacy local books are quarantined as `legacy-unassigned` and are not automatically uploaded to PostgreSQL.
 - **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps.
 - **Performance & Learning:** export a research pack to Excel and a concise PDF summary.
 
@@ -69,7 +69,7 @@ A GitHub Actions workflow also runs compile checks and the complete test suite o
 
 ## Authentication and access control
 
-The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and the portfolio/learning databases are owner-scoped and permission-gated. Remaining private data sources, operation-level reviews, managed storage, and deployment configuration must still pass the release gates before production multi-user use.
+The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. Audit storage, remaining private data sources, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
 
 See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configuration. Keep provider client secrets and the cookie secret only in Streamlit Secrets.
 
