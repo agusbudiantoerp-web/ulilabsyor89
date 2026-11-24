@@ -72,6 +72,24 @@ def _canonical_event(event: dict[str, Any]) -> str:
     return json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
 
 
+def _contains_secret_key(value: Any) -> bool:
+    """Reject credential-like keys recursively, including common naming variants."""
+    forbidden_fragments = (
+        "password", "token", "secret", "apikey", "databaseurl",
+        "authorization", "privatekey", "clientsecret",
+    )
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = "".join(ch for ch in str(key).lower() if ch.isalnum())
+            if any(fragment in normalized for fragment in forbidden_fragments):
+                return True
+            if _contains_secret_key(child):
+                return True
+    elif isinstance(value, (list, tuple)):
+        return any(_contains_secret_key(item) for item in value)
+    return False
+
+
 def record_audit_event(
     actor_id: str,
     actor_role: str,
@@ -91,12 +109,13 @@ def record_audit_event(
     payload = details or {}
     if not isinstance(payload, dict):
         raise ValueError("details harus berupa dictionary.")
-    # Do not store likely credentials/secrets in audit payloads.
-    forbidden = {"password", "token", "secret", "api_key", "database_url", "authorization"}
-    if forbidden.intersection(str(key).lower() for key in payload):
+    # Do not store likely credentials/secrets in audit payloads, including nested values.
+    if _contains_secret_key(payload):
         raise ValueError("Audit details tidak boleh memuat kredensial atau secret.")
 
     with _connect(path) as db:
+        # Serialize append operations so concurrent writers cannot fork the hash chain.
+        db.execute("BEGIN IMMEDIATE")
         previous = db.execute(
             "SELECT event_hash FROM audit_events ORDER BY id DESC LIMIT 1"
         ).fetchone()
