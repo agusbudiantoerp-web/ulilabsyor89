@@ -12,6 +12,7 @@ from research_run_store import backend_name as research_backend_name
 from database_health import check_postgres_health, initialize_required_postgres_schema
 from report_export_utils import safe_csv_bytes
 from security_controls import (
+    ROLE_PERMISSIONS,
     list_audit_events,
     normalize_role,
     record_audit_event,
@@ -74,6 +75,12 @@ def render_security_audit(identity: dict, secrets) -> None:
         st.dataframe(pd.DataFrame(role_rows), use_container_width=True, hide_index=True)
     else:
         st.warning("Belum ada pemetaan role yang dapat ditampilkan.")
+
+    st.subheader("Matriks izin per role")
+    st.dataframe(pd.DataFrame([
+        {"Role": role, "Permissions": ", ".join(sorted(permissions))}
+        for role, permissions in ROLE_PERMISSIONS.items()
+    ]), use_container_width=True, hide_index=True)
 
     st.subheader("Konfigurasi penyimpanan")
     database_settings = secrets.get("database", {})
