@@ -19,3 +19,15 @@ def test_portfolio_book_round_trip_and_weighted_average_cost(tmp_path):
     assert bbca["Average Cost"] == 9750
     assert delete_book("book-1", path=db_path)
     assert list_books(path=db_path) == []
+
+
+
+def test_portfolio_store_rejects_infinite_holdings(tmp_path):
+    import pytest
+
+    db_path = str(tmp_path / "portfolio.sqlite3")
+    positions = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": float("inf"), "Average Cost": 9000}
+    ])
+    with pytest.raises(ValueError, match="finite"):
+        save_book("book-invalid", "Invalid", positions, path=db_path)
