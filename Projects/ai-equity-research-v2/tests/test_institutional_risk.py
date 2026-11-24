@@ -88,3 +88,20 @@ def test_institutional_risk_rejects_nan_confidence_and_unknown_limits():
         analyze_institutional_risk(positions, {}, risk_limits={"unknown_limit": 5})
     with pytest.raises(ValueError, match="0–100"):
         analyze_institutional_risk(positions, {}, risk_limits={"max_position_weight_pct": 101})
+
+
+def test_institutional_risk_normalizes_ticker_and_counts_unknown_sector():
+    dates = pd.bdate_range("2025-01-01", periods=30)
+    positions = pd.DataFrame([
+        {"Ticker": "aaa", "Currency": "idr", "Market Value": 100, "Sector": None},
+        {"Ticker": "bbb", "Currency": "IDR", "Market Value": 100, "Sector": ""},
+    ])
+    returns = {
+        "AAA": pd.Series([0.01] * 30, index=dates),
+        "BBB": pd.Series([0.02] * 30, index=dates),
+    }
+    result = analyze_institutional_risk(positions, returns)
+    concentration = result["concentration"].iloc[0]
+    assert concentration["Largest sector"] == "Unknown"
+    assert concentration["Largest sector %"] == pytest.approx(100)
+    assert result["risk"].iloc[0]["Coverage %"] == pytest.approx(100)
