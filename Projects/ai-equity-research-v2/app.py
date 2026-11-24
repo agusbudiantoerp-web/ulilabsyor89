@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 st.title("AI Equity Research Workspace")
-st.caption("Integrated research, daily signals, portfolio risk, backtesting, and performance monitoring.")
+st.caption("Integrated research, daily signals, market regime, relative strength, portfolio risk, multi-asset backtesting, and performance reporting.")
 st.warning("Platform riset dan pengambilan keputusan. Bukan nasihat investasi atau sistem eksekusi order.")
 
 PAGES = {
@@ -33,6 +33,6 @@ with st.sidebar:
     st.divider()
     st.caption("Market data: Yahoo Finance")
     st.caption("AI lokal & Telegram: komputer pribadi")
-    st.caption("Versi: Unified Workspace 1.0")
+    st.caption("Versi: AI Equity Research V2 · Advanced Intelligence")
 
 PAGES[selected]()
