@@ -35,6 +35,20 @@ def normalize_role(role: str | None) -> str:
     return value
 
 
+def resolve_role_for_subject(subject_id: str | None, role_mapping: dict) -> str:
+    """Resolve a verified immutable identity subject through server-managed role mapping."""
+    subject = str(subject_id or "").strip()
+    if not subject or not isinstance(role_mapping, dict):
+        raise PermissionError("Identitas terverifikasi atau pemetaan role tidak tersedia.")
+    role = role_mapping.get(subject)
+    if role is None:
+        raise PermissionError("Identitas belum diberi role; akses ditolak.")
+    try:
+        return normalize_role(role)
+    except ValueError as exc:
+        raise PermissionError("Role identitas tidak valid; akses ditolak.") from exc
+
+
 def has_permission(role: str | None, permission: str) -> bool:
     normalized = normalize_role(role)
     return permission in ROLE_PERMISSIONS[normalized]
