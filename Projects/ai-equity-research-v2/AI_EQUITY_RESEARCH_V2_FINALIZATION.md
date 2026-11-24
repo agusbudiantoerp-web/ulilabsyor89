@@ -69,7 +69,8 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Added owner-scoped persistence for single-ticker, walk-forward and multi-asset research runs. Users can list, reload and delete only their own saved runs.
 - Added confirmed owner-scoped deletion for saved portfolio books and audit events for portfolio and research-run operations.
 - Expanded the Excel research pack to include available daily scan results, screener output, portfolio exposure/risk/optimization/stress scenarios, market intelligence diagnostics, backtest equity curves, trade details, walk-forward folds and saved-run metadata.
-- Added audit events for Excel/PDF report downloads and administrator audit-log CSV exports.
+- Added audit events for equity/portfolio analysis runs, backtests, portfolio lifecycle actions, forward-outcome refreshes, Excel/PDF/CSV report downloads and administrator audit-log CSV exports.
+- Added a server-rendered role permission matrix to the administrator Security & Audit console.
 - Added an administrator-only, read-only PostgreSQL health diagnostic for connectivity, required tables and basic table privileges; its results are also audit-logged.
 - Added a confirmed administrator action to initialize the idempotent PostgreSQL schemas before running the read-only health check.
 - Added a final Preview multi-user release test plan covering OIDC callbacks, role matrix, tenant isolation, audit, backtesting, exports and backup/restore.
