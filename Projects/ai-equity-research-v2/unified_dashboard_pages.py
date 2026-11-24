@@ -15,6 +15,7 @@ from daily_signal_backtest import backtest, walk_forward_backtest
 from advanced_stock_screener import ADVANCED_UNIVERSE, run_advanced_screener
 from portfolio_intelligence import analyze_portfolio, scenario_analysis, fx_scenario_analysis
 from institutional_risk import analyze_institutional_risk
+from portfolio_optimization import optimize_portfolio
 from daily_signal_portfolio import allocate_candidates
 from advanced_workspace import (
     render_market_intelligence, render_portfolio_persistence,
@@ -273,6 +274,25 @@ def render_portfolio_risk() -> None:
         st.dataframe(analysis["risk"],use_container_width=True,hide_index=True)
         for currency, series in analysis["returns"].items():
             st.line_chart((1+series).cumprod().rename(f"{currency} portfolio growth"))
+    st.subheader("Portfolio Optimization — Risk Parity & Max Sharpe")
+    st.caption("Rekomendasi bobot long-only berbasis histori return. Optimizer hanya berjalan untuk satu mata uang; tidak mencampur return IDR dan USD.")
+    try:
+        optimization = optimize_portfolio(frame, result["returns"])
+        opt_left, opt_right = st.columns(2)
+        with opt_left:
+            st.markdown("**Risk parity**")
+            st.dataframe(optimization["risk_parity"], use_container_width=True, hide_index=True)
+            st.metric("Volatilitas tahunan risk parity", f"{optimization['risk_parity_metrics']['annualized_volatility_pct']:.2f}%")
+        with opt_right:
+            st.markdown("**Approximate maximum Sharpe**")
+            st.dataframe(optimization["max_sharpe"], use_container_width=True, hide_index=True)
+            ratio = optimization["max_sharpe_metrics"]["sharpe_ratio"]
+            st.metric("Sharpe ratio estimasi", f"{ratio:.3f}" if ratio is not None else "N/A")
+        st.caption(f"Mata uang: {optimization['currency']} · Observasi lengkap: {optimization['observations']} hari")
+        st.caption(optimization["methodology"])
+        st.warning(optimization["limitations"])
+    except ValueError as exc:
+        st.info(f"Portfolio optimizer belum dapat dijalankan: {exc}")
     st.subheader("Institutional Risk Management")
     st.caption("VaR historis, Expected Shortfall, VaR parametrik, konsentrasi dan stress test. Risiko dihitung per mata uang asli dan coverage ditampilkan.")
     try:
