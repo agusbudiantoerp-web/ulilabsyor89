@@ -17,7 +17,7 @@
 
 **OIDC login and page-level role gates are implemented, but the application is not yet certified or configured for production multi-user deployment.** The identity provider and role mapping still need to be configured in Streamlit Secrets, and tenant isolation and operation-level authorization remain incomplete.
 
-Portfolio books and learning/performance records are scoped by issuer-bound owner ID. Other private data sources, audit storage and model configuration still require separate tenant/role controls. Page-level gates and selected action-level checks are present; every privileged operation still needs a complete authorization and audit review. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
+Portfolio books, learning/performance records and research/backtest runs are scoped by issuer-bound owner ID. Audit events are intentionally system-wide and visible only through the admin-only console; they still require protected external retention for production. Page-level gates and selected action-level checks are present; every privileged operation still needs a complete authorization and audit review. Role labels must never be inferred from a username, email address, query parameter, browser state, or user-editable form.
 
 ## Required before enabling multiple users
 
