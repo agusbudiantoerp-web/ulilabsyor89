@@ -76,11 +76,12 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 
 ## 7. Saved Portfolio Books
 
-- Named portfolio books and their positions can be saved, loaded and deleted through a storage layer.
-- Portfolio books use local SQLite by design. Personal holdings are not written to the shared cloud PostgreSQL database because per-user authentication/tenant isolation is not yet implemented.
+- Named portfolio books and their positions can be saved, loaded and deleted through the storage layer.
+- When `DATABASE_URL` is configured, cloud portfolio books use PostgreSQL and are scoped by the authenticated OIDC issuer-bound subject. Without it, local SQLite is used; hosted local SQLite may be ephemeral.
+- Portfolio operations require the `portfolio_manager` or `admin` role. Existing local records without a verified owner are quarantined as `legacy-unassigned`; they are not automatically uploaded or assigned to a user.
 - Repeated rows for the same market/ticker are consolidated. Average cost is share-weighted, not a simple arithmetic average.
 - Portfolio book persistence stores market, ticker, shares and average cost; market prices, sector classifications and risk analytics are refreshed when the user recalculates the portfolio.
-- A hosted Streamlit instance using local SQLite may not retain data across instance replacement. Do not store sensitive holdings in a public hosted deployment; per-user cloud persistence is deferred until authentication and tenant isolation are implemented.
+- Owner-scoped read, write and delete operations are implemented, but live PostgreSQL connectivity, multi-user tenant isolation and backup/restore still require release validation.
 
 ## 8. Multi-Asset Portfolio Backtest
 
@@ -95,6 +96,16 @@ Limitations: this is a simplified daily close simulation. It excludes dividends,
 
 ## 9. Research Pack Exports
 
-- Excel output can include portfolio positions, signal history and scalar performance summary metrics.
+- Excel output can include portfolio positions, signal history, scalar summary metrics, daily scan results, advanced screener output, portfolio exposure/risk/optimization/stress scenarios, market intelligence diagnostics, single-ticker and multi-asset equity curves, trade details, walk-forward folds and saved research-run metadata when those results are available in the current session/account.
 - PDF output contains a timestamped summary and method/limitation notes.
+- Export controls require the `analyst`, `portfolio_manager` or `admin` role; successful Excel/PDF downloads generate audit events.
 - Exports are analytical summaries, not official broker statements, tax reports or investment recommendations.
+
+## 10. Multi-User Security, Audit and Operations
+
+- Streamlit-native OIDC login resolves the immutable issuer-bound principal (`iss|sub`) and maps it to a server-managed role. Missing or invalid identity/role fails closed.
+- Roles: `viewer`, `analyst`, `portfolio_manager`, `admin`. Page and selected operation-level checks restrict portfolio management, research execution, report exports and administrator audit access.
+- Portfolio books, learning/performance records and saved research/backtest runs are owner-scoped when PostgreSQL is configured. Audit history is system-wide and administrator-only.
+- The Security & Audit console provides role-map visibility, audit filtering/CSV export and on-demand hash-chain verification. Hash chaining is tamper-evident, not immutable/WORM.
+- `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. Restore must be rehearsed on staging.
+- These controls are implementation foundations, not production certification. See `SECURITY_RELEASE_GATES.md` and `OIDC_SETUP.md` for outstanding configuration and validation requirements.
