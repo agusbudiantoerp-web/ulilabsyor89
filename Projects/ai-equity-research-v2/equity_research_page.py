@@ -9,18 +9,22 @@ from historical_ui import render_historical_analysis
 from security_controls import require_permission, record_audit_event
 
 
-def _audit_equity_export(fmt: str, ticker: str) -> None:
+def _audit_equity_action(action: str, ticker: str, details: dict | None = None) -> None:
     try:
         record_audit_event(
             st.session_state.get("_auth_subject_id", ""),
             st.session_state.get("_auth_role", ""),
-            "REPORT_EXPORT",
+            action,
             "equity_research",
             ticker,
-            details={"format": fmt},
+            details=details or {},
         )
     except Exception as exc:
-        st.warning(f"Laporan berhasil disiapkan, tetapi audit ekspor gagal dicatat: {type(exc).__name__}.")
+        st.warning(f"Aksi selesai, tetapi audit event gagal dicatat: {type(exc).__name__}.")
+
+
+def _audit_equity_export(fmt: str, ticker: str) -> None:
+    _audit_equity_action("REPORT_EXPORT", ticker, {"format": fmt})
 
 
 def render_equity_research():
@@ -175,6 +179,11 @@ def render_equity_research():
             st.session_state["equity_result"] = result
             st.session_state["equity_dcf"] = dcf
             st.session_state["equity_multistage_dcf"] = multistage_dcf
+            _audit_equity_action(
+                "EQUITY_ANALYSIS_RUN",
+                result.get("ticker", symbol.strip().upper()),
+                {"market": market, "period": period},
+            )
     
         except Exception as exc:
             st.error(str(exc))
