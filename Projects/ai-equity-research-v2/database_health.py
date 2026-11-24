@@ -7,14 +7,14 @@ from typing import Any
 
 
 REQUIRED_TABLES = {
-    "scans": ("SELECT", "INSERT", "UPDATE", "DELETE"),
-    "signals": ("SELECT", "INSERT", "UPDATE", "DELETE"),
-    "outcomes": ("SELECT", "INSERT", "UPDATE", "DELETE"),
+    "scans": ("SELECT", "INSERT", "UPDATE"),
+    "signals": ("SELECT", "INSERT"),
+    "outcomes": ("SELECT", "INSERT", "UPDATE"),
     "portfolio_books": ("SELECT", "INSERT", "UPDATE", "DELETE"),
     "portfolio_positions": ("SELECT", "INSERT", "UPDATE", "DELETE"),
     "research_runs": ("SELECT", "INSERT", "DELETE"),
     "audit_events": ("SELECT", "INSERT"),
-    "audit_chain_lock": ("SELECT", "INSERT"),
+    "audit_chain_lock": ("SELECT", "INSERT", "UPDATE"),
 }
 
 
