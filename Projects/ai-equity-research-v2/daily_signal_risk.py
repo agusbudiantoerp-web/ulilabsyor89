@@ -42,8 +42,12 @@ def build_trade_plan(
     cap_value = equity * (max_position_pct / 100)
     if not math.isfinite(risk_budget) or not math.isfinite(cap_value):
         raise ValueError("Modal atau risk budget melampaui rentang numerik.")
-    shares_by_risk = int(risk_budget / per_share)
-    shares_by_cap = int(cap_value / close)
+    risk_shares_raw = risk_budget / per_share
+    cap_shares_raw = cap_value / close
+    if not math.isfinite(risk_shares_raw) or not math.isfinite(cap_shares_raw):
+        raise ValueError("Jumlah saham hasil sizing melampaui rentang numerik.")
+    shares_by_risk = int(risk_shares_raw)
+    shares_by_cap = int(cap_shares_raw)
     shares = max(0, min(shares_by_risk, shares_by_cap))
     entry_low = close * (1 - entry_buffer_pct / 100)
     entry_high = close * (1 + entry_buffer_pct / 100)
