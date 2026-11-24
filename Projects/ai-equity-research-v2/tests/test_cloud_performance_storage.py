@@ -52,7 +52,8 @@ def test_sqlite_scan_and_outcome_lifecycle(tmp_path):
     assert pending == []
 
     summary = outcome_summary(db_path=db_path, owner_id='test-owner')
-    assert [row["horizon"] for row in summary] == [1, 3, 5, 10, 20]
+    overall = [row for row in summary if row["ruleset_version"] == "ALL" and row["signal_type"] == "ALL"]
+    assert [row["horizon"] for row in overall] == [1, 3, 5, 10, 20]
 
 
 def test_record_outcome_rejects_unsupported_horizon(tmp_path):
@@ -94,11 +95,11 @@ def test_learning_storage_requires_explicit_owner(tmp_path):
     import pytest
     db_path = str(tmp_path / "owner-required.sqlite3")
     with pytest.raises(ValueError, match="Owner identity"):
-        save_scan(_scan(), db_path=db_path, owner_id='test-owner')
+        save_scan(_scan(), db_path=db_path)
     with pytest.raises(ValueError, match="Owner identity"):
-        signal_history(db_path=db_path, owner_id='test-owner')
+        signal_history(db_path=db_path)
     with pytest.raises(ValueError, match="Owner identity"):
-        latest_scan(db_path=db_path, owner_id='test-owner')
+        latest_scan(db_path=db_path)
 
 
 def test_legacy_learning_records_are_quarantined_on_owner_migration(tmp_path):
