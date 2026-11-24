@@ -58,3 +58,13 @@ def test_research_run_json_sanitizes_non_finite_metrics(tmp_path):
     assert saved["result"]["profit_factor"] is None
     assert saved["result"]["nested"]["metric"] is None
     json.dumps(saved["result"], allow_nan=False)
+
+
+
+def test_research_run_requires_at_least_one_nonblank_symbol(tmp_path):
+    database = str(tmp_path / "research-runs.sqlite3")
+    with pytest.raises(ValueError, match="ticker valid"):
+        save_run(
+            owner_id="owner-a", run_type="single_ticker", market="IDX",
+            symbols=[" ", ""], parameters={}, result={}, path=database,
+        )
