@@ -67,12 +67,13 @@ def build_pdf_report(title: str, metrics: dict, notes: list[str] | None = None) 
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.units import mm
+    from xml.sax.saxutils import escape
 
     output = BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18*mm, leftMargin=18*mm,
                             topMargin=16*mm, bottomMargin=16*mm)
     styles = getSampleStyleSheet()
-    story = [Paragraph(title, styles["Title"]),
+    story = [Paragraph(escape(str(title)), styles["Title"]),
              Paragraph("Generated " + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), styles["Normal"]),
              Spacer(1, 8*mm)]
     rows = [["Metric", "Value"]]
@@ -90,7 +91,7 @@ def build_pdf_report(title: str, metrics: dict, notes: list[str] | None = None) 
     story.append(table)
     if notes:
         story.extend([Spacer(1, 8*mm), Paragraph("Method and limitations", styles["Heading2"])])
-        story.extend(Paragraph(str(note), styles["BodyText"]) for note in notes)
+        story.extend(Paragraph(escape(str(note)), styles["BodyText"]) for note in notes)
     story.append(Spacer(1, 5*mm))
     story.append(Paragraph("Research support only. Not investment advice. No broker orders are placed.", styles["Italic"]))
     doc.build(story)
