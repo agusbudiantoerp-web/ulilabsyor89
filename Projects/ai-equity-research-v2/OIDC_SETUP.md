@@ -85,7 +85,7 @@ The current UI page gate is enforced server-side. Performance history is now fil
 ## 4. Important release limitations
 
 - OIDC login and subject-to-role mapping do not by themselves provide tenant isolation.
-- Audit events currently use a local SQLite file unless `audit_db_path` is configured. Hosted local storage may be ephemeral.
+- Audit events use the shared PostgreSQL database when `DATABASE_URL` is configured; otherwise they use local SQLite. The hash chain is tamper-evident, not WORM/immutable.
 - Portfolio books are scoped by the issuer-bound `iss|sub` principal in PostgreSQL when `DATABASE_URL` is configured, with local SQLite as fallback. Learning/performance records are also scoped by owner ID in SQLite and PostgreSQL. Legacy local portfolio books are not automatically uploaded. Audit storage and other private records still need separate access controls.
 - Every export, write, delete, model-configuration action, and audit viewer must be individually permission-checked before production release.
 - Use managed PostgreSQL, immutable/append-only central audit storage, backup restoration tests, and security testing before inviting multiple users.
