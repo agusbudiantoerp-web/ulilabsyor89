@@ -329,7 +329,9 @@ def get_pending_outcomes(limit: int = 500, db_path: str | None = None, owner_id:
     return pending
 
 
-def record_outcome(signal_id: int, horizon: int, observed_date: str, close: float, db_path: str | None = None):
+def record_outcome(signal_id: int, horizon: int, observed_date: str, close: float, db_path: str | None = None, owner_id: str | None = None):
+    owner = str(owner_id or '').strip()
+    if not owner: raise ValueError('Owner identity wajib diisi.')
     if isinstance(horizon, bool) or horizon not in OUTCOME_HORIZONS:
         raise ValueError("Horizon hanya 1, 3, 5, 10, atau 20 sesi.")
     try:
@@ -343,7 +345,7 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute("SELECT close,bar_date FROM signals WHERE id=%s", (signal_id,))
+                cur.execute("SELECT close,bar_date FROM signals WHERE id=%s AND owner_id=%s", (signal_id, owner))
                 row = cur.fetchone()
                 if not row or row["close"] is None:
                     raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
@@ -361,7 +363,7 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
                 """, (signal_id, horizon, observed.isoformat(), observed_close, ret))
         return ret
     with _connect_sqlite(db_path) as db:
-        row = db.execute("SELECT close,bar_date FROM signals WHERE id=?", (signal_id,)).fetchone()
+        row = db.execute("SELECT close,bar_date FROM signals WHERE id=? AND owner_id=?", (signal_id, owner)).fetchone()
         if not row or row["close"] is None:
             raise ValueError("Signal tidak ditemukan atau harga awal tidak valid.")
         initial_close = float(row["close"])
@@ -377,7 +379,9 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
         return ret
 
 
-def outcome_summary(db_path: str | None = None):
+def outcome_summary(db_path: str | None = None, owner_id: str | None = None):
+    owner = str(owner_id or '').strip()
+    if not owner: raise ValueError('Owner identity wajib diisi.')
     """Summarize realized forward returns overall and by ruleset/signal type.
 
     Only rows already present in outcomes are included, so incomplete forward
@@ -388,17 +392,17 @@ def outcome_summary(db_path: str | None = None):
         SELECT o.horizon, o.return_pct, s.signal, s.score, s.payload
         FROM outcomes o
         JOIN signals s ON s.id=o.signal_id
-        WHERE o.return_pct IS NOT NULL
+        WHERE o.return_pct IS NOT NULL AND s.owner_id=%s
         ORDER BY o.horizon
     """
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute(query)
+                cur.execute(query, (owner,))
                 records = [dict(row) for row in cur.fetchall()]
     else:
         with _connect_sqlite(db_path) as db:
-            records = [dict(row) for row in db.execute(query).fetchall()]
+            records = [dict(row) for row in db.execute(query.replace('%s', '?'), (owner,)).fetchall()]
 
     groups = {}
     for record in records:
