@@ -129,3 +129,20 @@ def test_fx_scenario_rejects_non_finite_rate_or_shock():
         fx_scenario_analysis(positions, usd_idr=float("nan"))
     with pytest.raises(ValueError, match="finite"):
         fx_scenario_analysis(positions, usd_idr=16000, fx_shock_pct=float("inf"))
+
+
+def test_portfolio_exposure_includes_missing_sector_and_normalizes_ticker():
+    positions = pd.DataFrame([
+        {"Ticker": "aaa", "Market": "idx", "Currency": "idr", "Market Value": 100, "Sector": None},
+        {"Ticker": "BBB", "Market": "IDX", "Currency": "IDR", "Market Value": 100, "Sector": ""},
+    ])
+    idx = pd.bdate_range("2025-01-01", periods=30)
+    returns = {
+        "AAA": pd.Series([0.01] * 30, index=idx, name="AAA"),
+        "BBB": pd.Series([0.02] * 30, index=idx, name="BBB"),
+    }
+    result = analyze_portfolio(positions, returns)
+    assert set(result["position_exposure"]["Ticker"]) == {"AAA", "BBB"}
+    assert result["sector_exposure"]["Market Value"].sum() == 200
+    assert set(result["sector_exposure"]["Sector"]) == {"Unknown"}
+    assert result["market_exposure"] == {"IDX": 200}
