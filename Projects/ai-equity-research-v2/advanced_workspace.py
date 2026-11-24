@@ -92,12 +92,15 @@ def render_market_intelligence() -> None:
             st.caption("Regime dan relative strength adalah indikator historis berbasis aturan, bukan prediksi. Benchmark IDX menggunakan ^JKSE dan US menggunakan SPY; perbandingan price-only tidak memasukkan dividen.")
 
 
-def render_portfolio_persistence(positions: pd.DataFrame) -> None:
+def render_portfolio_persistence(positions: pd.DataFrame, owner_id: str) -> None:
     st.subheader("Simpan & Muat Portfolio")
-    st.caption("Penyimpanan portfolio: SQLite lokal (file tidak dienkripsi). Lindungi komputer dan file database; penyimpanan cloud belum diaktifkan karena belum ada isolasi akun per pengguna.")
+    st.caption("Setiap portfolio disimpan dengan owner ID dari sesi OIDC. Penyimpanan tetap SQLite lokal dan tidak dienkripsi; database cloud belum diaktifkan.")
+    if not str(owner_id or "").strip():
+        st.error("Owner identity tidak tersedia; penyimpanan portfolio dikunci.")
+        return
     with st.expander("Kelola portfolio tersimpan", expanded=False):
         try:
-            books = list_books()
+            books = list_books(owner_id=owner_id)
         except Exception as exc:
             st.error(f"Daftar portfolio tidak dapat dibaca: {type(exc).__name__}: {exc}")
             return
@@ -107,7 +110,7 @@ def render_portfolio_persistence(positions: pd.DataFrame) -> None:
         if c2.button("Muat portfolio", key="load_saved_portfolio"):
             if selected_label in names:
                 try:
-                    loaded = load_book(names[selected_label])
+                    loaded = load_book(names[selected_label], owner_id=owner_id)
                     st.session_state["portfolio_input"] = loaded
                     st.session_state.pop("portfolio_result", None)
                     st.success("Portfolio dimuat. Jalankan kembali Hitung portfolio intelligence.")
@@ -120,7 +123,7 @@ def render_portfolio_persistence(positions: pd.DataFrame) -> None:
                 import uuid
                 existing_id = names.get(selected_label)
                 book_id = existing_id or uuid.uuid4().hex
-                count = save_book(book_id, name.strip(), positions)
+                count = save_book(book_id, name.strip(), positions, owner_id=owner_id)
                 st.success(f"{count} posisi disimpan. ID: {book_id}")
                 st.rerun()
             except Exception as exc:
