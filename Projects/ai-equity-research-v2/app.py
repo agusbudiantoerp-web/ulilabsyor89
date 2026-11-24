@@ -1,6 +1,6 @@
 import streamlit as st
 
-from auth import audit_login_once, get_claim, logout, oidc_is_configured, resolve_streamlit_identity
+from auth import audit_login_once, get_claim, logout, oidc_is_configured, oidc_provider_name, resolve_streamlit_identity
 from equity_research_page import render_equity_research
 from security_controls import require_permission
 from unified_dashboard_pages import (
@@ -33,7 +33,7 @@ if not oidc_is_configured(st.secrets):
 if not st.user.is_logged_in:
     st.info("Silakan masuk menggunakan akun organisasi yang telah didaftarkan.")
     if st.button("Login dengan OIDC", type="primary"):
-        st.login()
+        st.login(oidc_provider_name(st.secrets))
     st.stop()
 
 try:
