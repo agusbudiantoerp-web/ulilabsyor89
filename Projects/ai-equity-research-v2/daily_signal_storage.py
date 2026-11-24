@@ -171,7 +171,9 @@ def initialize(db_path: str | None = None):
         db.execute("CREATE INDEX IF NOT EXISTS idx_signals_owner_date ON signals(owner_id,bar_date DESC)")
 
 
-def save_scan(scan: dict, db_path: str | None = None) -> int:
+def save_scan(scan: dict, db_path: str | None = None, owner_id: str | None = None) -> int:
+    owner = str(owner_id or '').strip()
+    if not owner: raise ValueError('Owner identity wajib diisi untuk menyimpan scan.')
     initialize(db_path)
     created_at = datetime.now(timezone.utc).isoformat()
     counts = scan.get("counts", {})
@@ -182,8 +184,8 @@ def save_scan(scan: dict, db_path: str | None = None) -> int:
         with _connect_postgres() as db:
             with db.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO scans(created_at,scanned,failed,payload) VALUES(%s,%s,%s,%s) RETURNING id",
-                    (created_at, counts.get("scanned", 0), counts.get("failed", 0), Jsonb(payload)),
+                    "INSERT INTO scans(created_at,scanned,failed,owner_id,payload) VALUES(%s,%s,%s,%s,%s) RETURNING id",
+                    (created_at, counts.get("scanned", 0), counts.get("failed", 0), owner, Jsonb(payload)),
                 )
                 scan_id = int(cur.fetchone()["id"])
                 payload["scan_id"] = scan_id
@@ -191,21 +193,21 @@ def save_scan(scan: dict, db_path: str | None = None) -> int:
                 for item in scan.get("results", []):
                     cur.execute("""
                         INSERT INTO signals(scan_id,market,ticker,bar_date,signal,score,close,
-                            entry_low,entry_high,stop_loss,target,reward_risk,payload)
-                        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT(market,ticker,bar_date) DO NOTHING
+                            entry_low,entry_high,stop_loss,target,reward_risk,owner_id,payload)
+                        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT(owner_id,market,ticker,bar_date) DO NOTHING
                     """, (
                         scan_id, item.get("market"), item.get("ticker"), item.get("bar_date"),
                         item.get("signal"), item.get("score"), item.get("close"),
                         item.get("entry_low"), item.get("entry_high"), item.get("stop_loss"),
-                        item.get("target"), item.get("reward_risk"), Jsonb(item),
+                        item.get("target"), item.get("reward_risk"), owner, Jsonb(item),
                     ))
                 return scan_id
 
     with _connect_sqlite(db_path) as db:
         cur = db.execute(
-            "INSERT INTO scans(created_at,scanned,failed,payload) VALUES(?,?,?,?)",
-            (created_at, counts.get("scanned", 0), counts.get("failed", 0), json.dumps(payload, default=str)),
+            "INSERT INTO scans(created_at,scanned,failed,owner_id,payload) VALUES(?,?,?,?,?)",
+            (created_at, counts.get("scanned", 0), counts.get("failed", 0), owner, json.dumps(payload, default=str)),
         )
         scan_id = int(cur.lastrowid)
         payload["scan_id"] = scan_id
@@ -213,13 +215,13 @@ def save_scan(scan: dict, db_path: str | None = None) -> int:
         for item in scan.get("results", []):
             db.execute("""
                 INSERT OR IGNORE INTO signals(scan_id,market,ticker,bar_date,signal,score,close,
-                    entry_low,entry_high,stop_loss,target,reward_risk,payload)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    entry_low,entry_high,stop_loss,target,reward_risk,owner_id,payload)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 scan_id, item.get("market"), item.get("ticker"), item.get("bar_date"),
                 item.get("signal"), item.get("score"), item.get("close"),
                 item.get("entry_low"), item.get("entry_high"), item.get("stop_loss"),
-                item.get("target"), item.get("reward_risk"), json.dumps(item, default=str),
+                item.get("target"), item.get("reward_risk"), owner, json.dumps(item, default=str),
             ))
         return scan_id
 
@@ -228,12 +230,14 @@ def _decode_payload(value):
     return json.loads(value) if isinstance(value, str) else value
 
 
-def latest_scan(db_path: str | None = None):
+def latest_scan(db_path: str | None = None, owner_id: str | None = None):
+    owner = str(owner_id or '').strip()
+    if not owner: raise ValueError('Owner identity wajib diisi.')
     initialize(db_path)
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute("SELECT id,payload FROM scans ORDER BY id DESC LIMIT 1")
+                cur.execute("SELECT id,payload FROM scans WHERE owner_id=%s ORDER BY id DESC LIMIT 1", (owner,))
                 row = cur.fetchone()
                 if not row:
                     return None
@@ -242,7 +246,7 @@ def latest_scan(db_path: str | None = None):
                     payload.setdefault("scan_id", int(row["id"]))
                 return payload
     with _connect_sqlite(db_path) as db:
-        row = db.execute("SELECT id,payload FROM scans ORDER BY id DESC LIMIT 1").fetchone()
+        row = db.execute("SELECT id,payload FROM scans WHERE owner_id=? ORDER BY id DESC LIMIT 1", (owner,)).fetchone()
         if not row:
             return None
         payload = _decode_payload(row["payload"])
@@ -251,7 +255,9 @@ def latest_scan(db_path: str | None = None):
         return payload
 
 
-def signal_history(limit: int = 100, db_path: str | None = None):
+def signal_history(limit: int = 100, db_path: str | None = None, owner_id: str | None = None):
+    owner = str(owner_id or '').strip()
+    if not owner: raise ValueError('Owner identity wajib diisi.')
     initialize(db_path)
     limit = max(1, min(int(limit), 1000))
     placeholder = "%s" if backend_name(db_path) == "PostgreSQL" else "?"
@@ -268,16 +274,16 @@ def signal_history(limit: int = 100, db_path: str | None = None):
         LEFT JOIN outcomes o5 ON o5.signal_id=s.id AND o5.horizon=5
         LEFT JOIN outcomes o10 ON o10.signal_id=s.id AND o10.horizon=10
         LEFT JOIN outcomes o20 ON o20.signal_id=s.id AND o20.horizon=20
-        ORDER BY s.bar_date DESC,s.id DESC LIMIT {placeholder}
+        WHERE s.owner_id={placeholder} ORDER BY s.bar_date DESC,s.id DESC LIMIT {placeholder}
     """
     if backend_name(db_path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute(query, (limit,))
+                cur.execute(query, (owner, limit))
                 rows = cur.fetchall()
     else:
         with _connect_sqlite(db_path) as db:
-            rows = db.execute(query, (limit,)).fetchall()
+            rows = db.execute(query, (owner, limit)).fetchall()
     output = []
     for row in rows:
         item = dict(row)
@@ -288,25 +294,27 @@ def signal_history(limit: int = 100, db_path: str | None = None):
     return output
 
 
-def get_pending_outcomes(limit: int = 500, db_path: str | None = None):
+def get_pending_outcomes(limit: int = 500, db_path: str | None = None, owner_id: str | None = None):
+    owner = str(owner_id or '').strip()
+    if not owner: raise ValueError('Owner identity wajib diisi.')
     initialize(db_path)
     limit = max(1, min(int(limit), 2000))
     if backend_name(db_path) == "PostgreSQL":
         sql = """
             SELECT s.id,s.market,s.ticker,s.bar_date,s.close,
                    ARRAY(SELECT o.horizon FROM outcomes o WHERE o.signal_id=s.id) AS recorded
-            FROM signals s ORDER BY s.bar_date DESC LIMIT %s
+            FROM signals s WHERE s.owner_id=%s ORDER BY s.bar_date DESC LIMIT %s
         """
         with _connect_postgres() as db:
             with db.cursor() as cur:
-                cur.execute(sql, (limit,))
+                cur.execute(sql, (owner, limit))
                 rows = cur.fetchall()
     else:
         with _connect_sqlite(db_path) as db:
             rows = db.execute("""
                 SELECT s.id,s.market,s.ticker,s.bar_date,s.close,GROUP_CONCAT(o.horizon) AS recorded
                 FROM signals s LEFT JOIN outcomes o ON o.signal_id=s.id
-                GROUP BY s.id ORDER BY s.bar_date DESC LIMIT ?
+                WHERE s.owner_id=? GROUP BY s.id ORDER BY s.bar_date DESC LIMIT ?
             """, (limit,)).fetchall()
     pending = []
     for row in rows:
