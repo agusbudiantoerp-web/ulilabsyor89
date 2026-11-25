@@ -8,6 +8,7 @@ from market_engine import resolve_market_ticker
 from peer_valuation import build_peer_comparison, compare_company_to_peers
 from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
 from market_data_provider import YahooFinanceProvider
+from report_export_utils import safe_csv_bytes
 
 
 def _peer_record(symbol: str, market: str) -> dict:
@@ -93,7 +94,7 @@ def render_valuation_intelligence() -> None:
                 st.caption(comparison["limitations"])
                 st.download_button(
                     "Unduh peer comparison CSV",
-                    pd.DataFrame(comparison["records"]).to_csv(index=False).encode("utf-8-sig"),
+                    safe_csv_bytes(pd.DataFrame(comparison["records"])),
                     file_name="peer_valuation_comparison.csv", mime="text/csv",
                 )
             except Exception as exc:
