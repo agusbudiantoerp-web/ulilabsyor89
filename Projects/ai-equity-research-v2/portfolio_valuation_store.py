@@ -97,6 +97,7 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
     if path is None and _url():
         with _pg() as db:
             with db.cursor() as cur:
+                cur.execute("DELETE FROM portfolio_valuations WHERE owner_id=%s AND portfolio_id=%s", (owner, portfolio))
                 cur.executemany("""INSERT INTO portfolio_valuations
                     (owner_id,portfolio_id,valuation_date,portfolio_value,external_flow,currency,created_at)
                     VALUES(%s,%s,%s,%s,%s,%s,%s)
@@ -105,6 +106,8 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
                     currency=EXCLUDED.currency,created_at=EXCLUDED.created_at""",rows)
     else:
         with _sqlite(path) as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("DELETE FROM portfolio_valuations WHERE owner_id=? AND portfolio_id=?", (owner, portfolio))
             db.executemany("""INSERT INTO portfolio_valuations
                 (owner_id,portfolio_id,valuation_date,portfolio_value,external_flow,currency,created_at)
                 VALUES(?,?,?,?,?,?,?)
