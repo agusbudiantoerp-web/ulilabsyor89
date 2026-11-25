@@ -170,8 +170,8 @@ def test_block_bootstrap_monte_carlo_validates_block_size_and_weights():
 def test_estimate_regime_transition_matrix_uses_ordered_counts_and_smoothing():
     labels = pd.Series(["calm", "calm", "stress", "stress", "calm", "stress"])
     result = estimate_regime_transition_matrix(labels, smoothing=1.0)
-    assert result["transition_counts"] == [[1, 1], [1, 1]]
-    assert result["transition_matrix"] == [[0.5, 0.5], [0.5, 0.5]]
+    assert result["transition_counts"] == [[1, 2], [1, 1]]
+    assert result["transition_matrix"] == [[0.4, 0.6], [0.5, 0.5]]
     assert result["transition_observation_count"] == 5
     assert "not out-of-sample calibrated" in result["method"]
 
