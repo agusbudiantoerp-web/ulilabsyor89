@@ -3,8 +3,8 @@
 The dashboard supports two isolated storage backends:
 
 - Local automation: SQLite at `DAILY_SIGNAL_DB` (default `data/daily_signals.sqlite3`). The local Telegram/Ollama scheduler continues using this database.
-- Streamlit Cloud: PostgreSQL when `DATABASE_URL` is present in Streamlit secrets or the process environment. Cloud scans, signals, forward outcomes, saved portfolio books, research/backtest runs and audit events use the same PostgreSQL connection. Private records are keyed by the authenticated OIDC issuer and subject; reads and writes are filtered by that owner. Audit events are append-serialized through a database lock and linked by SHA-256 hashes.
-- Research run history stores single-ticker, walk-forward and multi-asset backtest inputs/results under the authenticated owner. Local mode uses `RESEARCH_RUNS_DB_PATH` (default `data/research_runs.sqlite3`); cloud mode uses the owner-scoped `research_runs` PostgreSQL table. No local run history is uploaded automatically.
+- Streamlit Cloud: PostgreSQL when `DATABASE_URL` is present in Streamlit secrets or the process environment. Cloud scans, signals, forward outcomes, saved portfolio books, portfolio cash-flow events, research/backtest runs, versioned investment theses, corporate events and audit events use the same PostgreSQL connection. Private records are keyed by the authenticated OIDC issuer and subject; reads and writes are filtered by that owner. Audit events are append-serialized through a database lock and linked by SHA-256 hashes.
+- Research run history stores single-ticker, walk-forward and multi-asset backtest inputs/results under the authenticated owner. Thesis versions, corporate event records and portfolio cash-flow events are also owner-scoped. Local SQLite stores are included in the verified local backup inventory. Local mode uses `RESEARCH_RUNS_DB_PATH` (default `data/research_runs.sqlite3`); cloud mode uses the owner-scoped `research_runs` PostgreSQL table. No local run history is uploaded automatically.
 
 ## Streamlit Cloud configuration
 
