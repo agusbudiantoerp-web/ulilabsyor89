@@ -101,6 +101,31 @@ def test_fifo_cannot_sell_an_opening_lot_before_its_acquisition_date():
         )
 
 
+def test_split_does_not_adjust_opening_lots_acquired_after_split_date():
+    result = calculate_tax_lots(
+        [{
+            "date": "2026-02-01", "event_type": "SPLIT", "amount": 0,
+            "ticker": "BBCA", "quantity": 2,
+        }],
+        opening_lots=[
+            {"ticker": "BBCA", "quantity": 10, "unit_cost": 100, "acquisition_date": "2026-01-01"},
+            {"ticker": "BBCA", "quantity": 5, "unit_cost": 200, "acquisition_date": "2026-03-01"},
+        ],
+    )
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(25)
+    assert result["open_cost_basis"] == pytest.approx(2000)
+    adjusted = result["open_lots"].loc[
+        result["open_lots"]["acquisition_date"].eq("2026-01-01")
+    ].iloc[0]
+    future = result["open_lots"].loc[
+        result["open_lots"]["acquisition_date"].eq("2026-03-01")
+    ].iloc[0]
+    assert adjusted["quantity"] == pytest.approx(20)
+    assert adjusted["unit_cost"] == pytest.approx(50)
+    assert future["quantity"] == pytest.approx(5)
+    assert future["unit_cost"] == pytest.approx(200)
+
+
 def test_opening_lot_rejects_invalid_acquisition_date():
     with pytest.raises(ValueError, match="acquisition_date"):
         calculate_tax_lots([], opening_lots=[
