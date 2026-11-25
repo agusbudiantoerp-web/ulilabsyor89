@@ -58,13 +58,33 @@ def reconcile_broker_statement(
         denominator = max(abs(float(left)), abs(float(right)), 1e-12)
         return abs(float(left) - float(right)) / denominator * 100.0
 
+    # Build all plausible pairs first, then allocate the closest pairs globally.
+    # Matching each internal row greedily in input order can consume an exact
+    # broker match for an earlier event that only has a nearby-date alternative.
+    candidate_pairs = []
     for internal_index, item in internal.iterrows():
         candidates = broker.loc[
-            broker.index.isin(unmatched)
-            & broker["event_type"].eq(item["event_type"])
+            broker["event_type"].eq(item["event_type"])
             & broker["ticker"].eq(item["ticker"])
         ]
-        if candidates.empty:
+        for broker_index, candidate in candidates.iterrows():
+            date_gap = abs((pd.Timestamp(item["date"]) - pd.Timestamp(candidate["date"])).days)
+            amount_gap = relative_gap(item["amount"], candidate["amount"])
+            candidate_pairs.append(
+                (date_gap, amount_gap, int(internal_index), int(broker_index))
+            )
+
+    matched_pairs = {}
+    used_broker = set()
+    for date_gap, amount_gap, internal_index, broker_index in sorted(candidate_pairs):
+        if internal_index in matched_pairs or broker_index in used_broker:
+            continue
+        matched_pairs[internal_index] = (broker_index, date_gap, amount_gap)
+        used_broker.add(broker_index)
+        unmatched.discard(broker_index)
+
+    for internal_index, item in internal.iterrows():
+        if internal_index not in matched_pairs:
             rows.append({
                 "status": "MISSING_IN_BROKER", "internal_date": item["date"],
                 "broker_date": None, "event_type": item["event_type"],
@@ -75,13 +95,8 @@ def reconcile_broker_statement(
                 "date_diff_days": None,
             })
             continue
-        ranked = []
-        for broker_index, candidate in candidates.iterrows():
-            date_gap = abs((pd.Timestamp(item["date"]) - pd.Timestamp(candidate["date"])).days)
-            amount_gap = relative_gap(item["amount"], candidate["amount"])
-            ranked.append((date_gap, amount_gap, broker_index, candidate))
-        date_gap, amount_gap, broker_index, matched = min(ranked, key=lambda value: (value[0], value[1], value[2]))
-        unmatched.remove(broker_index)
+        broker_index, date_gap, amount_gap = matched_pairs[internal_index]
+        matched = broker.loc[broker_index]
         quantity_gap = (
             abs(float(item["quantity"]) - float(matched["quantity"]))
             if pd.notna(item["quantity"]) and pd.notna(matched["quantity"])
@@ -133,7 +148,7 @@ def reconcile_broker_statement(
         "status_counts": counts,
         "details": details,
         "method": (
-            "One-to-one greedy matching by event type/ticker, nearest date, then amount difference. "
+            "One-to-one global greedy allocation of event type/ticker pairs, prioritizing nearest date then amount difference. "
             "This is an exception report, not a broker-confirmed reconciliation or tax statement."
         ),
     }
