@@ -107,9 +107,28 @@ def render_portfolio_cashflow() -> None:
             "Saldo kas awal sebelum event pertama", min_value=0.0, value=0.0,
             key="portfolio_cashflow_opening_cash",
         )
+        opening_positions_raw = st.text_input(
+            "Saldo saham awal (format TICKER:jumlah, pisahkan koma)",
+            value="", key="portfolio_cashflow_opening_positions",
+            help="Contoh: BBCA:100, TLKM:50. Isi bila histori event dimulai setelah Anda sudah memiliki saham.",
+        )
         if st.button("Rekonsiliasi cash & holdings", key="portfolio_cashflow_reconcile"):
             try:
-                reconciliation = reconcile_portfolio_ledger(events, initial_cash=opening_cash)
+                opening_positions = {}
+                if opening_positions_raw.strip():
+                    for item in opening_positions_raw.split(","):
+                        parts = item.strip().split(":")
+                        if len(parts) != 2 or not parts[0].strip():
+                            raise ValueError("Format saldo saham awal harus TICKER:jumlah.")
+                        symbol, shares = parts[0].strip().upper(), float(parts[1].strip())
+                        if symbol in opening_positions:
+                            raise ValueError(f"Ticker saldo awal duplikat: {symbol}.")
+                        if not pd.notna(shares) or shares <= 0:
+                            raise ValueError(f"Jumlah saham awal {symbol} harus positif.")
+                        opening_positions[symbol] = shares
+                reconciliation = reconcile_portfolio_ledger(
+                    events, initial_cash=opening_cash, initial_positions=opening_positions
+                )
                 st.metric("Saldo kas hasil rekonsiliasi", f"{reconciliation['cash_balance']:,.2f}")
                 holdings = pd.DataFrame([
                     {"Ticker": ticker, "Shares": shares}
