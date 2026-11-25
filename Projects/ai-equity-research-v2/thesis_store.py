@@ -219,6 +219,8 @@ def update_thesis(owner_id, thesis_id, *, title, content, status, review_date=""
                 if not row:
                     raise KeyError("Investment thesis tidak ditemukan untuk pengguna ini.")
                 version = int(row["current_version"]) + 1
+                cur.execute("""UPDATE research_thesis_reviews SET status='SUPERSEDED',comments='Thesis updated before reviewer decision.',updated_at=%s
+                    WHERE thesis_id=%s AND owner_id=%s AND status='PENDING'""", (now, thesis_id, owner))
                 cur.execute("""UPDATE research_theses SET title=%s,status=%s,review_date=%s,
                     current_version=%s,content_json=%s,updated_at=%s WHERE id=%s AND owner_id=%s""",
                     (str(title).strip(),str(status).upper(),review,version,Jsonb(content),now,thesis_id,owner))
@@ -233,6 +235,8 @@ def update_thesis(owner_id, thesis_id, *, title, content, status, review_date=""
         if not row:
             raise KeyError("Investment thesis tidak ditemukan untuk pengguna ini.")
         version = int(row["current_version"]) + 1
+        db.execute("""UPDATE research_thesis_reviews SET status='SUPERSEDED',comments='Thesis updated before reviewer decision.',updated_at=?
+            WHERE thesis_id=? AND owner_id=? AND status='PENDING'""", (now, thesis_id, owner))
         db.execute("""UPDATE research_theses SET title=?,status=?,review_date=?,
             current_version=?,content_json=?,updated_at=? WHERE id=? AND owner_id=?""",
             (str(title).strip(),str(status).upper(),review,version,_json(content),now,thesis_id,owner))
