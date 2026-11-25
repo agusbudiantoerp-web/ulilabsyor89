@@ -110,7 +110,7 @@ def test_portfolio_reconciliation_rejects_oversell_and_negative_cash():
         reconcile_portfolio_ledger([
             {"date": "2026-01-01", "event_type": "SELL", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100}
         ], initial_positions={"BBCA": 0})
-    with pytest.raises(ValueError, match="Cash balance negatif"):
+    with pytest.raises(ValueError, match="Cash tidak cukup untuk WITHDRAWAL"):
         reconcile_portfolio_ledger([
             {"date": "2026-01-01", "event_type": "WITHDRAWAL", "amount": 100}
         ], initial_cash=10)
