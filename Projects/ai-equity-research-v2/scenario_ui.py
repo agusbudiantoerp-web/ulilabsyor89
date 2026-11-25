@@ -1,7 +1,7 @@
 ﻿import pandas as pd
 import streamlit as st
 
-from scenario_engine import run_scenarios, scenario_sensitivity
+from scenario_engine import run_scenarios, scenario_sensitivity, operating_scenario_sensitivity
 
 
 def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
@@ -214,6 +214,44 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     else:
         st.info("Sensitivity analysis is not available.")
 
+    st.subheader("Operating Assumption Sensitivity")
+    st.caption(
+        "Matriks ini menghitung ulang seluruh proyeksi FCFF untuk kombinasi "
+        "pertumbuhan pendapatan dan margin EBITDA. Angka bukan probabilitas atau target harga."
+    )
+    try:
+        growth_axis = [
+            max(-1.0, scenarios[selected_scenario]["revenue_growth"] + delta)
+            for delta in (-0.05, -0.025, 0.0, 0.025, 0.05)
+        ]
+        margin_axis = [
+            min(1.0, max(-1.0, scenarios[selected_scenario]["ebitda_margin"] + delta))
+            for delta in (-0.05, -0.025, 0.0, 0.025, 0.05)
+        ]
+        growth_axis = list(dict.fromkeys(growth_axis))
+        margin_axis = list(dict.fromkeys(margin_axis))
+        operating_sensitivity = operating_scenario_sensitivity(
+            financials, scenarios[selected_scenario],
+            revenue_growth_values=growth_axis,
+            ebitda_margin_values=margin_axis,
+            years=years,
+        )
+        matrix_rows = []
+        for matrix_row in operating_sensitivity["sensitivity"]:
+            display_row = {"EBITDA margin": f"{matrix_row['ebitda_margin']:.1%}"}
+            for index, growth in enumerate(growth_axis):
+                cell = matrix_row["values"][index]
+                display_row[f"Revenue growth {growth:.1%}"] = (
+                    f"{cell['value_per_share']:,.2f} {quote_currency}"
+                    if cell["available"] else "N/M"
+                )
+            matrix_rows.append(display_row)
+        st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, hide_index=True)
+        st.caption(operating_sensitivity["note"])
+    except Exception as exc:
+        operating_sensitivity = {"available": False, "reason": str(exc)}
+        st.warning("Operating sensitivity tidak tersedia: " + str(exc))
+
     st.warning(
         "Scenario results depend on assumptions, not guaranteed future prices. "
         "Review financial data and assumptions before using these results."
@@ -225,6 +263,7 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
         "assumptions": scenarios,
         "results": results.get("scenarios", {}),
         "sensitivity": sensitivity,
+        "operating_sensitivity": operating_sensitivity,
         "selected_scenario": selected_scenario,
         "research_context": {
             "catalysts": catalyst_notes.strip(),
