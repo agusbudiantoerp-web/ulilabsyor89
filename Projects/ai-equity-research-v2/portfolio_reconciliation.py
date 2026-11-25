@@ -176,7 +176,7 @@ def reconcile_broker_statement(
         "status_counts": counts,
         "details": details,
         "method": (
-            "One-to-one global greedy allocation of event type/ticker pairs, prioritizing nearest date then amount difference. "
+            "One-to-one maximum-cardinality allocation of event type/ticker pairs using deterministic augmenting paths; candidate preference is nearest date then amount difference. "
             "This is an exception report, not a broker-confirmed reconciliation or tax statement."
         ),
     }
