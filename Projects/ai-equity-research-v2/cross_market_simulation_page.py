@@ -1,6 +1,8 @@
 """Cross-market FX portfolio backtest, Monte Carlo and stress UI."""
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import streamlit as st
 
