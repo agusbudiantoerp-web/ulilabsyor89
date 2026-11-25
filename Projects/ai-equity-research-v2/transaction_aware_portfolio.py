@@ -78,11 +78,12 @@ def run_transaction_aware_portfolio(
 ) -> dict:
     """Replay dated cash/trade events and calculate base-currency equity/TWR.
 
-    DEPOSIT/WITHDRAWAL amounts use base currency. BUY/SELL/DIVIDEND amounts
-    default to the relevant asset's local currency but may specify
-    amount_currency (IDR or USD). FEE/TAX amounts default to base currency and
-    may also specify amount_currency. BUY/SELL may specify settlement_date;
-    positions change on trade date while cash settles on the supplied date.
+    All event cash amounts use the portfolio base currency. For foreign-asset
+    BUY/SELL/DIVIDEND events, the user must explicitly convert the cash amount
+    into base currency before entry; the engine never silently converts trade
+    cash. The price field remains in the asset's local quote currency.
+    BUY/SELL may specify settlement_date; positions change on trade date while
+    base-currency cash settles on the supplied date.
     """
 
     if not isinstance(price_closes, Mapping) or not price_closes:
@@ -176,11 +177,13 @@ def run_transaction_aware_portfolio(
             elif kind in {"BUY", "SELL"}:
                 if ticker not in prices:
                     raise ValueError(f"Ticker {ticker} tidak memiliki seri harga.")
-                event_currency = _event_currency(row, currencies[ticker])
-                if event_currency not in {"IDR", "USD"}:
-                    raise ValueError("amount_currency untuk BUY/SELL harus IDR atau USD.")
-                factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
-                amount_base = amount * factor
+                event_currency = _event_currency(row, base)
+                if event_currency != base:
+                    raise ValueError(
+                        f"Nominal BUY/SELL harus dalam base currency {base}; "
+                        "konversi kas lintas mata uang tidak dilakukan otomatis."
+                    )
+                amount_base = amount
                 raw_settlement = row.get("settlement_date")
                 settlement_date = (
                     pd.Timestamp(pd.to_datetime(raw_settlement, errors="coerce"))
@@ -222,17 +225,21 @@ def run_transaction_aware_portfolio(
                     else:
                         cash += amount_base
             elif kind == "DIVIDEND":
-                event_currency = _event_currency(row, currencies[ticker])
-                if event_currency not in {"IDR", "USD"}:
-                    raise ValueError("amount_currency untuk DIVIDEND harus IDR atau USD.")
-                factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
-                cash += amount * factor
+                event_currency = _event_currency(row, base)
+                if event_currency != base:
+                    raise ValueError(
+                        f"Nominal DIVIDEND harus dalam base currency {base}; "
+                        "konversi kas lintas mata uang tidak dilakukan otomatis."
+                    )
+                cash += amount
             elif kind in {"FEE", "TAX"}:
                 event_currency = _event_currency(row, base)
-                if event_currency not in {"IDR", "USD"}:
-                    raise ValueError("amount_currency untuk FEE/TAX harus IDR atau USD.")
-                factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
-                cash -= amount * factor
+                if event_currency != base:
+                    raise ValueError(
+                        f"Nominal FEE/TAX harus dalam base currency {base}; "
+                        "konversi kas lintas mata uang tidak dilakukan otomatis."
+                    )
+                cash -= amount
             elif kind == "SPLIT":
                 positions[ticker] = positions.get(ticker, 0.0) * quantity
             if cash - unsettled_payables < -1e-8:
