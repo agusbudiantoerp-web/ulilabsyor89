@@ -30,6 +30,12 @@ def _peer_record(symbol: str, market: str) -> dict:
         "roic": info.get("returnOnCapitalEmployed"),
         "revenue_growth": info.get("revenueGrowth"),
         "operating_margin": info.get("operatingMargins"),
+        "totalRevenue": info.get("totalRevenue"),
+        "ebitda": info.get("ebitda"),
+        "totalDebt": info.get("totalDebt"),
+        "totalCash": info.get("totalCash"),
+        "sharesOutstanding": info.get("sharesOutstanding"),
+        "bookValue": info.get("bookValue"),
         "fiscal_year_end": (
             pd.to_datetime(info.get("lastFiscalYearEnd"), unit="s", utc=True).date().isoformat()
             if isinstance(info.get("lastFiscalYearEnd"), (int, float)) and info.get("lastFiscalYearEnd")
