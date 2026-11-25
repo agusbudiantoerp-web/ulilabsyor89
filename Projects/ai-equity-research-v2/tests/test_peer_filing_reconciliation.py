@@ -98,3 +98,13 @@ def test_peer_filing_reconciliation_rejects_non_numeric_or_infinite_filing_value
         reconcile_peer_filing_records([provider_record()], [filing_record(total_revenue="not-revenue")])
     with pytest.raises(ValueError, match="ebitda harus finite"):
         reconcile_peer_filing_records([provider_record()], [filing_record(ebitda=float("inf"))])
+
+
+def test_peer_filing_reconciliation_distinguishes_invalid_provider_value_from_missing():
+    result = reconcile_peer_filing_records(
+        [{**provider_record(), "totalRevenue": "not-revenue"}],
+        [filing_record()],
+    )
+    row = result["details"].loc[result["details"]["metric"].eq("total_revenue")].iloc[0]
+    assert row["status"] == "INVALID_VALUE"
+    assert row["provider_value"] is None
