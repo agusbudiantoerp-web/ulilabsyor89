@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 import pandas as pd
 
 EVENT_TYPES = {"EARNINGS", "DIVIDEND_DECLARATION", "EX_DIVIDEND", "PAY_DATE", "STOCK_SPLIT", "RIGHTS_ISSUE", "OTHER"}
@@ -34,6 +35,10 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         frame["timezone"] = "UTC"
     if "source_url" not in frame:
         frame["source_url"] = ""
+    frame["source_url"] = frame["source_url"].fillna("").astype(str).str.strip()
+    invalid_urls = frame["source_url"].ne("") & ~frame["source_url"].str.match(r"^https?://", case=False)
+    if invalid_urls.any():
+        raise ValueError("source_url harus berupa URL http/https jika diisi.")
     if "details" not in frame:
         frame["details"] = ""
     if "amount" not in frame:
@@ -44,6 +49,10 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         frame["split_ratio"] = None
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
     frame["split_ratio"] = pd.to_numeric(frame["split_ratio"], errors="coerce")
+    for column in ("amount", "split_ratio"):
+        supplied = frame[column].notna()
+        if supplied.any() and not all(math.isfinite(float(value)) for value in frame.loc[supplied, column]):
+            raise ValueError(f"{column} harus berupa angka finite.")
     if (frame["amount"].dropna() < 0).any() or (frame["split_ratio"].dropna() <= 0).any():
         raise ValueError("Amount tidak boleh negatif dan split ratio harus positif.")
     if frame.loc[frame["event_type"].eq("STOCK_SPLIT"), "split_ratio"].isna().any():
