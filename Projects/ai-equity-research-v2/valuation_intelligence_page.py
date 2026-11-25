@@ -58,6 +58,12 @@ def render_valuation_intelligence() -> None:
             key="peer_symbols",
         )
         if st.button("Ambil data peer", key="peer_fetch", type="primary"):
+            for stale_key in (
+                "peer_filing_reconciliation_details",
+                "peer_filing_reconciliation_metrics",
+                "peer_filing_reconciliation_limitations",
+            ):
+                st.session_state.pop(stale_key, None)
             symbols = list(dict.fromkeys(
                 item.strip().upper() for item in symbols_raw.replace("\n", ",").split(",") if item.strip()
             ))
