@@ -63,6 +63,47 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - Screener results carry the provenance record, and Market Intelligence displays its source, currency, adjustment basis, latest bar and quality status.
 - A passing basic quality check is not independent proof of Yahoo Finance accuracy, complete corporate-action history, point-in-time data or survivorship-bias-free coverage.
 
+## 11. Portfolio Cash-Flow Ledger, Dividends, TWR and XIRR
+
+- Event types: deposits, withdrawals, dividends, buys, sells, fees, taxes and stock splits.
+- Event validation checks dates, event types, non-negative absolute amounts, ticker requirements and quantity/price requirements.
+- The ledger separates external investor flows, dividend income and transaction costs.
+- TWR geometrically links sub-period returns after adding/subtracting external flows from opening capital at risk.
+- XIRR solves dated investor cash flows with an ACT/365 bisection solver and optional terminal portfolio value.
+- The current Streamlit ledger is session-scoped and can be exported to CSV; permanent owner-scoped event storage and broker reconciliation are not yet implemented.
+- All amounts must use one base currency. Split events record ratio metadata; they do not independently rewrite historical prices or existing saved positions.
+
+## 12. Cross-Market FX-Aware Portfolio Returns
+
+- Combines IDX (IDR) and US (USD) daily close returns in an explicit IDR or USD base currency.
+- USD/IDR is aligned backward as-of to each asset trading date with an explicit maximum calendar-day tolerance; missing FX coverage fails closed.
+- Local asset return and FX contribution are reported separately; inverse USD/IDR conversion is used for IDR assets in a USD base portfolio.
+- Static target weights are preserved across market holidays; a closed market contributes zero daily return rather than being reweighted into another market.
+- This is a daily close valuation model, not an intraday synchronized execution model. FX data provider, timezone, market holidays and stale-data tolerance should be reviewed.
+
+## 13. Peer-Relative Valuation
+
+- Peer sets are explicitly filtered by industry and reporting currency.
+- Summary metrics include P/E, P/B, EV/EBITDA, EV/Sales, ROE, ROIC, revenue growth and operating margin when provider data exists.
+- Negative/non-positive valuation multiples are excluded from peer medians; missing values remain missing and coverage is displayed.
+- Yahoo Finance provider fields may have inconsistent fiscal periods and definitions. User review of the peer set and company filings remains necessary.
+
+## 14. Reverse DCF
+
+- Solves constant explicit-period FCF growth implied by current market price using a bounded bisection solver.
+- Shows present value of explicit FCF, terminal value, present value of terminal value and enterprise-to-equity bridge.
+- Requires normalized positive current FCF, market price, diluted shares, net debt/cash, WACC, terminal growth and explicit forecast horizon.
+- Rejects WACC/terminal-growth combinations that do not converge and target prices outside the selected growth bounds.
+- This is a conditional expectation analysis, not a forecast of actual future growth.
+
+## 15. Monte Carlo and Stress Testing
+
+- Reproducible multivariate-normal daily return simulations with a user-selectable seed, horizon and simulation count.
+- Reports return percentiles, probability of loss, VaR, CVaR and median maximum drawdown.
+- Covariance eigenvalues are clipped at zero when numerical estimation yields a non-positive-semidefinite covariance matrix.
+- User-defined instantaneous price shocks calculate weighted asset contributions and unallocated cash.
+- Simulations assume IID multivariate-normal returns and exclude regime changes, parameter uncertainty, taxes, liquidity, FX shocks unless already embedded in returns, and corporate actions. They are scenarios, not forecasts.
+
 ## Data and safety notes
 
 - Price/fundamental data is retrieved from Yahoo Finance via yfinance and may be delayed, incomplete, revised or rate-limited.
