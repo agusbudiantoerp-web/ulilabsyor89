@@ -155,3 +155,100 @@ def test_postgres_portfolio_valuation_snapshots_are_owner_scoped(postgres_test_d
         assert delete_valuations(other, "main") == 0
     finally:
         delete_valuations(owner, "main")
+
+
+
+def test_postgres_valuation_replacement_rolls_back_when_insert_fails(postgres_test_database):
+    import psycopg
+
+    owner = "issuer|valuation-rollback-" + uuid.uuid4().hex
+    baseline = pd.DataFrame([
+        {"date": "2026-01-01", "portfolio_value": 1000, "external_flow": 0},
+        {"date": "2026-02-01", "portfolio_value": 1100, "external_flow": 0},
+    ])
+    trigger_name = "reject_valuation_" + uuid.uuid4().hex
+    function_name = "reject_valuation_fn_" + uuid.uuid4().hex
+    save_valuations(owner, "main", baseline, currency="IDR")
+    try:
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute(f"""
+                CREATE FUNCTION {function_name}() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF NEW.portfolio_value = 9999 THEN
+                        RAISE EXCEPTION 'injected valuation insert failure';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$
+            """)
+            db.execute(f"""
+                CREATE TRIGGER {trigger_name} BEFORE INSERT ON portfolio_valuations
+                FOR EACH ROW EXECUTE FUNCTION {function_name}()
+            """)
+
+        replacement = pd.DataFrame([
+            {"date": "2026-03-01", "portfolio_value": 9999, "external_flow": 0},
+        ])
+        with pytest.raises(psycopg.errors.RaiseException, match="injected valuation insert failure"):
+            save_valuations(owner, "main", replacement, currency="IDR")
+
+        preserved = list_valuations(owner, "main")
+        assert preserved["date"].tolist() == ["2026-01-01", "2026-02-01"]
+        assert preserved["portfolio_value"].tolist() == [1000.0, 1100.0]
+    finally:
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute(f"DROP TRIGGER IF EXISTS {trigger_name} ON portfolio_valuations")
+            db.execute(f"DROP FUNCTION IF EXISTS {function_name}()")
+        delete_valuations(owner, "main")
+
+
+def test_postgres_thesis_update_rolls_back_if_version_insert_fails(postgres_test_database):
+    import psycopg
+
+    suffix = uuid.uuid4().hex
+    owner = "issuer|thesis-rollback-" + suffix
+    reviewer = "issuer|reviewer-rollback-" + suffix
+    trigger_name = "reject_thesis_version_" + suffix
+    function_name = "reject_thesis_version_fn_" + suffix
+    thesis_id = create_thesis(
+        owner, "BBCA", "IDX", "Original PostgreSQL thesis",
+        {"bull_case": "original", "target_price": 12000},
+    )
+    review_id = request_review(owner, thesis_id, reviewer, actor_id=owner)
+    try:
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute(f"""
+                CREATE FUNCTION {function_name}() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF NEW.version = 2 THEN
+                        RAISE EXCEPTION 'injected thesis version failure';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$
+            """)
+            db.execute(f"""
+                CREATE TRIGGER {trigger_name} BEFORE INSERT ON research_thesis_versions
+                FOR EACH ROW EXECUTE FUNCTION {function_name}()
+            """)
+
+        with pytest.raises(psycopg.errors.RaiseException, match="injected thesis version failure"):
+            update_thesis(
+                owner, thesis_id, title="Should roll back",
+                content={"bull_case": "changed", "target_price": 1},
+                status="CLOSED",
+            )
+
+        saved = get_thesis(owner, thesis_id)
+        assert saved["title"] == "Original PostgreSQL thesis"
+        assert saved["content"]["target_price"] == 12000
+        assert [item["version"] for item in saved["versions"]] == [1]
+        reviews = list_reviews_for_reviewer(reviewer)
+        assert len(reviews) == 1
+        assert reviews[0]["id"] == review_id
+        assert reviews[0]["status"] == "PENDING"
+    finally:
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute(f"DROP TRIGGER IF EXISTS {trigger_name} ON research_thesis_versions")
+            db.execute(f"DROP FUNCTION IF EXISTS {function_name}()")
+        delete_thesis(owner, thesis_id)
