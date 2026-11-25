@@ -171,7 +171,7 @@ Limitations: this is a simplified daily close simulation. It excludes dividends,
 ## 10. Multi-User Security, Audit and Operations
 
 - Streamlit-native OIDC login resolves the immutable issuer-bound principal (`iss|sub`) and maps it to a server-managed role. Missing or invalid identity/role fails closed.
-- Roles: `viewer`, `analyst`, `portfolio_manager`, `admin`. Page and selected operation-level checks restrict portfolio management, research execution, report exports and administrator audit access.
+- Roles: `viewer`, `analyst`, `portfolio_manager`, `admin`. Analysts/portfolio managers/admins can manage their own thesis workflow; only portfolio managers/admins can decide explicitly assigned thesis reviews. Page and selected operation-level checks restrict portfolio management, research execution, report exports and administrator audit access.
 - Portfolio books, learning/performance records and saved research/backtest runs are owner-scoped when PostgreSQL is configured. Audit history is system-wide and administrator-only.
 - The Security & Audit console provides role-map visibility, audit filtering/CSV export and on-demand hash-chain verification. Hash chaining is tamper-evident, not immutable/WORM.
 - `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. Restore must be rehearsed on staging.
