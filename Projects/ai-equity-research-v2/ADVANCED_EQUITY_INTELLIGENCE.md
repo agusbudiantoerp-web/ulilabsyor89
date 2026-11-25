@@ -86,7 +86,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 ## 13. Peer-Relative Valuation
 
 - Peer sets are explicitly filtered by industry and reporting currency.
-- Summary metrics include P/E, P/B, EV/EBITDA, EV/Sales, ROE, ROIC, revenue growth and operating margin when provider data exists.
+- Summary metrics include P/E, P/B, EV/EBITDA, EV/Sales, ROE, ROIC, revenue growth and operating margin when provider data exists. Source, provider ticker, fiscal year end, quote/reporting currencies, coverage and IQR outlier flags are displayed.
 - Negative/non-positive valuation multiples are excluded from peer medians; missing values remain missing and coverage is displayed.
 - Yahoo Finance provider fields may have inconsistent fiscal periods and definitions. User review of the peer set and company filings remains necessary.
 
