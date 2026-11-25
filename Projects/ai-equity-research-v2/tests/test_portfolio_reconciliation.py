@@ -100,3 +100,20 @@ def test_broker_reconciliation_accepts_numpy_integer_date_tolerance():
     import numpy as np
     result = reconcile_broker_statement([], [], date_tolerance_days=np.int64(1))
     assert result["internal_event_count"] == 0
+
+
+def test_broker_reconciliation_preserves_exact_match_when_earlier_row_has_only_nearby_candidate():
+    internal = [
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 1000, "ticker": "BBCA", "quantity": 10, "price": 100},
+        {"date": "2026-01-02", "event_type": "BUY", "amount": 1000, "ticker": "BBCA", "quantity": 10, "price": 100},
+    ]
+    broker = [
+        {"date": "2026-01-02", "event_type": "BUY", "amount": 1000, "ticker": "BBCA", "quantity": 10, "price": 100},
+    ]
+    result = reconcile_broker_statement(internal, broker, date_tolerance_days=1)
+    assert result["matched_count"] == 1
+    assert result["missing_in_broker_count"] == 1
+    matched = result["details"].loc[result["details"]["status"] == "MATCH"].iloc[0]
+    missing = result["details"].loc[result["details"]["status"] == "MISSING_IN_BROKER"].iloc[0]
+    assert pd.Timestamp(matched["internal_date"]) == pd.Timestamp("2026-01-02")
+    assert pd.Timestamp(missing["internal_date"]) == pd.Timestamp("2026-01-01")
