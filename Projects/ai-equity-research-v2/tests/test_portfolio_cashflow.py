@@ -261,3 +261,24 @@ def test_twr_and_xirr_accept_mixed_timezone_aware_dates():
     ])
     assert twr["twr_pct"] == pytest.approx(10.0)
     assert xirr["xirr_pct"] == pytest.approx(10.0, abs=0.02)
+
+
+@pytest.mark.parametrize("value", [True, 1767225600000000000])
+def test_normalize_events_rejects_boolean_or_numeric_settlement_date(value):
+    event = {
+        "date": "2026-01-02", "event_type": "BUY", "amount": 100,
+        "ticker": "BBCA", "quantity": 1, "price": 100,
+        "settlement_date": value,
+    }
+    with pytest.raises(ValueError, match="Settlement date"):
+        normalize_events([event])
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"initial_cash": True},
+    {"amount_tolerance_pct": True},
+    {"initial_positions": {"BBCA": True}},
+])
+def test_reconcile_portfolio_ledger_rejects_boolean_opening_inputs(kwargs):
+    with pytest.raises(ValueError, match="boolean"):
+        reconcile_portfolio_ledger([], **kwargs)
