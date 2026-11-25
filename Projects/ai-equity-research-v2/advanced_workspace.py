@@ -75,6 +75,7 @@ def render_market_intelligence() -> None:
                 st.session_state["market_intelligence_result"] = {
                     "ticker": meta.get("ticker", ticker.upper()), "market": market,
                     "benchmark": BENCHMARKS[market], "regime": regime, "strength": strength,
+                    "data_provenance": meta.get("data_provenance", {}),
                     "quality": quality, "fundamental_quality": fundamental_quality,
                 }
             except Exception as exc:
@@ -83,6 +84,15 @@ def render_market_intelligence() -> None:
         if result:
             regime = result["regime"]
             st.markdown(f"**{result['market']} · {result['benchmark']} · {regime['bar_date']}**")
+            provenance = result.get("data_provenance", {})
+            if provenance:
+                st.caption(
+                    f"Source: {provenance.get('source')} · ticker: {provenance.get('source_ticker')} · "
+                    f"mata uang: {provenance.get('currency')} · basis: {provenance.get('price_basis')} · "
+                    f"bar terakhir: {provenance.get('bar_date')} · kualitas: {provenance.get('quality_status')}"
+                )
+                if provenance.get("quality_status") != "PASS":
+                    st.warning("Periksa kualitas/kesegaran data sebelum memakai hasil analisis.")
             st.metric("Market regime", regime["regime"])
             r1, r2, r3 = st.columns(3)
             r1.metric("Return indeks 20 sesi", f"{regime['return_20d_pct']:.2f}%")
