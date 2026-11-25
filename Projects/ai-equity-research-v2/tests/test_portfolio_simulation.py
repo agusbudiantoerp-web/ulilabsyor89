@@ -279,3 +279,13 @@ def test_simulation_runners_reject_daily_return_at_or_below_total_loss(runner, e
     }
     with pytest.raises(ValueError, match="-100%"):
         runner(**kwargs)
+
+
+@pytest.mark.parametrize("parameter", ["simulations", "horizon_days", "confidence", "seed"])
+def test_simulation_runners_reject_numpy_boolean_controls(parameter):
+    import numpy as np
+    with pytest.raises(ValueError):
+        run_portfolio_monte_carlo(
+            returns_frame(), {"A": 0.6, "B": 0.4},
+            **{parameter: np.bool_(True)},
+        )
