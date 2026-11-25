@@ -97,7 +97,12 @@ def reconcile_broker_statement(
 
     internal_order = sorted(
         candidates_by_internal,
-        key=lambda index: (len(candidates_by_internal[index]), index),
+        key=lambda index: (
+            len(candidates_by_internal[index]),
+            candidates_by_internal[index][0][0],
+            candidates_by_internal[index][0][1],
+            index,
+        ),
     )
     for internal_index in internal_order:
         assign(internal_index, set())
