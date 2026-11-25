@@ -278,3 +278,82 @@ def run_regime_switching_monte_carlo(
             "Scenario distribution is not a forecast."
         ),
     }
+
+
+def run_block_bootstrap_monte_carlo(
+    historical_returns: pd.DataFrame,
+    weights: dict[str, float],
+    *,
+    simulations: int = 5000,
+    horizon_days: int = 252,
+    block_size: int = 5,
+    seed: int = 42,
+    confidence: float = 0.95,
+) -> dict:
+    """Non-parametric circular moving-block bootstrap of joint asset returns."""
+    if not isinstance(historical_returns, pd.DataFrame) or historical_returns.empty:
+        raise ValueError("Historical returns kosong.")
+    if set(weights) != set(historical_returns.columns):
+        raise ValueError("Ticker weights harus sama dengan kolom historical returns.")
+    frame = historical_returns.apply(pd.to_numeric, errors="coerce").dropna(how="any")
+    if len(frame) < 20 or not np.isfinite(frame.to_numpy(dtype=float)).all():
+        raise ValueError("Minimal 20 observasi return finite diperlukan.")
+    if not isinstance(block_size, int) or not 1 <= block_size <= min(60, len(frame)):
+        raise ValueError("Block size harus integer 1–60 dan tidak melebihi histori.")
+    if not isinstance(simulations, int) or not 100 <= simulations <= 100000:
+        raise ValueError("Simulations harus antara 100 dan 100000.")
+    if not isinstance(horizon_days, int) or not 1 <= horizon_days <= 2520:
+        raise ValueError("Horizon harus antara 1 dan 2520 sesi.")
+    if not 0.5 < confidence < 1:
+        raise ValueError("Confidence harus antara 50% dan 100%.")
+    weight = np.asarray([float(weights[column]) for column in frame.columns], dtype=float)
+    if not np.isfinite(weight).all() or (weight < 0).any() or weight.sum() <= 0 or weight.sum() > 1.000001:
+        raise ValueError("Bobot harus finite, non-negatif, total positif dan maksimal 100%.")
+    values = frame.to_numpy(dtype=float)
+    rng = np.random.default_rng(seed)
+    blocks_per_path = int(np.ceil(horizon_days / block_size))
+    offsets = np.arange(block_size)
+    final_returns = np.empty(simulations, dtype=float)
+    max_drawdowns = np.empty(simulations, dtype=float)
+    batch_size = max(100, min(1000, simulations))
+    for start in range(0, simulations, batch_size):
+        stop = min(simulations, start + batch_size)
+        count = stop - start
+        block_starts = rng.integers(0, len(values), size=(count, blocks_per_path))
+        indices = (block_starts[:, :, None] + offsets[None, None, :]) % len(values)
+        sampled = values[indices].reshape(count, blocks_per_path * block_size, values.shape[1])[:, :horizon_days, :]
+        asset_returns = np.clip(sampled, -0.999999, None)
+        portfolio_returns = np.einsum("shn,n->sh", asset_returns, weight)
+        equity = np.cumprod(1.0 + portfolio_returns, axis=1)
+        peaks = np.maximum.accumulate(np.column_stack([np.ones(count), equity]), axis=1)[:, 1:]
+        final_returns[start:stop] = equity[:, -1] - 1.0
+        max_drawdowns[start:stop] = (equity / peaks - 1.0).min(axis=1)
+    loss_quantile = float(np.quantile(final_returns, 1.0 - confidence))
+    tail = final_returns[final_returns <= loss_quantile]
+    return {
+        "simulations": simulations,
+        "horizon_days": horizon_days,
+        "block_size": block_size,
+        "seed": seed,
+        "confidence": confidence,
+        "expected_return_pct": float(np.mean(final_returns) * 100.0),
+        "median_return_pct": float(np.median(final_returns) * 100.0),
+        "return_percentiles_pct": {
+            "p05": float(np.quantile(final_returns, 0.05) * 100.0),
+            "p25": float(np.quantile(final_returns, 0.25) * 100.0),
+            "p75": float(np.quantile(final_returns, 0.75) * 100.0),
+            "p95": float(np.quantile(final_returns, 0.95) * 100.0),
+        },
+        "var_loss_pct": float(-loss_quantile * 100.0),
+        "cvar_loss_pct": float(-np.mean(tail) * 100.0) if len(tail) else float(-loss_quantile * 100.0),
+        "median_max_drawdown_pct": float(np.median(max_drawdowns) * 100.0),
+        "probability_of_loss_pct": float(np.mean(final_returns < 0) * 100.0),
+        "weights": dict(weights),
+        "assumptions": (
+            "Circular moving-block bootstrap resamples joint historical asset-return vectors, "
+            "preserving cross-asset dependence and within-block serial patterns. "
+            "It assumes historical blocks are representative and does not model structural breaks, "
+            "parameter uncertainty beyond empirical resampling, liquidity, taxes or corporate actions. "
+            "Scenario distribution is not a forecast."
+        ),
+    }
