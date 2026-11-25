@@ -37,6 +37,7 @@ def render_cross_market_simulation() -> None:
         base = c3.selectbox("Base currency", ["IDR", "USD"], key="fx_base_currency")
         period = c4.selectbox("Historical period", ["1y", "2y", "5y"], index=1, key="fx_period")
         max_gap = st.number_input("Maksimum umur data FX (hari kalender)", 0, 7, 3)
+        max_price_gap = st.number_input("Maksimum umur harga penutupan (hari kalender)", 0, 14, 7)
         if st.button("Bangun cross-market portfolio", type="primary", key="fx_run"):
             idx_symbols = list(dict.fromkeys(x.strip().upper() for x in idx_raw.split(",") if x.strip()))
             us_symbols = list(dict.fromkeys(x.strip().upper() for x in us_raw.split(",") if x.strip()))
@@ -252,6 +253,7 @@ def render_cross_market_simulation() -> None:
                     initial_cash=float(initial_cash),
                     initial_positions=opening_positions,
                     max_fx_gap_days=int(max_gap),
+                    max_price_gap_days=int(max_price_gap),
                 )
                 st.session_state["cross_market_transaction_replay_result"] = replay
             except Exception as exc:
