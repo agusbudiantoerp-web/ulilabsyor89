@@ -457,6 +457,19 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "Remaining tax lot cost basis": tax_metrics.get("open_cost_basis"),
         })
 
+    filing_reconciliation = st.session_state.get("peer_filing_reconciliation_details")
+    filing_metrics = st.session_state.get("peer_filing_reconciliation_metrics") or {}
+    if isinstance(filing_reconciliation, pd.DataFrame) and not filing_reconciliation.empty:
+        extra_sheets["Issuer Filing Reconciliation"] = filing_reconciliation.copy()
+    if filing_metrics:
+        metrics.update({
+            "Filing metrics matched": filing_metrics.get("matched_count"),
+            "Filing metrics mismatched": filing_metrics.get("mismatch_count"),
+            "Filing period mismatches": filing_metrics.get("period_mismatch_count"),
+            "Filing currency mismatches": filing_metrics.get("currency_mismatch_count"),
+            "Filing values missing": filing_metrics.get("missing_count"),
+        })
+
     dcf_reconciliation = st.session_state.get("valuation_reconciliation_result") or {}
     if dcf_reconciliation:
         extra_sheets["DCF Reconciliation"] = pd.DataFrame([{
