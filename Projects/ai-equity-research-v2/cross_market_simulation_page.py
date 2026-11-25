@@ -11,6 +11,7 @@ from fx_portfolio_engine import combine_mixed_currency_returns
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
+    run_block_bootstrap_monte_carlo,
 )
 from market_data_provider import YahooFinanceProvider
 from transaction_aware_portfolio import run_transaction_aware_portfolio
@@ -43,7 +44,7 @@ def render_cross_market_simulation() -> None:
                 "cross_market_fx_result", "cross_market_price_closes",
                 "cross_market_asset_currencies", "cross_market_usdidr_close",
                 "cross_market_monte_carlo_result", "cross_market_regime_monte_carlo_result",
-                "cross_market_transaction_replay_result", "cross_market_stress_result",
+                "cross_market_transaction_replay_result", "cross_market_block_bootstrap_result", "cross_market_stress_result",
                 "cross_market_factor_stress_result",
             ):
                 st.session_state.pop(stale_key, None)
@@ -150,6 +151,38 @@ def render_cross_market_simulation() -> None:
             for key, value in mc["return_percentiles_pct"].items()
         ]), use_container_width=True, hide_index=True)
         st.caption(mc["assumptions"])
+
+    with st.expander("Historical block bootstrap Monte Carlo", expanded=False):
+        st.caption(
+            "Resample blok return historis gabungan seluruh aset untuk mempertahankan korelasi antar-aset "
+            "dan pola serial pendek. Pilih panjang blok sesuai karakter data."
+        )
+        block_size = st.slider(
+            "Panjang blok historis (sesi)", min_value=1, max_value=20,
+            value=5, key="fx_bootstrap_block_size",
+        )
+        if st.button("Jalankan block bootstrap Monte Carlo", key="fx_block_bootstrap_run"):
+            try:
+                bootstrap_result = run_block_bootstrap_monte_carlo(
+                    result["asset_returns"], result["weights"],
+                    simulations=int(simulations), horizon_days=int(horizon),
+                    block_size=int(block_size), seed=int(seed),
+                )
+                st.session_state["cross_market_block_bootstrap_result"] = bootstrap_result
+            except Exception as exc:
+                st.error(f"Block bootstrap gagal: {type(exc).__name__}: {exc}")
+        bootstrap_result = st.session_state.get("cross_market_block_bootstrap_result")
+        if bootstrap_result:
+            b1, b2, b3, b4 = st.columns(4)
+            b1.metric("Median return", f"{bootstrap_result['median_return_pct']:.2f}%")
+            b2.metric("VaR loss", f"{bootstrap_result['var_loss_pct']:.2f}%")
+            b3.metric("CVaR loss", f"{bootstrap_result['cvar_loss_pct']:.2f}%")
+            b4.metric("Probability of loss", f"{bootstrap_result['probability_of_loss_pct']:.1f}%")
+            st.dataframe(pd.DataFrame([
+                {"Percentile": key, "Return (%)": value}
+                for key, value in bootstrap_result["return_percentiles_pct"].items()
+            ]), use_container_width=True, hide_index=True)
+            st.caption(bootstrap_result["assumptions"])
 
     with st.expander("Regime-switching Monte Carlo (calm / stress)", expanded=False):
         st.caption(
