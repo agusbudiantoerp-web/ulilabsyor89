@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo, run_factor_stress_scenario
+from portfolio_simulation import (\n    run_historical_stress_scenarios, run_portfolio_monte_carlo,\n    run_factor_stress_scenario, run_regime_switching_monte_carlo,\n)
 
 
 def returns_frame():
@@ -74,4 +74,62 @@ def test_factor_stress_rejects_missing_exposures_and_invalid_shocks():
     with pytest.raises(ValueError, match="Factor shock"):
         run_factor_stress_scenario(
             {"A": 1.0}, {"A": {"fx": 1.0}}, {"fx": -1.5}
+        )
+
+
+
+def regime_frame():
+    rng = np.random.default_rng(123)
+    calm = pd.DataFrame({
+        "A": rng.normal(0.0008, 0.008, 60),
+        "B": rng.normal(0.0005, 0.010, 60),
+    })
+    stress = pd.DataFrame({
+        "A": rng.normal(-0.002, 0.025, 40),
+        "B": rng.normal(-0.001, 0.030, 40),
+    })
+    frame = pd.concat([calm, stress], ignore_index=True)
+    labels = pd.Series(["calm"] * 60 + ["stress"] * 40, index=frame.index)
+    return frame, labels
+
+
+def test_regime_switching_monte_carlo_is_reproducible_and_reports_regimes():
+    frame, labels = regime_frame()
+    kwargs = dict(
+        historical_returns=frame, weights={"A": 0.6, "B": 0.4},
+        regime_labels=labels, transition_matrix=[[0.95, 0.05], [0.20, 0.80]],
+        simulations=300, horizon_days=30, seed=17,
+    )
+    first = run_regime_switching_monte_carlo(**kwargs)
+    second = run_regime_switching_monte_carlo(**kwargs)
+    assert first["median_return_pct"] == second["median_return_pct"]
+    assert first["var_loss_pct"] == second["var_loss_pct"]
+    assert first["regimes"] == ["calm", "stress"]
+    assert sum(first["final_regime_counts"].values()) == 300
+    assert "Markov" in first["assumptions"]
+
+
+def test_regime_switching_monte_carlo_rejects_bad_transition_and_alignment():
+    frame, labels = regime_frame()
+    args = dict(
+        historical_returns=frame, weights={"A": 0.5, "B": 0.5},
+        regime_labels=labels, transition_matrix=[[0.8, 0.3], [0.2, 0.8]],
+        simulations=100, horizon_days=10,
+    )
+    with pytest.raises(ValueError, match="berjumlah 1"):
+        run_regime_switching_monte_carlo(**args)
+    with pytest.raises(ValueError, match="Index regime labels"):
+        run_regime_switching_monte_carlo(
+            **{**args, "transition_matrix": [[0.8, 0.2], [0.2, 0.8]],
+               "regime_labels": labels.iloc[::-1]}
+        )
+
+
+def test_regime_switching_monte_carlo_requires_minimum_observations_per_regime():
+    frame, labels = regime_frame()
+    labels.iloc[-25:] = "calm"
+    with pytest.raises(ValueError, match="minimal 20 observasi"):
+        run_regime_switching_monte_carlo(
+            frame, {"A": 0.5, "B": 0.5}, labels,
+            [[0.9, 0.1], [0.2, 0.8]], simulations=100, horizon_days=10,
         )
