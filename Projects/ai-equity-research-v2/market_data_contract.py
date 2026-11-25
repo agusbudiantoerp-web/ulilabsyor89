@@ -46,7 +46,7 @@ def build_market_data_metadata(
         if invalid_rows:
             checks.append({"severity": "ERROR", "code": "NON_NUMERIC_OHLCV",
                            "message": f"{invalid_rows} bar memiliki nilai OHLCV kosong/non-numerik."})
-        nonfinite = int((~frame.map(lambda value: math.isfinite(float(value)) if pd.notna(value) else False)).any(axis=1).sum())
+        nonfinite = sum(1 for row in frame.to_numpy() for value in row if pd.notna(value) and not math.isfinite(float(value)))
         if nonfinite:
             checks.append({"severity": "ERROR", "code": "NON_FINITE_OHLCV",
                            "message": f"{nonfinite} bar memiliki nilai non-finite."})
