@@ -118,3 +118,30 @@ def reverse_dcf_implied_growth(
             "net debt and diluted shares. It does not establish that market expectations are correct."
         ),
     }
+
+
+def reverse_dcf_sensitivity(*, wacc_values, terminal_growth_values, **model_inputs) -> list[dict]:
+    """Return implied-growth sensitivity grid; invalid cells remain explicit errors."""
+    rows = []
+    for wacc in wacc_values:
+        for terminal_growth in terminal_growth_values:
+            try:
+                result = reverse_dcf_implied_growth(
+                    **model_inputs, wacc=float(wacc), terminal_growth=float(terminal_growth)
+                )
+                rows.append({
+                    "wacc_pct": float(wacc) * 100.0,
+                    "terminal_growth_pct": float(terminal_growth) * 100.0,
+                    "implied_fcf_growth_pct": result["implied_fcf_growth_pct"],
+                    "status": "OK",
+                    "error": "",
+                })
+            except (ValueError, OverflowError) as exc:
+                rows.append({
+                    "wacc_pct": float(wacc) * 100.0,
+                    "terminal_growth_pct": float(terminal_growth) * 100.0,
+                    "implied_fcf_growth_pct": None,
+                    "status": "INVALID",
+                    "error": str(exc),
+                })
+    return rows
