@@ -88,6 +88,12 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
     elif isinstance(raw_events, list) and not raw_events:
         raw_events = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
     frame = normalize_events(raw_events)
+    # A split is effective before regular-session trades on its effective
+    # exchange date, regardless of the order in which ledger rows were entered.
+    frame["_event_priority"] = frame["event_type"].map({"SPLIT": 0}).fillna(1)
+    frame = frame.sort_values(["date", "_event_priority"], kind="stable").drop(
+        columns=["_event_priority"]
+    ).reset_index(drop=True)
     realized = []
     warnings = []
     for row in frame.to_dict("records"):
