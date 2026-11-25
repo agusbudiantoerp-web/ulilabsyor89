@@ -1,6 +1,8 @@
 """Investment thesis authoring and version history UI."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import streamlit as st
 
 from security_controls import record_audit_event, require_permission
@@ -33,6 +35,43 @@ def render_investment_thesis() -> None:
     except Exception as exc:
         st.error(f"Thesis store tidak dapat dibaca ({type(exc).__name__}). Detail koneksi disembunyikan.")
         return
+    today = datetime.now(timezone.utc).date()
+    overdue_reviews, due_soon_reviews, pending_review_count = [], [], 0
+    for thesis_row in theses:
+        review_value = str(thesis_row.get("review_date") or "").strip()
+        if review_value and thesis_row.get("status") != "CLOSED":
+            try:
+                review_day = datetime.fromisoformat(review_value).date()
+                if review_day < today:
+                    overdue_reviews.append(thesis_row)
+                elif (review_day - today).days <= 30:
+                    due_soon_reviews.append(thesis_row)
+            except ValueError:
+                pass
+        try:
+            pending_review_count += sum(
+                item.get("status") == "PENDING"
+                for item in list_reviews_for_thesis(owner, thesis_row["id"])
+            )
+        except Exception:
+            pass
+    active_count = sum(item.get("status") == "ACTIVE" for item in theses)
+    watch_count = sum(item.get("status") == "WATCH" for item in theses)
+    t1, t2, t3, t4 = st.columns(4)
+    t1.metric("Total theses", len(theses))
+    t2.metric("Active / Watch", f"{active_count} / {watch_count}")
+    t3.metric("Overdue reviews", len(overdue_reviews))
+    t4.metric("Pending approvals", pending_review_count)
+    if overdue_reviews:
+        st.warning(
+            "Tesis melewati jadwal review: "
+            + ", ".join(f"{item['ticker']} · {item['title']}" for item in overdue_reviews)
+        )
+    if due_soon_reviews:
+        st.info(
+            "Review jatuh tempo dalam 30 hari: "
+            + ", ".join(f"{item['ticker']} · {item['review_date']}" for item in due_soon_reviews)
+        )
     labels = {"— buat tesis baru —": None}
     labels.update({
         f"{item['ticker']} · {item['title']} · v{item['current_version']} · {item['status']}": item["id"]
