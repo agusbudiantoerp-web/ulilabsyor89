@@ -89,12 +89,29 @@ def test_research_exports_include_scenario_assumptions_catalysts_risks_and_sourc
             "latest_price_date": "2026-11-23",
             "income_statement_period": "2025-12-31",
         },
+        "operating_sensitivity": {
+            "available": True,
+            "revenue_growth_values": [0.0],
+            "ebitda_margin_values": [0.20],
+            "sensitivity": [{
+                "ebitda_margin": 0.20,
+                "values": [{
+                    "available": True,
+                    "revenue_growth": 0.0,
+                    "value_per_share": 12.0,
+                    "equity_value": 120.0,
+                    "upside_downside_pct": 20.0,
+                    "reason": None,
+                }],
+            }],
+        },
     }
     excel = make_excel_report(data, scenario_result=scenario)
     workbook = load_workbook(BytesIO(excel), read_only=True)
     assert "Scenario Assumptions" in workbook.sheetnames
     assert "Catalysts & Risks" in workbook.sheetnames
     assert "Sources & Dates" in workbook.sheetnames
+    assert "Operating Sensitivity" in workbook.sheetnames
     pdf = make_pdf_report(data, scenario_result=scenario)
     assert pdf.startswith(b"%PDF")
 
