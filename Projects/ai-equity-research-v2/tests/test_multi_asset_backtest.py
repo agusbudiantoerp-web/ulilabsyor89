@@ -91,3 +91,10 @@ def test_multi_asset_rejects_non_datetime_index():
     bars.index = range(len(bars))
     with pytest.raises(ValueError, match="DatetimeIndex"):
         run_multi_asset_backtest({"AAA": bars})
+
+
+def test_multi_asset_result_documents_split_adjustment_policy():
+    result = run_multi_asset_backtest({"AAA": sample_bars()})
+    policy = result["price_adjustment_policy"].lower()
+    assert "does not apply stock-split adjustments" in policy
+    assert "do not apply the same split again" in policy
