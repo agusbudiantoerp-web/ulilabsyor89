@@ -48,3 +48,10 @@ def test_calendar_rejects_unknown_status_and_invalid_date():
 def test_calendar_rejects_invalid_split_ratio():
     with pytest.raises(ValueError, match="split ratio"):
         normalize_corporate_events([base_event(event_type="STOCK_SPLIT", split_ratio=0)])
+
+
+def test_calendar_requires_source_and_stock_split_ratio():
+    with pytest.raises(ValueError, match="sumber event"):
+        normalize_corporate_events([base_event(source=" ")])
+    with pytest.raises(ValueError, match="Split ratio wajib"):
+        normalize_corporate_events([base_event(event_type="STOCK_SPLIT")])
