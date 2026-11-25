@@ -56,6 +56,8 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
         raise ValueError("Quantity wajib untuk BUY, SELL dan SPLIT.")
     if frame.loc[frame["event_type"].isin({"BUY", "SELL"}), "price"].isna().any():
         raise ValueError("Price wajib untuk BUY dan SELL.")
+    if frame.loc[frame["event_type"].isin({"BUY", "SELL"}), "amount"].le(0).any():
+        raise ValueError("Nominal transaksi BUY/SELL harus lebih besar dari 0.")
     if frame.loc[frame["event_type"].eq("SPLIT"), "amount"].ne(0).any():
         raise ValueError("Amount untuk event SPLIT harus 0; gunakan quantity sebagai rasio split.")
     return frame.sort_values(["date"], kind="stable").reset_index(drop=True)
@@ -194,3 +196,81 @@ def calculate_xirr(cash_flows: pd.DataFrame | Iterable[dict], *, ending_value: f
         else:
             low, f_low = mid, f_mid
     raise ValueError("XIRR solver tidak konvergen.")
+
+
+def reconcile_portfolio_ledger(
+    events: pd.DataFrame | Iterable[dict],
+    *,
+    initial_cash: float = 0.0,
+    initial_positions: dict[str, float] | None = None,
+    amount_tolerance_pct: float = 1.0,
+) -> dict:
+    """Reconstruct cash and share quantities from dated events.
+
+    BUY amount is total cash paid; SELL amount is gross proceeds. Fees/taxes
+    are separate cash outflows. SPLIT quantity is the new-shares-per-old-share
+    ratio. Same-day ordering follows the stable order supplied by the caller.
+    """
+    cash = float(initial_cash)
+    if not math.isfinite(cash) or cash < 0:
+        raise ValueError("Initial cash harus finite dan tidak negatif.")
+    tolerance = float(amount_tolerance_pct)
+    if not math.isfinite(tolerance) or tolerance < 0:
+        raise ValueError("Amount tolerance harus finite dan tidak negatif.")
+    positions = {
+        str(ticker).upper().strip(): float(shares)
+        for ticker, shares in (initial_positions or {}).items()
+    }
+    if any(not math.isfinite(value) or value < 0 for value in positions.values()):
+        raise ValueError("Initial positions harus finite dan tidak negatif.")
+    frame = normalize_events(events)
+    warnings = []
+    for row in frame.to_dict("records"):
+        kind = row["event_type"]
+        ticker = str(row["ticker"] or "").upper()
+        amount = float(row["amount"])
+        quantity = float(row["quantity"]) if pd.notna(row["quantity"]) else 0.0
+        price = float(row["price"]) if pd.notna(row["price"]) else 0.0
+        if kind == "DEPOSIT":
+            cash += amount
+        elif kind == "WITHDRAWAL":
+            cash -= amount
+        elif kind == "DIVIDEND":
+            cash += amount
+        elif kind == "BUY":
+            cash -= amount
+            positions[ticker] = positions.get(ticker, 0.0) + quantity
+            expected = quantity * price
+            if expected > 0 and abs(amount / expected - 1.0) * 100.0 > tolerance:
+                warnings.append(
+                    f"{ticker}: BUY nominal differs from quantity × price by more than {tolerance:.2f}%."
+                )
+        elif kind == "SELL":
+            if quantity > positions.get(ticker, 0.0) + 1e-9:
+                raise ValueError(f"SELL {ticker} melebihi jumlah saham yang tersedia.")
+            cash += amount
+            positions[ticker] = max(0.0, positions.get(ticker, 0.0) - quantity)
+            expected = quantity * price
+            if expected > 0 and abs(amount / expected - 1.0) * 100.0 > tolerance:
+                warnings.append(
+                    f"{ticker}: SELL proceeds differ from quantity × price by more than {tolerance:.2f}%."
+                )
+        elif kind in {"FEE", "TAX"}:
+            cash -= amount
+        elif kind == "SPLIT":
+            positions[ticker] = positions.get(ticker, 0.0) * quantity
+    if cash < -1e-8:
+        raise ValueError("Cash balance negatif; periksa urutan dan nominal transaksi.")
+    if any(value < -1e-8 for value in positions.values()):
+        raise ValueError("Saldo saham negatif.")
+    return {
+        "cash_balance": max(0.0, cash),
+        "positions": {ticker: shares for ticker, shares in positions.items() if shares > 1e-9},
+        "event_count": int(len(frame)),
+        "warnings": warnings,
+        "currency_note": "Rekonsiliasi hanya valid jika seluruh nominal event menggunakan mata uang dasar yang sama.",
+        "limitations": (
+            "Tidak menghitung FIFO/average tax lots, realized P&L, withholding tax detail, "
+            "interest, unsettled trades, FX conversion atau broker reconciliation."
+        ),
+    }
