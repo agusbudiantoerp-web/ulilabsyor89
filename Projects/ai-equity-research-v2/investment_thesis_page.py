@@ -5,6 +5,7 @@ import streamlit as st
 
 from security_controls import record_audit_event, require_permission
 from thesis_store import create_thesis, get_thesis, list_theses, update_thesis
+from research_run_store import get_run, list_runs
 
 
 def _audit(owner, action, thesis_id, details):
@@ -46,6 +47,17 @@ def render_investment_thesis() -> None:
             st.error(f"Tesis tidak dapat dimuat ({type(exc).__name__}).")
             return
     data = existing["content"] if existing else {}
+    try:
+        saved_runs = list_runs(owner, limit=100)
+    except Exception:
+        saved_runs = []
+    run_labels = {"— tidak ditautkan —": ""}
+    run_labels.update({
+        "{} · {} · {} · {} · {}".format(item["created_at"], item["run_type"], item["market"], ", ".join(item["symbols"]), item["id"][:8]): item["id"]
+        for item in saved_runs
+    })
+    existing_run_id = str(data.get("linked_research_run_id") or "")
+    default_run_label = next((label for label, run_id in run_labels.items() if run_id == existing_run_id), "— tidak ditautkan —")
     with st.form("investment_thesis_editor"):
         c1, c2, c3 = st.columns(3)
         ticker = c1.text_input("Ticker", value=existing["ticker"] if existing else "")
@@ -67,6 +79,7 @@ def render_investment_thesis() -> None:
         target = c6.number_input("Target price", min_value=0.0, value=float(data.get("target_price") or 0.0))
         currency = c7.text_input("Mata uang target", value=data.get("currency", "IDR" if market == "IDX" else "USD"))
         review_date = c8.text_input("Review date (YYYY-MM-DD)", value=existing.get("review_date", "") if existing else "")
+        linked_run_label = st.selectbox("Tautkan research/backtest run", list(run_labels), index=list(run_labels).index(default_run_label))
         submitted = st.form_submit_button("Simpan versi tesis", type="primary")
     if submitted:
         payload = {
@@ -75,6 +88,7 @@ def render_investment_thesis() -> None:
             "risks": [x.strip() for x in risks.splitlines() if x.strip()],
             "invalidation": invalidation, "target_price": target,
             "currency": currency.strip().upper(),
+            "linked_research_run_id": run_labels[linked_run_label],
         }
         try:
             if existing:
@@ -103,3 +117,11 @@ def render_investment_thesis() -> None:
                 st.json(version["content"])
         if existing.get("review_date"):
             st.info(f"Review berikutnya dijadwalkan: {existing['review_date']}")
+        linked_id = existing["content"].get("linked_research_run_id")
+        if linked_id:
+            try:
+                linked_run = get_run(owner, linked_id)
+                st.markdown("**Research run tertaut**")
+                st.json({"run_id": linked_run["id"], "run_type": linked_run["run_type"], "market": linked_run["market"], "symbols": linked_run["symbols"], "created_at": linked_run["created_at"]})
+            except Exception:
+                st.warning("Research run tertaut sudah tidak tersedia atau tidak dapat diakses.")
