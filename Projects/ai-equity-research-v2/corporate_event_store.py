@@ -74,6 +74,7 @@ def create_event(owner_id, event, *, path=None):
     event_id = uuid.uuid4().hex
     now = datetime.now(timezone.utc).isoformat()
     payload = json.dumps(event, ensure_ascii=False, default=str, allow_nan=False)
+    json_payload = json.loads(payload)
     initialize(path)
     if path is None and _url():
         from psycopg.types.json import Jsonb
@@ -83,7 +84,7 @@ def create_event(owner_id, event, *, path=None):
                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (event_id,owner,str(event["ticker"]).upper(),str(event["event_type"]).upper(),
                  str(event["event_date"]),str(event["status"]).upper(),str(event["source"]),
-                 str(event["retrieved_at"]),Jsonb(event),now))
+                 str(event["retrieved_at"]),Jsonb(json_payload),now))
     else:
         with _sqlite(path) as db:
             db.execute("""INSERT INTO corporate_events
