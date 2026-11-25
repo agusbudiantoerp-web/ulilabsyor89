@@ -117,3 +117,19 @@ def test_broker_reconciliation_preserves_exact_match_when_earlier_row_has_only_n
     missing = result["details"].loc[result["details"]["status"] == "MISSING_IN_BROKER"].iloc[0]
     assert pd.Timestamp(matched["internal_date"]) == pd.Timestamp("2026-01-02")
     assert pd.Timestamp(missing["internal_date"]) == pd.Timestamp("2026-01-01")
+
+
+def test_broker_reconciliation_augmenting_path_preserves_maximum_match_count():
+    internal = [
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100},
+        {"date": "2026-01-02", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100},
+    ]
+    broker = [
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100},
+        {"date": "2026-01-03", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100},
+    ]
+    result = reconcile_broker_statement(internal, broker, date_tolerance_days=2)
+    assert result["matched_count"] == 2
+    assert result["missing_in_broker_count"] == 0
+    assert result["unexpected_in_broker_count"] == 0
+    assert set(result["details"]["status"]) == {"MATCH"}
