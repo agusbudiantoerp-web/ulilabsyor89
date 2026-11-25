@@ -174,7 +174,7 @@ def test_transaction_replay_rejects_implicit_foreign_currency_cash_conversion():
 
 
 @pytest.mark.parametrize("index", [
-    pd.to_datetime(["2026-01-01", "not-a-date"]),
+    pd.Index(["2026-01-01", "not-a-date"]),
     pd.to_datetime(["2026-01-01", "2026-01-01"]),
 ])
 def test_transaction_replay_rejects_invalid_or_duplicate_market_data_dates(index):
