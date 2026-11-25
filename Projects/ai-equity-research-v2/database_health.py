@@ -15,6 +15,7 @@ REQUIRED_TABLES = {
     "research_runs": ("SELECT", "INSERT", "DELETE"),
     "research_theses": ("SELECT", "INSERT", "UPDATE", "DELETE"),
     "research_thesis_versions": ("SELECT", "INSERT"),
+    "research_thesis_reviews": ("SELECT", "INSERT", "UPDATE"),
     "corporate_events": ("SELECT", "INSERT", "DELETE"),
     "portfolio_cashflow_events": ("SELECT", "INSERT", "DELETE"),
     "audit_events": ("SELECT", "INSERT"),
