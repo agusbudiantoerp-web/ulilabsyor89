@@ -56,8 +56,7 @@ def render_market_intelligence() -> None:
                     quality = audit_price_history(asset)
                     fundamentals = {}
                     try:
-                        import yfinance as yf
-                        info = yf.Ticker(meta["ticker"]).get_info()
+                        info = YahooFinanceProvider().fetch_info(meta["ticker"])
                         if isinstance(info, dict):
                             fundamentals = {
                                 "trailingPE": info.get("trailingPE"), "forwardPE": info.get("forwardPE"),
