@@ -9,6 +9,7 @@ from peer_valuation import build_peer_comparison, compare_company_to_peers
 from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
 from market_data_provider import YahooFinanceProvider
 from report_export_utils import safe_csv_bytes
+from valuation_reconciliation import reconcile_dcf_models
 
 
 def _peer_record(symbol: str, market: str) -> dict:
@@ -129,6 +130,18 @@ def render_valuation_intelligence() -> None:
             c10, c11 = st.columns(2)
             model_currency = c10.text_input("Mata uang FCF / net debt", "USD").strip().upper()
             quote_currency = c11.text_input("Mata uang harga pasar", "IDR").strip().upper()
+            equity_context = st.session_state.get("equity_result") or {}
+            default_market = str(equity_context.get("market") or "IDX").upper()
+            default_symbol = str(equity_context.get("ticker") or "")
+            c12, c13 = st.columns(2)
+            reverse_market = c12.selectbox(
+                "Market ticker untuk rekonsiliasi", ["IDX", "US"],
+                index=0 if default_market == "IDX" else 1,
+            )
+            reverse_symbol = c13.text_input(
+                "Ticker untuk rekonsiliasi (opsional)", value=default_symbol,
+                help="Isi ticker yang sama dengan analisis Multi-Stage DCF agar kedua model dapat dibandingkan.",
+            ).strip().upper()
             c7, c8, c9 = st.columns(3)
             years = c7.number_input("Forecast years", min_value=1, max_value=30, value=5)
             lower_pct = c8.number_input("Batas growth bawah (%)", min_value=-90.0, max_value=99.0, value=-20.0)
@@ -148,7 +161,11 @@ def render_valuation_intelligence() -> None:
                     forecast_years=int(years), lower_growth=lower_pct / 100.0,
                     upper_growth=upper_pct / 100.0,
                 )
-                st.session_state["reverse_dcf_result"] = {**result, "model_currency": model_currency, "quote_currency": quote_currency}
+                st.session_state["reverse_dcf_result"] = {
+                    **result, "model_currency": model_currency,
+                    "quote_currency": quote_currency,
+                    "market": reverse_market, "symbol": reverse_symbol,
+                }
             except Exception as exc:
                 st.error(f"Reverse DCF tidak dapat dihitung: {type(exc).__name__}: {exc}")
         result = st.session_state.get("reverse_dcf_result")
@@ -158,6 +175,30 @@ def render_valuation_intelligence() -> None:
             c2.metric("Market price (" + result.get("quote_currency", "quote") + ")", f"{result['market_price']:,.2f}")
             c3.metric("Reconciled price (" + result.get("quote_currency", "quote") + ")", f"{result['implied_price']:,.2f}")
             st.caption("Komponen enterprise/equity valuation di bawah ditampilkan dalam mata uang model (FCF dan net debt). Harga pasar dan implied price ditampilkan dalam mata uang quote.")
+            multistage = st.session_state.get("equity_multistage_dcf") or {}
+            equity_context = st.session_state.get("equity_result") or {}
+            def _ticker_key(value):
+                return str(value or "").strip().upper().replace(".JK", "").replace("-", ".")
+            same_ticker = (
+                bool(result.get("symbol"))
+                and _ticker_key(result.get("symbol")) == _ticker_key(equity_context.get("ticker"))
+                and result.get("market") == equity_context.get("market")
+            )
+            if multistage.get("available") and same_ticker:
+                st.markdown("**Rekonsiliasi Multi-Stage DCF vs Reverse DCF**")
+                try:
+                    reconciliation = reconcile_dcf_models(multistage, result)
+                    r1, r2, r3 = st.columns(3)
+                    r1.metric("EV gap vs market-implied", f"{reconciliation['enterprise_value_gap_pct']:+.2f}%")
+                    r2.metric("Equity value gap", f"{reconciliation['equity_value_gap']:,.2f} {reconciliation['financial_currency']}")
+                    r3.metric("Intrinsic price gap", f"{reconciliation['intrinsic_price_gap_pct']:+.2f}%")
+                    st.write("Assumption differences:", reconciliation["assumption_gaps"])
+                    for warning in reconciliation["warnings"]:
+                        st.caption(warning)
+                except Exception as exc:
+                    st.warning(f"Rekonsiliasi DCF belum dapat dilakukan: {type(exc).__name__}: {exc}")
+            elif multistage.get("available"):
+                st.info("Untuk rekonsiliasi, isi ticker dan market yang sama dengan analisis Multi-Stage DCF.")
             st.dataframe(pd.DataFrame([
                 {"Komponen": "PV explicit FCF", "Nilai": result["pv_explicit_fcf"]},
                 {"Komponen": "Terminal value (undiscounted)", "Nilai": result["terminal_value"]},
