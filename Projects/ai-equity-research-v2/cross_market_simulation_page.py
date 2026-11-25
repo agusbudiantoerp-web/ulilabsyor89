@@ -172,17 +172,17 @@ def render_cross_market_simulation() -> None:
             "interest_rate_beta": 0.0, "sector_beta": 0.0,
         })
     factor_frame = pd.DataFrame(factor_rows)
-    factor_key = "cross_market_factor_exposures"
+    factor_key = "cross_market_factor_exposures_" + "_".join(sorted(result["weights"]))
     if factor_key not in st.session_state:
         st.session_state[factor_key] = factor_frame
     exposures_frame = st.data_editor(
         st.session_state[factor_key], use_container_width=True, hide_index=True,
-        key="cross_market_factor_exposure_editor",
+        key="cross_market_factor_exposure_editor_" + "_".join(sorted(result["weights"])),
     )
     with st.form("cross_market_factor_shock_form"):
         c1, c2, c3 = st.columns(3)
         fx_shock = c1.number_input("USD/IDR shock (%)", value=-10.0) / 100.0
-        rate_shock = c2.number_input("Interest-rate shock (percentage points)", value=1.0) / 100.0
+        rate_shock = c2.number_input("Interest-rate shock (percentage points)", value=1.0, help="Beta di tabel berarti estimasi perubahan return aset (%) untuk setiap kenaikan suku bunga 1 percentage point.") / 100.0
         sector_shock = c3.number_input("Sector shock (%)", value=-15.0) / 100.0
         factor_submit = st.form_submit_button("Hitung factor stress")
     if factor_submit:
