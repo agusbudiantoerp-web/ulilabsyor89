@@ -93,7 +93,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 ## 14. Reverse DCF
 
 - Solves constant explicit-period FCF growth implied by current market price using a bounded bisection solver and shows an implied-growth sensitivity grid across WACC and terminal-growth assumptions.
-- Shows present value of explicit FCF, terminal value, present value of terminal value and enterprise-to-equity bridge.
+- Shows present value of explicit FCF, terminal value, present value of terminal value and enterprise-to-equity bridge, with an explicit quote-currency/model-currency FX conversion factor.
 - Requires normalized positive current FCF, market price, diluted shares, net debt/cash, WACC, terminal growth and explicit forecast horizon.
 - Rejects WACC/terminal-growth combinations that do not converge and target prices outside the selected growth bounds.
 - This is a conditional expectation analysis, not a forecast of actual future growth.
