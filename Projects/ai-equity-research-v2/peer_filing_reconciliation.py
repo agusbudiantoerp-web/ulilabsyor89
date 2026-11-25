@@ -97,11 +97,16 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
         for metric, provider_key in FILING_METRICS.items():
             provider_value = record.get(provider_key)
             filing_value = filing.get(metric)
-            try:
-                provider_number = float(provider_value) if provider_value is not None and pd.notna(provider_value) else None
-                filing_number = float(filing_value) if filing_value is not None and pd.notna(filing_value) else None
-            except (TypeError, ValueError):
-                provider_number = filing_number = None
+            def parse_optional_number(value):
+                if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+                    return None, False
+                try:
+                    number = float(value)
+                except (TypeError, ValueError, OverflowError):
+                    return None, True
+                return number, not math.isfinite(number)
+            provider_number, provider_invalid = parse_optional_number(provider_value)
+            filing_number, filing_invalid = parse_optional_number(filing_value)
             variance = None
             if not period_ok and not currency_ok:
                 status = "PERIOD_AND_CURRENCY_MISMATCH"
@@ -109,12 +114,12 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
                 status = "PERIOD_MISMATCH"
             elif not currency_ok:
                 status = "CURRENCY_MISMATCH"
+            elif provider_invalid or filing_invalid:
+                status = "INVALID_VALUE"
             elif provider_number is None:
                 status = "PROVIDER_MISSING"
             elif filing_number is None:
                 status = "FILING_MISSING"
-            elif not math.isfinite(provider_number) or not math.isfinite(filing_number):
-                status = "INVALID_VALUE"
             else:
                 denominator = max(abs(provider_number), abs(filing_number), 1e-12)
                 variance = abs(provider_number - filing_number) / denominator * 100.0
