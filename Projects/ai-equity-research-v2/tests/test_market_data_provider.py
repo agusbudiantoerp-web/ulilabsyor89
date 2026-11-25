@@ -9,6 +9,7 @@ from market_data_provider import (
 
 
 def test_provider_returns_history_with_explicit_adjustment(monkeypatch):
+    YahooFinanceProvider.clear_cache()
     calls = {}
     frame = pd.DataFrame({"Close": [1.0]})
 
@@ -26,6 +27,7 @@ def test_provider_returns_history_with_explicit_adjustment(monkeypatch):
 
 
 def test_provider_retries_transient_errors_with_bounded_backoff(monkeypatch):
+    YahooFinanceProvider.clear_cache()
     attempts = {"count": 0}
     delays = []
 
@@ -43,6 +45,7 @@ def test_provider_retries_transient_errors_with_bounded_backoff(monkeypatch):
 
 
 def test_provider_does_not_retry_rate_limit(monkeypatch):
+    YahooFinanceProvider.clear_cache()
     attempts = {"count": 0}
 
     def download(ticker, **kwargs):
@@ -57,6 +60,7 @@ def test_provider_does_not_retry_rate_limit(monkeypatch):
 
 
 def test_provider_rejects_empty_and_blank_ticker(monkeypatch):
+    YahooFinanceProvider.clear_cache()
     monkeypatch.setitem(__import__("sys").modules, "yfinance", SimpleNamespace(
         download=lambda *args, **kwargs: pd.DataFrame()
     ))
@@ -70,3 +74,37 @@ def test_provider_rejects_empty_and_blank_ticker(monkeypatch):
 def test_provider_validates_retry_policy():
     with pytest.raises(ValueError):
         YahooFinanceProvider(max_attempts=8)
+
+
+def test_provider_history_cache_is_shared_and_reports_cache_age(monkeypatch):
+    YahooFinanceProvider.clear_cache()
+    calls = {"count": 0}
+    frame = pd.DataFrame({"Close": [100.0]})
+
+    def download(ticker, **kwargs):
+        calls["count"] += 1
+        return frame
+
+    monkeypatch.setitem(__import__("sys").modules, "yfinance", SimpleNamespace(download=download))
+    first = YahooFinanceProvider(cache_ttl_seconds=60).fetch_history("CACHE.TEST", period="1y")
+    second = YahooFinanceProvider(cache_ttl_seconds=60).fetch_history("CACHE.TEST", period="1y")
+    assert calls["count"] == 1
+    assert first.attrs["provider_cache_hit"] is False
+    assert second.attrs["provider_cache_hit"] is True
+    assert second.attrs["provider_cache_age_seconds"] >= 0
+
+
+def test_provider_info_cache_avoids_duplicate_fundamental_requests(monkeypatch):
+    YahooFinanceProvider.clear_cache()
+    calls = {"count": 0}
+
+    class FakeTicker:
+        def get_info(self):
+            calls["count"] += 1
+            return {"currency": "IDR"}
+
+    monkeypatch.setitem(__import__("sys").modules, "yfinance", SimpleNamespace(Ticker=lambda ticker: FakeTicker()))
+    provider = YahooFinanceProvider(cache_ttl_seconds=60)
+    assert provider.fetch_info("INFO.TEST")["currency"] == "IDR"
+    assert provider.fetch_info("INFO.TEST")["currency"] == "IDR"
+    assert calls["count"] == 1
