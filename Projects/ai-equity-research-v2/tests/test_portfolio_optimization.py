@@ -73,3 +73,18 @@ def test_optimizer_rejects_negative_value_and_missing_currency():
     ])
     with pytest.raises(ValueError, match="wajib diisi"):
         optimize_portfolio(blank, returns)
+
+@pytest.mark.parametrize("parameter,value", [
+    ("max_weight", "invalid"),
+    ("max_weight", float("inf")),
+    ("risk_free_rate", float("nan")),
+    ("risk_free_rate", "invalid"),
+    ("min_observations", True),
+    ("simulations", True),
+    ("seed", -1),
+    ("seed", True),
+])
+def test_optimizer_rejects_invalid_numeric_controls(parameter, value):
+    positions, returns = fixtures()
+    with pytest.raises(ValueError):
+        optimize_portfolio(positions, returns, **{parameter: value})
