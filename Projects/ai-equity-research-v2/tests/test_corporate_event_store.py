@@ -1,6 +1,6 @@
 import pytest
 
-from corporate_event_store import create_event, delete_event, list_events
+from corporate_event_store import create_event, create_events, delete_event, list_events
 
 
 def event():
@@ -28,3 +28,19 @@ def test_corporate_events_require_owner_and_provenance(tmp_path):
         create_event("", event(), path=db)
     with pytest.raises(ValueError, match="wajib"):
         create_event("owner", {"ticker": "BBCA"}, path=db)
+
+
+def test_corporate_event_bulk_import_is_atomic_on_validation_error(tmp_path):
+    db = str(tmp_path / "events.sqlite")
+    valid = event()
+    invalid = {**event(), "source": ""}
+    with pytest.raises(ValueError, match="wajib"):
+        create_events("owner", [valid, invalid], path=db)
+    assert list_events("owner", path=db) == []
+
+
+def test_corporate_event_bulk_import_persists_all_rows(tmp_path):
+    db = str(tmp_path / "events.sqlite")
+    ids = create_events("owner", [event(), {**event(), "ticker": "BBRI"}], path=db)
+    assert len(ids) == 2
+    assert len(list_events("owner", path=db)) == 2
