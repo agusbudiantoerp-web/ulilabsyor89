@@ -18,14 +18,14 @@ from collections.abc import Mapping
 
 ROLE_PERMISSIONS = {
     "viewer": {"view_dashboard", "view_reports"},
-    "analyst": {"view_dashboard", "view_reports", "run_analysis", "export_reports"},
+    "analyst": {"view_dashboard", "view_reports", "run_analysis", "export_reports", "manage_thesis"},
     "portfolio_manager": {
         "view_dashboard", "view_reports", "run_analysis", "export_reports",
-        "manage_portfolio",
+        "manage_portfolio", "manage_thesis",
     },
     "admin": {
         "view_dashboard", "view_reports", "run_analysis", "export_reports",
-        "manage_portfolio", "manage_users", "manage_model_config", "view_audit",
+        "manage_portfolio", "manage_thesis", "manage_users", "manage_model_config", "view_audit",
     },
 }
 
