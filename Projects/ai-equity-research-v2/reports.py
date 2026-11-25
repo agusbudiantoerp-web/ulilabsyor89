@@ -21,10 +21,9 @@ from reportlab.platypus import (
 
 def _unique_excel_sheet_name(workbook, proposed: str) -> str:
     """Return a valid, case-insensitively unique Excel worksheet title."""
-    import re
-
-    cleaned = re.sub(r"[\\[\\]:*?/\\\\]", "_", str(proposed))
-    cleaned = re.sub(r"[\\x00-\\x1f]", "", cleaned)
+    invalid = set('[]:*?/\\\\')
+    cleaned = "".join("_" if char in invalid else char for char in str(proposed))
+    cleaned = "".join(char for char in cleaned if ord(char) >= 32)
     cleaned = cleaned.strip().strip("'") or "Scenario"
     base = cleaned[:31]
     existing = {name.casefold() for name in workbook.sheetnames}
@@ -35,7 +34,6 @@ def _unique_excel_sheet_name(workbook, proposed: str) -> str:
         candidate = base[:31 - len(ending)] + ending
         suffix += 1
     return candidate
-
 
 def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | None = None, scenario_result: dict | None = None) -> bytes:
     out = BytesIO()
