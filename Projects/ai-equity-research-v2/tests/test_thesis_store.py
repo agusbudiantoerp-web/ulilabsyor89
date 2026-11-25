@@ -97,3 +97,20 @@ def test_thesis_owner_cannot_request_review_for_another_users_thesis(tmp_path):
     thesis_id = create_thesis("issuer|alice", "BBCA", "IDX", "BBCA thesis", content(), path=db)
     with pytest.raises(KeyError):
         request_review("issuer|bob", thesis_id, "issuer|reviewer", path=db)
+
+
+def test_thesis_update_supersedes_pending_review_of_old_version(tmp_path):
+    db = str(tmp_path / "reviews.sqlite")
+    thesis_id = create_thesis("issuer|owner", "BBCA", "IDX", "BBCA thesis", content(), path=db)
+    review_id = request_review("issuer|owner", thesis_id, "issuer|reviewer", path=db)
+    update_thesis(
+        "issuer|owner", thesis_id, title="Updated thesis",
+        content={**content(), "target_price": 14000}, status="ACTIVE", path=db,
+    )
+    reviews = list_reviews_for_thesis("issuer|owner", thesis_id, path=db)
+    assert reviews[0]["status"] == "SUPERSEDED"
+    with pytest.raises(KeyError):
+        decide_review("issuer|reviewer", review_id, "APPROVED", path=db)
+    new_review = request_review("issuer|owner", thesis_id, "issuer|reviewer", path=db)
+    assert new_review != review_id
+    assert list_reviews_for_thesis("issuer|owner", thesis_id, path=db)[0]["version"] == 2
