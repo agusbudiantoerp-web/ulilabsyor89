@@ -153,9 +153,9 @@ def render_cross_market_simulation() -> None:
         )
         weighted_history = result["asset_returns"].mul(pd.Series(result["weights"]), axis=1).sum(axis=1)
         rolling_volatility = weighted_history.rolling(20, min_periods=20).std() * (252 ** 0.5)
-        regime_labels = rolling_volatility.apply(
+        regime_labels = rolling_volatility.dropna().apply(
             lambda value: "stress" if value >= vol_threshold else "calm"
-        ).dropna()
+        )
         regime_counts = regime_labels.value_counts().reindex(["calm", "stress"], fill_value=0)
         st.write({
             "Calm observations": int(regime_counts["calm"]),
