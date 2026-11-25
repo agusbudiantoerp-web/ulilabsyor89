@@ -1,5 +1,7 @@
 import streamlit as st
 
+from portfolio_cashflow_page import render_portfolio_cashflow
+
 from auth import audit_login_once, get_claim, logout, oidc_is_configured, oidc_provider_name, resolve_streamlit_identity
 from equity_research_page import render_equity_research
 from security_controls import require_permission
@@ -74,6 +76,7 @@ PAGES = {
     "1. Equity Research": (render_equity_research, "run_analysis"),
     "2. Daily Stock Signal": (render_daily_signal, "run_analysis"),
     "3. Portfolio & Risk Management": (render_portfolio_risk, "manage_portfolio"),
+    "3b. Cash Flow & Return Ledger": (render_portfolio_cashflow, "manage_portfolio"),
     "4. Backtesting": (render_backtesting, "run_analysis"),
     "5. Performance Dashboard": (render_performance_dashboard, "view_dashboard"),
     "6. Security & Audit (Admin)": (lambda: render_security_audit(identity, st.secrets), "view_audit"),
