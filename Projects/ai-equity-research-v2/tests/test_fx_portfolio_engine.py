@@ -106,3 +106,34 @@ def test_fx_close_rejects_invalid_session_dates():
         convert_asset_returns_to_base_currency(
             local, "IDR", base_currency="IDR"
         )
+
+
+
+@pytest.mark.parametrize("weight", [True, False])
+def test_mixed_currency_portfolio_rejects_boolean_weights(weight):
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    closes = pd.Series([100.0, 101.0], index=dates)
+    with pytest.raises(ValueError, match="bukan boolean"):
+        combine_mixed_currency_returns(
+            {"AAA": closes}, {"AAA": "IDR"}, {"AAA": weight}
+        )
+
+
+def test_mixed_currency_portfolio_normalizes_ticker_keys():
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    closes = pd.Series([100.0, 101.0], index=dates)
+    result = combine_mixed_currency_returns(
+        {"aaa": closes}, {"AAA": "IDR"}, {"Aaa": 1.0}
+    )
+    assert list(result["asset_returns"].columns) == ["AAA"]
+    assert result["weights"] == {"AAA": 1.0}
+
+
+def test_mixed_currency_portfolio_rejects_normalized_ticker_collisions():
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    closes = pd.Series([100.0, 101.0], index=dates)
+    with pytest.raises(ValueError, match="duplikat setelah normalisasi"):
+        combine_mixed_currency_returns(
+            {"aaa": closes, "AAA": closes},
+            {"AAA": "IDR"}, {"AAA": 1.0}
+        )
