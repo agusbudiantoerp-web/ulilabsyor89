@@ -46,7 +46,9 @@ def test_peer_filing_reconciliation_flags_period_and_currency_mismatch():
         [provider_record()],
         [filing_record(period_end="2024-12-31", currency="USD")],
     )
-    assert set(result["details"]["status"]) == {"PERIOD_MISMATCH"}
+    assert set(result["details"]["status"]) == {"PERIOD_AND_CURRENCY_MISMATCH"}
+    assert result["period_mismatch_count"] == 6
+    assert result["currency_mismatch_count"] == 6
 
 
 def test_peer_filing_reconciliation_reports_missing_ticker_and_provider_values():
