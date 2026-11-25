@@ -8,6 +8,16 @@ import pandas as pd
 
 METRICS = ("pe_ttm", "pb", "ev_ebitda", "ev_sales", "roe", "roic", "revenue_growth", "operating_margin")
 METADATA_FIELDS = ("source", "provider_ticker", "fiscal_year_end", "quote_currency")
+METRIC_PERIODS = {
+    "pe_ttm": "TTM; provider trailing field",
+    "pb": "Point-in-time; market price / book value",
+    "ev_ebitda": "TTM; provider trailing field",
+    "ev_sales": "TTM; provider trailing field",
+    "roe": "Provider trailing period; definition may vary",
+    "roic": "Provider trailing period; definition may vary",
+    "revenue_growth": "Latest provider-reported YoY growth; period may vary",
+    "operating_margin": "Provider trailing period; definition may vary",
+}
 
 
 def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: str) -> dict:
@@ -25,6 +35,14 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
         if field not in selected:
             selected[field] = "unknown"
     selected["currency_mismatch"] = selected["quote_currency"].astype(str).str.upper().ne(selected["currency"].astype(str).str.upper())
+    fiscal_dates = pd.to_datetime(selected["fiscal_year_end"], errors="coerce")
+    valid_fiscal_dates = fiscal_dates.dropna()
+    fiscal_anchor = valid_fiscal_dates.sort_values().iloc[len(valid_fiscal_dates) // 2] if len(valid_fiscal_dates) else pd.NaT
+    selected["fiscal_period_gap_days"] = (
+        (fiscal_dates - fiscal_anchor).abs().dt.days if pd.notna(fiscal_anchor) else float("nan")
+    )
+    selected["fiscal_period_warning"] = selected["fiscal_period_gap_days"].gt(90).fillna(False)
+    selected["metric_periods"] = [dict(METRIC_PERIODS) for _ in range(len(selected))]
     for metric in METRICS:
         if metric not in selected:
             selected[metric] = float("nan")
@@ -51,6 +69,7 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
             "coverage": int(len(values)),
             "coverage_pct": float(len(values) / len(selected) * 100.0),
             "q1": q1, "q3": q3, "iqr": iqr, "outlier_tickers": outliers,
+            "period_basis": METRIC_PERIODS[metric],
         }
     return {
         "industry": industry,
@@ -59,10 +78,12 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
         "tickers": selected["ticker"].astype(str).tolist(),
         "metrics": summaries,
         "records": selected[["ticker", "industry", "currency", *METADATA_FIELDS, "currency_mismatch", *METRICS]].to_dict("records"),
+        "fiscal_period_warning_tickers": selected.loc[selected["fiscal_period_warning"], "ticker"].astype(str).tolist(),
         "limitations": (
-            "Peer set harus ditinjau manual. Trailing/forward period, fiscal year, "
-            "net debt, minority interest, diluted shares dan definisi provider dapat berbeda. "
-            "Median tidak menggantikan pembacaan laporan keuangan."
+            "Peer set harus ditinjau manual. Fiscal year end yang berbeda lebih dari 90 hari "
+            "dari median peer ditandai, bukan disetarakan otomatis. Periode trailing, point-in-time, "
+            "YoY, net debt, minority interest, diluted shares dan definisi provider dapat berbeda. "
+            "Basis periode per metrik ditampilkan; median tidak menggantikan pembacaan laporan keuangan."
         ),
     }
 
