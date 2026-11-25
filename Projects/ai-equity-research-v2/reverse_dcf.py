@@ -96,6 +96,9 @@ def reverse_dcf_implied_growth(
     return {
         "implied_fcf_growth_pct": solved["growth"] * 100.0,
         "market_price": market_price,
+        "current_fcf": current_fcf,
+        "lower_growth": lower_growth,
+        "upper_growth": upper_growth,
         "implied_price": solved["implied_price"],
         "target_equity_value": target_equity,
         "target_enterprise_value": target_enterprise,
