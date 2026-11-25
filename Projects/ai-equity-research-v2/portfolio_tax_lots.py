@@ -44,6 +44,11 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
             "ticker": ticker, "acquisition_date": acquisition_date,
             "quantity": quantity, "unit_cost": unit_cost,
         })
+    if method == "FIFO":
+        for ticker_lots in lots.values():
+            ticker_lots.sort(
+                key=lambda lot: (lot["acquisition_date"] or "0000-01-01")
+            )
 
     raw_events = events.copy() if isinstance(events, pd.DataFrame) else list(events or [])
     if isinstance(raw_events, pd.DataFrame) and raw_events.empty:
