@@ -291,7 +291,7 @@ def reconcile_portfolio_ledger(
     transaction-aware portfolio replay for unsettled cash/payables/receivables.
     BUY amount is total cash paid; SELL amount is gross proceeds. Fees/taxes
     are separate cash outflows. SPLIT quantity is the new-shares-per-old-share
-    ratio. Same-day ordering follows the stable order supplied by the caller.
+    ratio. Same-day SPLIT events are applied before regular-session ledger events.
     """
     if isinstance(initial_cash, bool) or type(initial_cash).__name__ in {"bool_", "bool"}:
         raise ValueError("Initial cash harus berupa angka, bukan boolean.")
@@ -311,6 +311,12 @@ def reconcile_portfolio_ledger(
     if any(not math.isfinite(value) or value < 0 for value in positions.values()):
         raise ValueError("Initial positions harus finite dan tidak negatif.")
     frame = normalize_events(events)
+    # Corporate actions are effective before regular-session trades on their
+    # exchange date, even if the ledger rows were entered in a different order.
+    frame["_event_priority"] = frame["event_type"].map({"SPLIT": 0}).fillna(1)
+    frame = frame.sort_values(["date", "_event_priority"], kind="stable").drop(
+        columns=["_event_priority"]
+    ).reset_index(drop=True)
     warnings = []
     for row in frame.to_dict("records"):
         kind = row["event_type"]
