@@ -101,3 +101,34 @@ def test_market_data_contract_sanitizes_invalid_cache_age():
     assert result["cache_age_seconds"] == 0.0
     assert result["quality_status"] == "WARNING"
     assert any(item["code"] == "INVALID_CACHE_AGE" for item in result["quality_checks"])
+
+
+def test_market_data_contract_flags_future_bar_dates():
+    bars = sample_bars()
+    bars.index = pd.bdate_range("2026-11-04", periods=5)
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    result = build_market_data_metadata(bars, retrieved_at=stamp, as_of=stamp)
+    codes = {item["code"] for item in result["quality_checks"]}
+    assert result["quality_status"] == "FAIL"
+    assert "FUTURE_BAR" in codes
+
+
+def test_market_data_contract_flags_duplicate_trading_dates():
+    bars = sample_bars()
+    bars.index = pd.to_datetime([
+        "2026-11-02", "2026-11-03", "2026-11-03", "2026-11-05", "2026-11-06"
+    ])
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    result = build_market_data_metadata(bars, retrieved_at=stamp, as_of=stamp)
+    assert result["quality_status"] == "WARNING"
+    assert any(item["code"] == "DUPLICATE_DATES" for item in result["quality_checks"])
+
+
+def test_market_data_contract_flags_non_finite_ohlcv():
+    bars = sample_bars()
+    bars.iloc[0, bars.columns.get_loc("Volume")] = float("inf")
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    result = build_market_data_metadata(bars, retrieved_at=stamp, as_of=stamp)
+    codes = {item["code"] for item in result["quality_checks"]}
+    assert result["quality_status"] == "FAIL"
+    assert "NON_FINITE_OHLCV" in codes
