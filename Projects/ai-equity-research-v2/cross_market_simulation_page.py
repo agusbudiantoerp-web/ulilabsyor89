@@ -6,7 +6,7 @@ import streamlit as st
 
 from daily_signal_engine import load_daily_history
 from fx_portfolio_engine import combine_mixed_currency_returns
-from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo, run_factor_stress_scenario
+from portfolio_simulation import (\n    run_historical_stress_scenarios, run_portfolio_monte_carlo,\n    run_factor_stress_scenario, run_regime_switching_monte_carlo,\n)
 from market_data_provider import YahooFinanceProvider
 
 
@@ -132,6 +132,61 @@ def render_cross_market_simulation() -> None:
             for key, value in mc["return_percentiles_pct"].items()
         ]), use_container_width=True, hide_index=True)
         st.caption(mc["assumptions"])
+
+    with st.expander("Regime-switching Monte Carlo (calm / stress)", expanded=False):
+        st.caption(
+            "Label historis dibentuk dari volatilitas rolling 20 sesi portfolio. "
+            "Probabilitas transisi Markov diisi pengguna; model bukan prediksi regime."
+        )
+        c1, c2, c3 = st.columns(3)
+        vol_threshold = c1.number_input(
+            "Ambang volatilitas tahunan (%)", min_value=5.0, max_value=150.0,
+            value=30.0, step=5.0, key="fx_regime_vol_threshold",
+        ) / 100.0
+        calm_to_stress = c2.slider(
+            "Probabilitas calm → stress", min_value=0.0, max_value=1.0,
+            value=0.05, step=0.01, key="fx_regime_calm_to_stress",
+        )
+        stress_to_calm = c3.slider(
+            "Probabilitas stress → calm", min_value=0.0, max_value=1.0,
+            value=0.20, step=0.01, key="fx_regime_stress_to_calm",
+        )
+        weighted_history = result["asset_returns"].mul(pd.Series(result["weights"]), axis=1).sum(axis=1)
+        rolling_volatility = weighted_history.rolling(20, min_periods=20).std() * (252 ** 0.5)
+        regime_labels = rolling_volatility.apply(
+            lambda value: "stress" if value >= vol_threshold else "calm"
+        ).dropna()
+        regime_counts = regime_labels.value_counts().reindex(["calm", "stress"], fill_value=0)
+        st.write({
+            "Calm observations": int(regime_counts["calm"]),
+            "Stress observations": int(regime_counts["stress"]),
+            "Initial regime": str(regime_labels.iloc[-1]) if not regime_labels.empty else "Unavailable",
+        })
+        if (regime_counts < 20).any():
+            st.warning("Setiap regime memerlukan minimal 20 observasi. Ubah ambang volatilitas atau periode historis.")
+        if st.button("Jalankan regime-switching Monte Carlo", key="fx_regime_monte_carlo"):
+            try:
+                aligned_returns = result["asset_returns"].loc[regime_labels.index]
+                regime_result = run_regime_switching_monte_carlo(
+                    aligned_returns, result["weights"], regime_labels,
+                    [[1.0 - calm_to_stress, calm_to_stress],
+                     [stress_to_calm, 1.0 - stress_to_calm]],
+                    initial_regime=str(regime_labels.iloc[-1]),
+                    simulations=int(simulations), horizon_days=int(horizon), seed=int(seed),
+                )
+                regime_result["volatility_threshold_pct"] = vol_threshold * 100.0
+                st.session_state["cross_market_regime_monte_carlo_result"] = regime_result
+            except Exception as exc:
+                st.error(f"Regime-switching Monte Carlo gagal: {type(exc).__name__}: {exc}")
+        regime_result = st.session_state.get("cross_market_regime_monte_carlo_result")
+        if regime_result:
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("Median return", f"{regime_result['median_return_pct']:.2f}%")
+            r2.metric("VaR loss", f"{regime_result['var_loss_pct']:.2f}%")
+            r3.metric("CVaR loss", f"{regime_result['cvar_loss_pct']:.2f}%")
+            r4.metric("Probability of loss", f"{regime_result['probability_of_loss_pct']:.1f}%")
+            st.write("Final regime counts:", regime_result["final_regime_counts"])
+            st.caption(regime_result["assumptions"])
 
     st.markdown("**User-defined stress scenario**")
     with st.form("cross_market_stress_form"):
