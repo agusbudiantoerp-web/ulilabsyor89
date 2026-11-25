@@ -144,6 +144,7 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
         "period_mismatch_count": int(counts.get("PERIOD_MISMATCH", 0) + counts.get("PERIOD_AND_CURRENCY_MISMATCH", 0)),
         "currency_mismatch_count": int(counts.get("CURRENCY_MISMATCH", 0) + counts.get("PERIOD_AND_CURRENCY_MISMATCH", 0)),
         "missing_count": int(counts.get("FILING_MISSING", 0) + counts.get("PROVIDER_MISSING", 0)),
+        "invalid_value_count": int(counts.get("INVALID_VALUE", 0)),
         "status_counts": counts,
         "details": details,
         "limitations": (
