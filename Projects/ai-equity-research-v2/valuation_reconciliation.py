@@ -4,6 +4,19 @@ from __future__ import annotations
 import math
 
 
+def _finite_number(name: str, value, *, positive: bool = False) -> float:
+    if isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
+        raise ValueError(f"Nilai {name} tidak valid.")
+    try:
+        result = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Nilai {name} tidak valid.") from exc
+    if not math.isfinite(result) or (positive and result <= 0):
+        qualifier = "finite dan lebih besar dari 0" if positive else "finite"
+        raise ValueError(f"Nilai {name} harus {qualifier}.")
+    return result
+
+
 def reconcile_dcf_models(multistage: dict, reverse_dcf: dict) -> dict:
     if not isinstance(multistage, dict) or not multistage.get("available"):
         raise ValueError("Multi-Stage DCF harus tersedia.")
@@ -29,27 +42,40 @@ def reconcile_dcf_models(multistage: dict, reverse_dcf: dict) -> dict:
         "multistage intrinsic_value_per_share": multistage.get("intrinsic_value_per_share"),
         "reverse market_price": reverse_dcf.get("market_price"),
     }
-    for name, value in required.items():
-        if value is None or not math.isfinite(float(value)):
-            raise ValueError(f"Nilai {name} tidak valid.")
+    numeric = {
+        name: _finite_number(
+            name, value,
+            positive=name in {
+                "multistage intrinsic_value_per_share",
+                "reverse market_price",
+            },
+        )
+        for name, value in required.items()
+    }
     ms_assumptions = multistage.get("assumptions") or {}
+    if not isinstance(ms_assumptions, dict):
+        raise ValueError("WACC/terminal growth Multi-Stage DCF tidak valid.")
+    assumptions_input = {
+        "reverse WACC": reverse_dcf.get("wacc"),
+        "reverse terminal growth": reverse_dcf.get("terminal_growth"),
+        "multistage WACC": ms_assumptions.get("wacc"),
+        "multistage terminal growth": ms_assumptions.get("terminal_growth"),
+    }
     try:
-        reverse_wacc = float(reverse_dcf.get("wacc"))
-        reverse_terminal = float(reverse_dcf.get("terminal_growth"))
-        ms_wacc = float(ms_assumptions.get("wacc"))
-        ms_terminal = float(ms_assumptions.get("terminal_growth"))
-    except (TypeError, ValueError) as exc:
-        raise ValueError("WACC/terminal growth kedua model wajib tersedia.") from exc
-    if not all(math.isfinite(value) for value in (ms_wacc, ms_terminal, reverse_wacc, reverse_terminal)):
-        raise ValueError("WACC/terminal growth kedua model tidak valid.")
-    ms_ev = float(multistage["enterprise_value"])
-    ms_equity = float(multistage["equity_value"])
-    ms_debt = float(multistage["net_debt"])
-    reverse_ev = float(reverse_dcf["target_enterprise_value"])
-    reverse_equity = float(reverse_dcf["target_equity_value"])
-    reverse_debt = float(reverse_dcf["net_debt"])
-    ms_price = float(multistage["intrinsic_value_per_share"])
-    market_price = float(reverse_dcf["market_price"])
+        reverse_wacc = _finite_number("reverse WACC", assumptions_input["reverse WACC"])
+        reverse_terminal = _finite_number("reverse terminal growth", assumptions_input["reverse terminal growth"])
+        ms_wacc = _finite_number("multistage WACC", assumptions_input["multistage WACC"])
+        ms_terminal = _finite_number("multistage terminal growth", assumptions_input["multistage terminal growth"])
+    except ValueError as exc:
+        raise ValueError("WACC/terminal growth kedua model wajib berupa angka finite dan bukan boolean.") from exc
+    ms_ev = numeric["multistage enterprise_value"]
+    ms_equity = numeric["multistage equity_value"]
+    ms_debt = numeric["multistage net_debt"]
+    reverse_ev = numeric["reverse target_enterprise_value"]
+    reverse_equity = numeric["reverse target_equity_value"]
+    reverse_debt = numeric["reverse net_debt"]
+    ms_price = numeric["multistage intrinsic_value_per_share"]
+    market_price = numeric["reverse market_price"]
     ev_gap = ms_ev - reverse_ev
     equity_gap = ms_equity - reverse_equity
     price_gap_pct = (ms_price / market_price - 1.0) * 100.0
