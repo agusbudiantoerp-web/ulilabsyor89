@@ -9,7 +9,7 @@ from daily_signal_storage import record_outcome, save_scan, signal_history
 from portfolio_store import delete_book, list_books, load_book, save_book
 from research_run_store import delete_run, get_run, list_runs, save_run
 from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
-                          request_review, list_reviews_for_reviewer, decide_review)
+                          request_review, list_reviews_for_reviewer, decide_review, update_thesis)
 from corporate_event_store import create_event as create_corporate_event, delete_event as delete_corporate_event, list_events as list_corporate_events
 from portfolio_event_store import create_event as create_cashflow_event, delete_event as delete_cashflow_event, list_events as list_cashflow_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
@@ -122,6 +122,13 @@ def test_postgres_thesis_and_event_stores_are_owner_scoped(postgres_test_databas
         assert decide_review(reviewer, review_id, "APPROVED", "PG integration approval") == "APPROVED"
         with pytest.raises(KeyError):
             get_thesis(bob, thesis_id)
+        with pytest.raises(KeyError):
+            update_thesis(
+                bob, thesis_id, title="Unauthorized update",
+                content={"bull_case": "tampered", "target_price": 1},
+                status="CLOSED",
+            )
+        assert get_thesis(alice, thesis_id)["title"] == "Postgres isolation thesis"
         assert any(item["id"] == corporate_id for item in list_corporate_events(alice))
         assert list_corporate_events(bob) == []
         assert any(item["id"] == cashflow_id for item in list_cashflow_events(alice))
