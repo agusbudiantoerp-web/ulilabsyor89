@@ -32,7 +32,7 @@ def test_same_currency_has_no_fx_contribution():
     dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
     local = pd.Series([100.0, 105.0], index=dates)
     fx = pd.Series([15000.0, 16000.0], index=dates)
-    result = convert_asset_returns_to_base_currency(local, "IDR", fx, "IDR")
+    result = convert_asset_returns_to_base_currency(local, "IDR", None, "IDR")
     assert result["base_return"].iloc[1] == pytest.approx(0.05)
     assert result["fx_return"].iloc[1] == pytest.approx(0.0)
 
