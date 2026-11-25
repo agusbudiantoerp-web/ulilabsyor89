@@ -51,11 +51,11 @@ def test_peer_filing_reconciliation_flags_period_and_currency_mismatch():
 
 def test_peer_filing_reconciliation_reports_missing_ticker_and_provider_values():
     result = reconcile_peer_filing_records(
-        [provider_record(), {**provider_record(), "ticker": "BBRI", "totalRevenue": None}],
+        [{**provider_record(), "totalRevenue": None}, {**provider_record(), "ticker": "BBRI", "totalRevenue": None}],
         [filing_record()],
     )
     assert (result["details"].loc[result["details"]["ticker"].eq("BBRI"), "status"] == "FILING_MISSING").all()
-    assert (result["details"].loc[result["details"]["metric"].eq("total_revenue") & result["details"]["ticker"].eq("BBCA"), "status"] == "MATCH").all()
+    assert (result["details"].loc[result["details"]["metric"].eq("total_revenue") & result["details"]["ticker"].eq("BBCA"), "status"] == "PROVIDER_MISSING").all()
 
 
 def test_peer_filing_reconciliation_validates_source_and_columns():
@@ -63,3 +63,12 @@ def test_peer_filing_reconciliation_validates_source_and_columns():
         reconcile_peer_filing_records([provider_record()], [filing_record(source_url="not-a-url")])
     with pytest.raises(ValueError, match="Kolom filing wajib"):
         reconcile_peer_filing_records([provider_record()], [{"ticker": "BBCA"}])
+
+
+
+def test_peer_filing_reconciliation_flags_currency_mismatch_separately():
+    result = reconcile_peer_filing_records(
+        [provider_record()],
+        [filing_record(currency="USD")],
+    )
+    assert set(result["details"]["status"]) == {"CURRENCY_MISMATCH"}
