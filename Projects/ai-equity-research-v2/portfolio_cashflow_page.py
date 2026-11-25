@@ -59,6 +59,12 @@ def render_portfolio_cashflow() -> None:
         try:
             cash_flow_ledger([row])
             event_id = create_event(owner, row)
+            for derived_key in (
+                "portfolio_tax_lot_realized_frame", "portfolio_tax_lot_open_lots_frame",
+                "portfolio_tax_lot_metrics", "portfolio_broker_reconciliation_details",
+                "portfolio_broker_reconciliation_metrics",
+            ):
+                st.session_state.pop(derived_key, None)
             _audit_cashflow(owner, role, "PORTFOLIO_CASHFLOW_EVENT_CREATE", "portfolio_cashflow_event", event_id, {"event_type": event_type, "ticker": ticker.upper()})
             st.success(f"Event tersimpan permanen. ID: {event_id[:8]}")
             st.rerun()
@@ -86,6 +92,12 @@ def render_portfolio_cashflow() -> None:
         if st.button("Hapus event terpilih", type="secondary"):
             try:
                 if delete_event(owner, delete_options[selected_event]):
+                    for derived_key in (
+                        "portfolio_tax_lot_realized_frame", "portfolio_tax_lot_open_lots_frame",
+                        "portfolio_tax_lot_metrics", "portfolio_broker_reconciliation_details",
+                        "portfolio_broker_reconciliation_metrics",
+                    ):
+                        st.session_state.pop(derived_key, None)
                     _audit_cashflow(owner, role, "PORTFOLIO_CASHFLOW_EVENT_DELETE", "portfolio_cashflow_event", delete_options[selected_event], {})
                     st.success("Event dihapus.")
                     st.rerun()
