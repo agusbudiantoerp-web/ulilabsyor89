@@ -46,8 +46,26 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
         frame["notes"] = ""
     for column in ("quantity", "price"):
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
+        present = frame[column].notna()
+        if present.any() and not all(math.isfinite(float(value)) for value in frame.loc[present, column]):
+            raise ValueError(f"{column} harus berupa angka finite.")
         if (frame[column].dropna() < 0).any():
             raise ValueError(f"{column} tidak boleh negatif.")
+    if "settlement_date" in frame.columns:
+        trade_rows = frame["event_type"].isin({"BUY", "SELL"})
+        supplied = frame["settlement_date"].notna() & frame["settlement_date"].astype(str).str.strip().ne("")
+        validate_rows = trade_rows & supplied
+        parsed = pd.to_datetime(frame.loc[validate_rows, "settlement_date"], errors="coerce")
+        if parsed.isna().any():
+            raise ValueError("Settlement date transaksi tidak valid.")
+        trade_dates = frame.loc[validate_rows, "date"]
+        try:
+            earlier = parsed.reset_index(drop=True) < trade_dates.reset_index(drop=True)
+        except TypeError as exc:
+            raise ValueError("Timezone settlement date harus konsisten dengan trade date.") from exc
+        if earlier.any():
+            raise ValueError("Settlement date tidak boleh lebih awal dari trade date.")
+        frame.loc[validate_rows, "settlement_date"] = parsed
     frame["ticker"] = frame["ticker"].fillna("").astype(str).str.upper().str.strip()
     frame["notes"] = frame["notes"].fillna("").astype(str)
     if frame.loc[frame["event_type"].isin({"BUY", "SELL", "DIVIDEND", "SPLIT"}), "ticker"].eq("").any():
@@ -213,8 +231,10 @@ def reconcile_portfolio_ledger(
     initial_positions: dict[str, float] | None = None,
     amount_tolerance_pct: float = 1.0,
 ) -> dict:
-    """Reconstruct cash and share quantities from dated events.
+    """Reconstruct cash and share quantities from dated events on trade date.
 
+    This simple ledger does not defer cash to settlement_date; use the
+    transaction-aware portfolio replay for unsettled cash/payables/receivables.
     BUY amount is total cash paid; SELL amount is gross proceeds. Fees/taxes
     are separate cash outflows. SPLIT quantity is the new-shares-per-old-share
     ratio. Same-day ordering follows the stable order supplied by the caller.
@@ -286,7 +306,9 @@ def reconcile_portfolio_ledger(
         "warnings": warnings,
         "currency_note": "Rekonsiliasi hanya valid jika seluruh nominal event menggunakan mata uang dasar yang sama.",
         "limitations": (
-            "Tidak menghitung FIFO/average tax lots, realized P&L, withholding tax detail, "
-            "interest, unsettled trades, FX conversion atau broker reconciliation."
+            "Rekonsiliasi ini menghitung saldo kas dan jumlah saham berdasarkan trade date; "
+            "settlement cash tertunda dihitung oleh transaction-aware replay. FIFO/average-cost "
+            "tax lots dan realized P&L tersedia pada modul tax-lot terpisah. Pajak legal, bunga, "
+            "FX conversion dan validasi broker tidak dihitung oleh fungsi ini."
         ),
     }
