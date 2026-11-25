@@ -429,6 +429,18 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "FX translation P/L IDR": fx_metrics.get("fx_translation_pnl_idr"),
             "Portfolio scenario value IDR": fx_metrics.get("scenario_portfolio_idr"),
         })
+    broker_reconciliation = st.session_state.get("portfolio_broker_reconciliation_details")
+    broker_metrics = st.session_state.get("portfolio_broker_reconciliation_metrics") or {}
+    if isinstance(broker_reconciliation, pd.DataFrame) and not broker_reconciliation.empty:
+        extra_sheets["Broker Reconciliation"] = broker_reconciliation.copy()
+    if broker_metrics:
+        metrics.update({
+            "Broker ledger matched": broker_metrics.get("matched_count"),
+            "Broker ledger mismatches": broker_metrics.get("mismatch_count"),
+            "Broker events missing": broker_metrics.get("missing_in_broker_count"),
+            "Unexpected broker events": broker_metrics.get("unexpected_in_broker_count"),
+        })
+
     tax_realized = st.session_state.get("portfolio_tax_lot_realized_frame")
     tax_open = st.session_state.get("portfolio_tax_lot_open_lots_frame")
     tax_metrics = st.session_state.get("portfolio_tax_lot_metrics") or {}
