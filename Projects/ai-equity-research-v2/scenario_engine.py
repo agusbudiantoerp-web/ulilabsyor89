@@ -334,3 +334,79 @@ def scenario_sensitivity(
             "Equity Value tidak positif."
         ),
     }
+
+def operating_scenario_sensitivity(
+    financials: dict,
+    assumptions: dict,
+    revenue_growth_values=None,
+    ebitda_margin_values=None,
+    years: int = 5,
+    *,
+    max_cells: int = 100,
+) -> dict:
+    """Stress intrinsic value across revenue growth and EBITDA margin.
+
+    Every cell re-runs the full scenario DCF. Invalid or unavailable cells are
+    retained with a reason instead of being silently dropped.
+    """
+    base_growth = _to_float(assumptions.get("revenue_growth"), "revenue_growth")
+    base_margin = _to_float(assumptions.get("ebitda_margin"), "ebitda_margin")
+    if revenue_growth_values is None:
+        revenue_growth_values = [base_growth + delta for delta in (-0.05, -0.025, 0.0, 0.025, 0.05)]
+    if ebitda_margin_values is None:
+        ebitda_margin_values = [base_margin + delta for delta in (-0.05, -0.025, 0.0, 0.025, 0.05)]
+
+    def _validated_axis(values, field):
+        if isinstance(values, (str, bytes)):
+            raise ValueError(f"{field} must be a non-empty numeric sequence.")
+        try:
+            axis = [_to_float(value, field) for value in values]
+        except TypeError as exc:
+            raise ValueError(f"{field} must be a non-empty numeric sequence.") from exc
+        if not axis:
+            raise ValueError(f"{field} must not be empty.")
+        if len(axis) != len(set(axis)):
+            raise ValueError(f"{field} must not contain duplicate values.")
+        return axis
+
+    growth_axis = _validated_axis(revenue_growth_values, "revenue_growth_values")
+    margin_axis = _validated_axis(ebitda_margin_values, "ebitda_margin_values")
+    if len(growth_axis) * len(margin_axis) > int(max_cells):
+        raise ValueError(f"Sensitivity grid exceeds the {int(max_cells)}-cell safety limit.")
+    if not isinstance(years, int) or isinstance(years, bool) or not 1 <= years <= 20:
+        raise ValueError("Years must be an integer from 1 to 20.")
+
+    rows = []
+    for margin in margin_axis:
+        cells = []
+        for growth in growth_axis:
+            test_assumptions = dict(assumptions)
+            test_assumptions["revenue_growth"] = growth
+            test_assumptions["ebitda_margin"] = margin
+            result = project_scenario(financials, test_assumptions, years=years)
+            cells.append({
+                "available": bool(result.get("available")),
+                "revenue_growth": growth,
+                "ebitda_margin": margin,
+                "value_per_share": result.get("intrinsic_value_per_share"),
+                "equity_value": result.get("equity_value"),
+                "upside_downside_pct": result.get("upside_downside_pct"),
+                "reason": result.get("reason"),
+            })
+        rows.append({"ebitda_margin": margin, "values": cells})
+
+    return {
+        "available": True,
+        "ticker": financials.get("ticker", "Unknown"),
+        "currency": financials.get("quote_currency", "IDR"),
+        "revenue_growth_values": growth_axis,
+        "ebitda_margin_values": margin_axis,
+        "sensitivity": rows,
+        "base_revenue_growth": base_growth,
+        "base_ebitda_margin": base_margin,
+        "years": years,
+        "note": (
+            "Each cell recalculates the full FCFF scenario DCF. N/M means the "
+            "assumptions did not produce a valid positive terminal FCFF and equity value."
+        ),
+    }
