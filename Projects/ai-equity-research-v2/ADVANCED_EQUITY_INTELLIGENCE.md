@@ -109,7 +109,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - Tracks earnings, dividend declarations, ex-dates, pay dates, stock splits and rights issues.
 - Every record carries source, source URL, retrieval date, timezone, and CONFIRMED / ESTIMATED / CANCELLED status.
 - Duplicate records and stale source metadata are flagged; estimated dates are never presented as confirmed.
-- The current calendar is manually curated and session-scoped; it is not a comprehensive automated BEI/issuer event feed.
+- The calendar is manually curated and persisted per authenticated owner in SQLite/PostgreSQL; it is not a comprehensive automated BEI/issuer event feed.
 
 ## 17. Versioned Investment Thesis Workflow
 
