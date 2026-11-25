@@ -150,6 +150,49 @@ def run_factor_stress_scenario(
 
 
 
+
+def estimate_regime_transition_matrix(
+    regime_labels: pd.Series,
+    *,
+    regimes: tuple[str, ...] = ("calm", "stress"),
+    smoothing: float = 1.0,
+) -> dict:
+    """Estimate a smoothed transition matrix from an ordered historical label series.
+
+    Laplace smoothing avoids zero-probability transitions in short samples.
+    The estimate is descriptive/in-sample, not a forecast or an independently
+    calibrated probability model.
+    """
+    if not isinstance(regime_labels, pd.Series) or len(regime_labels) < 2:
+        raise ValueError("Minimal dua label regime berurutan diperlukan.")
+    if len(regimes) < 2 or len(set(regimes)) != len(regimes):
+        raise ValueError("Daftar regime harus memuat minimal dua nama unik.")
+    if not math.isfinite(float(smoothing)) or smoothing <= 0:
+        raise ValueError("Smoothing harus finite dan lebih besar dari 0.")
+    labels = regime_labels.astype(str).str.strip()
+    if labels.isna().any() or labels.eq("").any() or not set(labels.unique()).issubset(set(regimes)):
+        raise ValueError("Label historis berisi regime kosong atau tidak dikenal.")
+    index = {name: position for position, name in enumerate(regimes)}
+    counts = np.zeros((len(regimes), len(regimes)), dtype=int)
+    values = labels.tolist()
+    for previous, current in zip(values[:-1], values[1:]):
+        counts[index[previous], index[current]] += 1
+    smoothed = counts.astype(float) + float(smoothing)
+    probabilities = smoothed / smoothed.sum(axis=1, keepdims=True)
+    return {
+        "regimes": list(regimes),
+        "transition_counts": counts.tolist(),
+        "transition_matrix": probabilities.tolist(),
+        "transition_observation_count": int(counts.sum()),
+        "smoothing": float(smoothing),
+        "method": (
+            "In-sample historical transition frequencies with Laplace smoothing. "
+            "Descriptive only; regime labels, threshold choice and transition rates are not "
+            "out-of-sample calibrated and must not be interpreted as forecasts."
+        ),
+    }
+
+
 def run_regime_switching_monte_carlo(
     historical_returns: pd.DataFrame,
     weights: dict[str, float],
