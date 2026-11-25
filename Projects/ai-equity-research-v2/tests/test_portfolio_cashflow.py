@@ -282,3 +282,19 @@ def test_normalize_events_rejects_boolean_or_numeric_settlement_date(value):
 def test_reconcile_portfolio_ledger_rejects_boolean_opening_inputs(kwargs):
     with pytest.raises(ValueError, match="boolean"):
         reconcile_portfolio_ledger([], **kwargs)
+
+
+def test_normalize_events_preserves_local_calendar_day_for_timezone_aware_dates():
+    normalized = normalize_events([{
+        "date": "2026-01-02T00:30:00+07:00",
+        "event_type": "BUY",
+        "amount": 100,
+        "ticker": "BBCA",
+        "quantity": 1,
+        "price": 100,
+        "settlement_date": "2026-01-03T00:30:00+07:00",
+    }])
+    assert normalized.iloc[0]["date"] == pd.Timestamp("2026-01-02")
+    assert normalized.iloc[0]["settlement_date"] == pd.Timestamp("2026-01-03")
+    assert normalized.iloc[0]["date"].tzinfo is None
+    assert normalized.iloc[0]["settlement_date"].tzinfo is None
