@@ -102,3 +102,48 @@ def run_historical_stress_scenarios(
         "unallocated_cash_weight": 1.0 - sum(weight.values()),
         "method": "User-defined instantaneous price shocks; excludes path, FX and interaction effects.",
     }
+
+
+def run_factor_stress_scenario(
+    weights: dict[str, float],
+    factor_exposures: dict[str, dict[str, float]],
+    factor_shocks: dict[str, float],
+) -> dict:
+    """Apply user-supplied factor betas and shocks; no exposure is inferred."""
+    if not weights or set(weights) != set(factor_exposures):
+        raise ValueError("Ticker pada weights dan factor exposures harus sama dan tidak kosong.")
+    clean_weights = {ticker: float(value) for ticker, value in weights.items()}
+    if any(not math.isfinite(value) or value < 0 for value in clean_weights.values()):
+        raise ValueError("Bobot harus finite dan tidak negatif.")
+    if sum(clean_weights.values()) > 1.000001 or sum(clean_weights.values()) <= 0:
+        raise ValueError("Total bobot harus di atas 0 dan maksimal 100%.")
+    if not factor_shocks:
+        raise ValueError("Minimal satu factor shock diperlukan.")
+    shocks = {str(key): float(value) for key, value in factor_shocks.items()}
+    if any(not math.isfinite(value) or value < -1 or value > 5 for value in shocks.values()):
+        raise ValueError("Factor shock harus berada antara -100% dan +500% dalam satuan desimal.")
+    asset_impacts = {}
+    factor_contributions = {factor: 0.0 for factor in shocks}
+    for ticker, exposures in factor_exposures.items():
+        if not isinstance(exposures, dict):
+            raise ValueError(f"Exposure {ticker} harus berupa dictionary.")
+        impact = 0.0
+        for factor, shock in shocks.items():
+            beta = float(exposures.get(factor, 0.0))
+            if not math.isfinite(beta):
+                raise ValueError(f"Beta {factor} untuk {ticker} harus finite.")
+            component = beta * shock
+            impact += component
+            factor_contributions[factor] += clean_weights[ticker] * component
+        asset_impacts[ticker] = impact * 100.0
+    portfolio_impact = sum(clean_weights[ticker] * asset_impacts[ticker] / 100.0 for ticker in clean_weights)
+    return {
+        "portfolio_return_pct": portfolio_impact * 100.0,
+        "asset_impacts_pct": asset_impacts,
+        "factor_contributions_pct": {key: value * 100.0 for key, value in factor_contributions.items()},
+        "factor_shocks": shocks,
+        "method": (
+            "Linear factor approximation from user-supplied betas and shocks. "
+            "No exposure is inferred; nonlinear interactions, convexity and hedges are excluded."
+        ),
+    }
