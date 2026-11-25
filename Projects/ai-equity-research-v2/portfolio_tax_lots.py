@@ -106,7 +106,7 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
                 remaining_quantity = max(0.0, available - quantity)
                 remaining_lots = ([
                     {
-                        "ticker": ticker, "acquisition_date": "AVERAGE_COST",
+                        "ticker": ticker, "acquisition_date": event_date,
                         "quantity": remaining_quantity, "unit_cost": average,
                     }
                 ] if remaining_quantity > 1e-9 else [])
