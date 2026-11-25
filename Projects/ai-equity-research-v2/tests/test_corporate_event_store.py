@@ -24,7 +24,7 @@ def test_corporate_events_are_persisted_and_owner_scoped(tmp_path):
 
 def test_corporate_events_require_owner_and_provenance(tmp_path):
     db = str(tmp_path / "events.sqlite")
-    with pytest.raises(ValueError, match="Owner dan event"):
+    with pytest.raises(ValueError, match="Owner dan daftar event"):
         create_event("", event(), path=db)
     with pytest.raises(ValueError, match="wajib"):
         create_event("owner", {"ticker": "BBCA"}, path=db)
