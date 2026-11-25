@@ -7,10 +7,19 @@ import streamlit as st
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
+from security_controls import record_audit_event
+
+
+def _audit_cashflow(owner, role, action, resource_type, resource_id, details):
+    try:
+        record_audit_event(owner, role, action, resource_type, resource_id, details=details)
+    except Exception as exc:
+        st.warning(f"Data tersimpan, tetapi audit event gagal dicatat ({type(exc).__name__}).")
 
 
 def render_portfolio_cashflow() -> None:
     owner = str(st.session_state.get("_auth_subject_id") or "").strip()
+    role = st.session_state.get("_auth_role")
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
@@ -46,6 +55,7 @@ def render_portfolio_cashflow() -> None:
         try:
             cash_flow_ledger([row])
             event_id = create_event(owner, row)
+            _audit_cashflow(owner, role, "PORTFOLIO_CASHFLOW_EVENT_CREATE", "portfolio_cashflow_event", event_id, {"event_type": event_type, "ticker": ticker.upper()})
             st.success(f"Event tersimpan permanen. ID: {event_id[:8]}")
             st.rerun()
         except Exception as exc:
@@ -72,6 +82,7 @@ def render_portfolio_cashflow() -> None:
         if st.button("Hapus event terpilih", type="secondary"):
             try:
                 if delete_event(owner, delete_options[selected_event]):
+                    _audit_cashflow(owner, role, "PORTFOLIO_CASHFLOW_EVENT_DELETE", "portfolio_cashflow_event", delete_options[selected_event], {})
                     st.success("Event dihapus.")
                     st.rerun()
             except Exception as exc:
@@ -148,6 +159,7 @@ def render_portfolio_cashflow() -> None:
     if save_col.button("Simpan histori valuasi permanen", key="portfolio_cashflow_save_valuations"):
         try:
             count = save_valuations(owner, valuation_portfolio_id, valuations, currency=valuation_currency)
+            _audit_cashflow(owner, role, "PORTFOLIO_VALUATIONS_SAVE", "portfolio_valuations", valuation_portfolio_id, {"row_count": count, "currency": valuation_currency})
             st.success(f"{count} titik valuasi tersimpan untuk portfolio {valuation_portfolio_id}.")
             st.rerun()
         except Exception as exc:
@@ -155,6 +167,7 @@ def render_portfolio_cashflow() -> None:
     if delete_col.button("Hapus histori valuasi portfolio ini", key="portfolio_cashflow_delete_valuations"):
         try:
             removed = delete_valuations(owner, valuation_portfolio_id)
+            _audit_cashflow(owner, role, "PORTFOLIO_VALUATIONS_DELETE", "portfolio_valuations", valuation_portfolio_id, {"row_count": removed})
             st.session_state.pop(valuation_key, None)
             st.success(f"{removed} titik valuasi dihapus.")
             st.rerun()
