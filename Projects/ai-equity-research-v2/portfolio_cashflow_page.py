@@ -34,6 +34,11 @@ def render_portfolio_cashflow() -> None:
         "setoran/penarikan eksternal; XIRR mengukur return berbobot arus kas."
     )
     st.caption("Event transaksi disimpan permanen dan dibatasi berdasarkan identitas pengguna. Valuasi TWR masih dimasukkan pada sesi aktif.")
+    st.info(
+        "DIVIDEND dicatat pada tanggal pembayaran (pay date) sebesar kas yang benar-benar diterima. "
+        "Ex-date dan hak dividen dicatat terpisah di Corporate Actions Calendar; sistem tidak "
+        "menebak entitlement atau membuat pembayaran otomatis dari event kalender."
+    )
     with st.form("portfolio_cashflow_add_event", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
         event_date = c1.date_input("Tanggal event")
