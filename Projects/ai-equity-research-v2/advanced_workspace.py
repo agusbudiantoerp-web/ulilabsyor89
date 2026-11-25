@@ -443,6 +443,22 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "Remaining tax lot cost basis": tax_metrics.get("open_cost_basis"),
         })
 
+    transaction_replay = st.session_state.get("cross_market_transaction_replay_result") or {}
+    if transaction_replay:
+        replay_curve = transaction_replay.get("curve")
+        if isinstance(replay_curve, pd.DataFrame) and not replay_curve.empty:
+            extra_sheets["Transaction-aware Equity Curve"] = replay_curve.drop(
+                columns=["position_values"], errors="ignore"
+            ).reset_index()
+        metrics.update({
+            "Transaction replay base currency": transaction_replay.get("base_currency"),
+            "Transaction replay ending value": transaction_replay.get("ending_portfolio_value"),
+            "Transaction replay ending cash": transaction_replay.get("ending_cash"),
+            "Transaction replay ending market value": transaction_replay.get("ending_market_value"),
+            "Transaction replay TWR %": transaction_replay.get("total_twr_pct"),
+            "Transaction replay event count": transaction_replay.get("event_count"),
+        })
+
     optimization_metrics = st.session_state.get("portfolio_optimization_metrics") or {}
     if optimization_metrics:
         for key, value in optimization_metrics.items():
