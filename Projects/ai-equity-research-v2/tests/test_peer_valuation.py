@@ -45,3 +45,28 @@ def test_company_lookup_requires_member_of_peer_group():
     result = build_peer_comparison(peers(), industry="Banks", currency="IDR")
     with pytest.raises(KeyError):
         compare_company_to_peers(result, "NOPE")
+
+
+def test_peer_comparison_preserves_source_fiscal_and_currency_provenance():
+    records = [
+        {"ticker": "A", "industry": "Banks", "currency": "IDR", "quote_currency": "IDR",
+         "source": "Issuer", "fiscal_year_end": "2025-12-31", "pe_ttm": 10},
+        {"ticker": "B", "industry": "Banks", "currency": "IDR", "quote_currency": "USD",
+         "source": "Provider", "fiscal_year_end": "2025-12-31", "pe_ttm": 11},
+    ]
+    result = build_peer_comparison(records, industry="Banks", currency="IDR")
+    row = result["records"][1]
+    assert row["source"] == "Provider"
+    assert row["fiscal_year_end"] == "2025-12-31"
+    assert row["currency_mismatch"] is True
+
+
+def test_peer_comparison_flags_iqr_outlier_when_coverage_is_sufficient():
+    records = [
+        {"ticker": "A", "industry": "Banks", "currency": "IDR", "pe_ttm": 10},
+        {"ticker": "B", "industry": "Banks", "currency": "IDR", "pe_ttm": 11},
+        {"ticker": "C", "industry": "Banks", "currency": "IDR", "pe_ttm": 12},
+        {"ticker": "D", "industry": "Banks", "currency": "IDR", "pe_ttm": 100},
+    ]
+    result = build_peer_comparison(records, industry="Banks", currency="IDR")
+    assert "D" in result["metrics"]["pe_ttm"]["outlier_tickers"]
