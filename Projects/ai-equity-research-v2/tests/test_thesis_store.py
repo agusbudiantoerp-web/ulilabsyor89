@@ -76,6 +76,9 @@ def test_thesis_review_is_assigned_to_reviewer_and_versioned(tmp_path):
     assert review["content"]["bull_case"] == "Revenue growth accelerates"
     with pytest.raises(KeyError):
         get_review_for_reviewer("issuer|other", review_id, path=db)
+    with pytest.raises(KeyError):
+        decide_review("issuer|other", review_id, "APPROVED", "Unauthorized decision", path=db)
+    assert list_reviews_for_thesis("issuer|owner", thesis_id, path=db)[0]["status"] == "PENDING"
     assert decide_review("issuer|reviewer", review_id, "CHANGES_REQUESTED", "Please refine downside case", path=db) == "CHANGES_REQUESTED"
     assert list_reviews_for_thesis("issuer|owner", thesis_id, path=db)[0]["status"] == "CHANGES_REQUESTED"
     with pytest.raises(KeyError):
