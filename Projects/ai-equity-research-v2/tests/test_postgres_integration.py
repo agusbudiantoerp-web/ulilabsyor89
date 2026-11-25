@@ -43,6 +43,45 @@ def test_postgres_portfolio_owner_isolation(postgres_test_database):
         delete_book(book_id, owner_id="issuer|alice")
 
 
+def test_postgres_portfolio_replacement_rolls_back_on_position_failure(postgres_test_database):
+    import psycopg
+
+    suffix = uuid.uuid4().hex
+    book_id = "atomic-" + suffix
+    trigger_name = "reject_portfolio_position_" + suffix
+    function_name = "reject_portfolio_position_fn_" + suffix
+    original = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100, "Average Cost": 9000},
+    ])
+    replacement = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 200, "Average Cost": 9500},
+        {"Market": "IDX", "Ticker": "BBRI", "Shares": 50, "Average Cost": 4000},
+    ])
+    save_book(book_id, "Original", original, owner_id="issuer|atomic-test")
+    try:
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute(f"""CREATE FUNCTION {function_name}() RETURNS trigger
+                LANGUAGE plpgsql AS $ BEGIN
+                IF NEW.ticker = 'BBRI' THEN
+                    RAISE EXCEPTION 'injected portfolio position failure';
+                END IF;
+                RETURN NEW;
+                END; $""")
+            db.execute(f"CREATE TRIGGER {trigger_name} BEFORE INSERT ON portfolio_positions
+                FOR EACH ROW EXECUTE FUNCTION {function_name}()")
+        with pytest.raises(psycopg.errors.RaiseException, match="injected portfolio position failure"):
+            save_book(book_id, "Replacement", replacement, owner_id="issuer|atomic-test")
+        assert list_books(owner_id="issuer|atomic-test")[0]["name"] == "Original"
+        assert load_book(book_id, owner_id="issuer|atomic-test").to_dict("records") == [
+            {"Market": "IDX", "Ticker": "BBCA", "Shares": 100.0, "Average Cost": 9000.0}
+        ]
+    finally:
+        with psycopg.connect(postgres_test_database) as db:
+            db.execute(f"DROP TRIGGER IF EXISTS {trigger_name} ON portfolio_positions")
+            db.execute(f"DROP FUNCTION IF EXISTS {function_name}()")
+        delete_book(book_id, owner_id="issuer|atomic-test")
+
+
 def test_postgres_research_run_owner_isolation(postgres_test_database):
     run_id = save_run(
         owner_id="issuer|alice", run_type="single_ticker", market="IDX",
