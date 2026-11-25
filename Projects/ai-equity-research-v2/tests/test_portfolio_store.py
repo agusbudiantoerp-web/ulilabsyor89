@@ -113,3 +113,42 @@ def test_portfolio_backend_uses_postgres_when_cloud_url_is_configured(monkeypatc
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@example.invalid/db")
     assert backend_name() == "PostgreSQL"
     assert backend_name(path=str(tmp_path / "explicit-local.sqlite3")) == "SQLite"
+
+
+
+def test_portfolio_store_rejects_populated_rows_with_invalid_numbers(tmp_path):
+    import pytest
+
+    db_path = str(tmp_path / "portfolio.sqlite3")
+    positions = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100, "Average Cost": 9000},
+        {"Market": "IDX", "Ticker": "BBRI", "Shares": "not-a-number", "Average Cost": 5000},
+    ])
+    with pytest.raises(ValueError, match="angka valid"):
+        save_book("invalid-row", "Invalid row", positions, path=db_path, owner_id="local")
+    assert list_books(path=db_path, owner_id="local") == []
+
+
+def test_portfolio_store_rejects_populated_rows_with_unknown_market(tmp_path):
+    import pytest
+
+    positions = pd.DataFrame([
+        {"Market": "SG", "Ticker": "D05", "Shares": 100, "Average Cost": 10},
+    ])
+    path = str(tmp_path / "portfolio.sqlite3")
+    with pytest.raises(ValueError, match="IDX atau US"):
+        save_book("bad-market", "Bad market", positions, path=path, owner_id="local")
+    assert list_books(path=path, owner_id="local") == []
+
+
+def test_portfolio_store_ignores_blank_editor_rows_but_keeps_valid_holdings(tmp_path):
+    path = str(tmp_path / "portfolio.sqlite3")
+    positions = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100, "Average Cost": 9000},
+        {"Market": None, "Ticker": None, "Shares": None, "Average Cost": None},
+    ])
+    assert save_book("with-blank", "With blank row", positions, path=path, owner_id="local") == 1
+    loaded = load_book("with-blank", path=path, owner_id="local")
+    assert loaded.to_dict("records") == [
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100.0, "Average Cost": 9000.0}
+    ]
