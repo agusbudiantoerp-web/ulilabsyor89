@@ -84,3 +84,9 @@ def test_verified_subject_role_mapping_fails_closed():
         resolve_role_for_subject("", {"oidc-subject-001": "analyst"})
     with pytest.raises(PermissionError, match="Role identitas tidak valid"):
         resolve_role_for_subject("oidc-subject-001", {"oidc-subject-001": "superuser"})
+
+
+@pytest.mark.parametrize("limit", [0, -1, 1.5, True, "10", None])
+def test_audit_event_list_requires_positive_integer_limit(tmp_path, limit):
+    with pytest.raises(ValueError, match="Limit"):
+        list_audit_events(limit=limit, path=str(tmp_path / "audit.sqlite"))
