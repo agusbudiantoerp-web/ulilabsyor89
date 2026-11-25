@@ -5,6 +5,8 @@ from io import BytesIO
 from datetime import datetime, timezone
 import pandas as pd
 
+from report_export_utils import safe_spreadsheet_text
+
 
 def build_excel_report(
     portfolio: pd.DataFrame | None = None,
@@ -17,10 +19,8 @@ def build_excel_report(
     def safe_excel_cell(value):
         if isinstance(value, (dict, list, tuple, set)):
             value = str(value)
-        if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
-            # Prevent untrusted ticker/provider text from being interpreted as a formula.
-            return "'" + value
-        return value
+        # Prevent untrusted ticker/provider text from being interpreted as a formula.
+        return safe_spreadsheet_text(value)
 
     def excel_safe(frame: pd.DataFrame) -> pd.DataFrame:
         safe = frame.copy()
