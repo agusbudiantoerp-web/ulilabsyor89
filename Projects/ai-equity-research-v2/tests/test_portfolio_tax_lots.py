@@ -128,3 +128,20 @@ def test_average_cost_sale_preserves_lots_acquired_after_sale_date():
     ].iloc[0]
     assert future_lot["quantity"] == pytest.approx(5)
     assert future_lot["unit_cost"] == pytest.approx(200)
+
+def test_fifo_sorts_opening_lots_even_when_input_order_is_not_chronological():
+    result = calculate_tax_lots(
+        [{
+            "date": "2026-04-01", "event_type": "SELL", "amount": 500,
+            "ticker": "BBCA", "quantity": 5, "price": 100,
+        }],
+        opening_lots=[
+            {"ticker": "BBCA", "quantity": 5, "unit_cost": 200, "acquisition_date": "2026-03-01"},
+            {"ticker": "BBCA", "quantity": 5, "unit_cost": 80, "acquisition_date": "2026-01-01"},
+        ],
+    )
+    assert result["realized_cost_basis"] == pytest.approx(400)
+    assert result["realized_pnl"] == pytest.approx(100)
+    remaining = result["open_lots"].iloc[0]
+    assert remaining["acquisition_date"] == "2026-03-01"
+    assert remaining["quantity"] == pytest.approx(5)
