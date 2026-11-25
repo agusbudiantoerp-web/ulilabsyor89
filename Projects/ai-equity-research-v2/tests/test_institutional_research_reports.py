@@ -119,7 +119,7 @@ def test_excel_scenario_forecast_sheet_names_are_sanitized_and_unique():
 
 def test_excel_export_neutralizes_formula_after_utf8_bom_prefix():
     data = sample_data()
-    data["ticker"] = "\\ufeff=HYPERLINK(\"https://evil.example\",\"click\")"
+    data["ticker"] = "chr(0xFEFF) + "=HYPERLINK(\"https://evil.example\",\"click\")"
     workbook = load_workbook(BytesIO(make_excel_report(data)), read_only=True, data_only=False)
-    assert workbook["Summary"]["A2"].value.startswith("'\\ufeff=")
+    assert workbook["Summary"]["A2"].value.startswith("'" + chr(0xFEFF) + "=")
     workbook.close()
