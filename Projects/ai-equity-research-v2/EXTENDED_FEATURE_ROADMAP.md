@@ -14,7 +14,7 @@ The current workspace already includes DCF and Multi-Stage DCF, scenario analysi
 - E3: industry/currency-filtered peer metrics, coverage, medians, IQR outlier flags and company-vs-peer comparison are implemented with Yahoo Finance UI. Metric period basis is now explicit (TTM, point-in-time, provider-defined YoY/trailing), and fiscal year-end differences greater than 90 days from the peer median are flagged in results/UI; no unsupported period normalization is fabricated. Independent filing verification remains.
 - E4: bounded reverse DCF solver, explicit quote/model currency FX bridge, enterprise-to-equity bridge, WACC/terminal-growth sensitivity and UI are implemented. Independent reconciliation against the existing multi-stage DCF and scenario sensitivity integration remain.
 - E5: source-attributed event calendar, individual entry and atomic validated CSV import, stale/duplicate/estimated flags and owner-scoped SQLite/PostgreSQL persistence are implemented. Automated exchange/issuer feed and adjusted-price corporate-action reconciliation remain.
-- E6: seeded multivariate Monte Carlo, PSD covariance safeguard, VaR/CVaR, drawdown, user-defined price shocks and explicit FX/rate/sector factor stress are implemented. Regime-switching models and parameter uncertainty remain.
+- E6: seeded multivariate Monte Carlo, PSD covariance safeguard, VaR/CVaR, drawdown, user-defined price shocks and explicit FX/rate/sector factor stress are implemented. A two-state Markov regime-switching Monte Carlo is now available with rolling-volatility historical labels, user-supplied transition probabilities, per-regime return/covariance estimates, and reproducible simulation. Parameter uncertainty and calibrated regime validation remain.
 - E8: owner-scoped versioned thesis records, role permission, PostgreSQL schema/health grants, UI, saved-run links and assigned reviewer approval workflow are implemented. Report-level linkage and richer governance analytics remain.
 
 These are implementation milestones, not completion claims for the full acceptance criteria below. All remaining items are still part of feature development before deployment.
@@ -64,9 +64,10 @@ Acceptance: timezone, duplicate event, stale event, split-ratio and adjusted-pri
 ### E6 — Portfolio stress testing and Monte Carlo
 - Add historical and user-defined shock scenarios across price, FX, rates and sector exposures where inputs exist.
 - Add reproducible Monte Carlo paths with a fixed seed option, clearly stated return/volatility assumptions and confidence intervals.
+- Add an optional two-regime Markov simulation with explicit historical regime labels, per-regime return/covariance estimates and user-controlled transition probabilities; expose the regime classifier and limitations.
 - Keep simulation outputs separate from forecasts and historical backtest results.
 
-Acceptance: deterministic seed tests, covariance validation, positive-semidefinite safeguards, tail-loss metrics and zero-volatility edge cases.
+Acceptance: deterministic seed tests, covariance validation, positive-semidefinite safeguards, tail-loss metrics, zero-volatility edge cases, transition-matrix validation, regime sample minimums and UI disclosure. Parameter uncertainty and out-of-sample regime calibration remain open.
 
 ### E7 — Data provenance, freshness and provider abstraction
 - Standardize source, retrieval timestamp, bar date, currency, adjustment mode, missing fields and cache age in a shared market-data contract.
