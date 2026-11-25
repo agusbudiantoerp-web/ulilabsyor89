@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from urllib.parse import urlsplit
 
 import pandas as pd
 
@@ -28,15 +29,45 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
     missing = sorted(required - set(filings.columns))
     if missing:
         raise ValueError("Kolom filing wajib: " + ", ".join(missing))
-    if filings["ticker"].astype(str).str.strip().eq("").any():
+    if filings["ticker"].isna().any() or filings["ticker"].astype(str).str.strip().eq("").any():
         raise ValueError("Ticker filing wajib diisi.")
     filings["ticker"] = filings["ticker"].astype(str).str.strip().str.upper()
     if filings["ticker"].duplicated().any():
         raise ValueError("CSV filing harus memiliki satu baris terbaru per ticker.")
-    if filings["source_name"].astype(str).str.strip().eq("").any():
+    if provider.empty is False:
+        if "ticker" not in provider:
+            raise ValueError("Provider records wajib memiliki kolom ticker.")
+        provider["ticker"] = provider["ticker"].fillna("").astype(str).str.strip().str.upper()
+        if provider["ticker"].eq("").any():
+            raise ValueError("Ticker provider wajib diisi.")
+        if provider["ticker"].duplicated().any():
+            raise ValueError("Provider records tidak boleh memiliki ticker duplikat.")
+    if filings["source_name"].isna().any() or filings["source_name"].astype(str).str.strip().eq("").any():
         raise ValueError("source_name wajib diisi.")
-    if not filings["source_url"].astype(str).str.match(r"^https?://", case=False).all():
-        raise ValueError("source_url harus berupa URL http/https.")
+    if filings["currency"].isna().any():
+        raise ValueError("Currency filing wajib diisi.")
+    filings["currency"] = filings["currency"].astype(str).str.strip().str.upper()
+    if not filings["currency"].str.fullmatch(r"[A-Z]{3}").all():
+        raise ValueError("Currency filing harus berupa kode tiga huruf.")
+    filings["source_url"] = filings["source_url"].fillna("").astype(str).str.strip()
+    def valid_source_url(value):
+        try:
+            parsed = urlsplit(value)
+            return parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc) and "." in parsed.netloc
+        except ValueError:
+            return False
+    if not filings["source_url"].map(valid_source_url).all():
+        raise ValueError("source_url harus berupa URL http/https yang valid.")
+    for metric in FILING_METRICS:
+        original = filings[metric]
+        numeric = pd.to_numeric(original, errors="coerce")
+        invalid_text = original.notna() & original.astype(str).str.strip().ne("") & numeric.isna()
+        if invalid_text.any():
+            raise ValueError(f"Nilai filing {metric} harus numerik.")
+        finite = numeric.dropna().map(lambda value: math.isfinite(float(value)))
+        if not finite.all():
+            raise ValueError(f"Nilai filing {metric} harus finite.")
+        filings[metric] = numeric
     filings["period_end_parsed"] = pd.to_datetime(filings["period_end"], errors="coerce", format="mixed")
     if filings["period_end_parsed"].isna().any():
         raise ValueError("period_end filing harus berupa tanggal yang valid.")
