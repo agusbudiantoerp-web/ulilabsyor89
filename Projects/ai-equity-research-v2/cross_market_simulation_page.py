@@ -6,7 +6,7 @@ import streamlit as st
 
 from daily_signal_engine import load_daily_history
 from fx_portfolio_engine import combine_mixed_currency_returns
-from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo
+from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo, run_factor_stress_scenario
 from market_data_provider import YahooFinanceProvider
 
 
@@ -154,3 +154,63 @@ def render_cross_market_simulation() -> None:
             for ticker, value in stress["asset_contributions_pct"].items()
         ]), use_container_width=True, hide_index=True)
         st.caption(stress["method"])
+
+
+    st.divider()
+    st.markdown("**Factor stress: FX, interest rates & sector**")
+    st.caption(
+        "FX beta dibuat dari mata uang aset dan base currency. Beta suku bunga dan sektor "
+        "harus diisi pengguna; ini pendekatan linear, bukan sensitivitas issuer yang terverifikasi."
+    )
+    factor_rows = []
+    for symbol, currency in result["asset_currencies"].items():
+        fx_beta = 1.0 if currency == "USD" and result["base_currency"] == "IDR" else (
+            -1.0 if currency == "IDR" and result["base_currency"] == "USD" else 0.0
+        )
+        factor_rows.append({
+            "ticker": symbol, "fx_usdidr_beta": fx_beta,
+            "interest_rate_beta": 0.0, "sector_beta": 0.0,
+        })
+    factor_frame = pd.DataFrame(factor_rows)
+    factor_key = "cross_market_factor_exposures"
+    if factor_key not in st.session_state:
+        st.session_state[factor_key] = factor_frame
+    exposures_frame = st.data_editor(
+        st.session_state[factor_key], use_container_width=True, hide_index=True,
+        key="cross_market_factor_exposure_editor",
+    )
+    with st.form("cross_market_factor_shock_form"):
+        c1, c2, c3 = st.columns(3)
+        fx_shock = c1.number_input("USD/IDR shock (%)", value=-10.0) / 100.0
+        rate_shock = c2.number_input("Interest-rate shock (percentage points)", value=1.0) / 100.0
+        sector_shock = c3.number_input("Sector shock (%)", value=-15.0) / 100.0
+        factor_submit = st.form_submit_button("Hitung factor stress")
+    if factor_submit:
+        try:
+            exposures = {
+                row["ticker"]: {
+                    "fx_usdidr": float(row["fx_usdidr_beta"]),
+                    "interest_rate": float(row["interest_rate_beta"]),
+                    "sector": float(row["sector_beta"]),
+                }
+                for row in exposures_frame.to_dict("records")
+            }
+            factor_result = run_factor_stress_scenario(
+                result["weights"], exposures,
+                {"fx_usdidr": fx_shock, "interest_rate": rate_shock, "sector": sector_shock},
+            )
+            st.session_state["cross_market_factor_stress_result"] = factor_result
+        except Exception as exc:
+            st.error(f"Factor stress gagal: {type(exc).__name__}: {exc}")
+    factor_result = st.session_state.get("cross_market_factor_stress_result")
+    if factor_result:
+        st.metric("Factor stress portfolio return", f"{factor_result['portfolio_return_pct']:.2f}%")
+        st.dataframe(pd.DataFrame([
+            {"Ticker": ticker, "Estimated impact (%)": value}
+            for ticker, value in factor_result["asset_impacts_pct"].items()
+        ]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame([
+            {"Factor": factor, "Contribution (%)": value}
+            for factor, value in factor_result["factor_contributions_pct"].items()
+        ]), use_container_width=True, hide_index=True)
+        st.caption(factor_result["method"])
