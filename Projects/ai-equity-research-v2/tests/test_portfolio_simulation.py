@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo
+from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo, run_factor_stress_scenario
 
 
 def returns_frame():
@@ -50,4 +50,28 @@ def test_stress_scenarios_reject_shock_below_total_loss():
     with pytest.raises(ValueError, match="Shock"):
         run_historical_stress_scenarios(
             returns_frame(), {"A": 1.0, "B": 0.0}, {"A": -1.1, "B": 0}
+        )
+
+
+def test_factor_stress_combines_fx_rate_and_sector_exposures():
+    result = run_factor_stress_scenario(
+        {"US": 0.6, "IDX": 0.4},
+        {
+            "US": {"fx_usdidr": 1.0, "interest_rate": -2.0, "sector": 0.5},
+            "IDX": {"fx_usdidr": 0.0, "interest_rate": -1.0, "sector": 1.0},
+        },
+        {"fx_usdidr": 0.05, "interest_rate": 0.01, "sector": -0.10},
+    )
+    # US: +5% FX -2% rate + -5% sector = -2%; IDX: -1% rate -10% sector = -11%.
+    assert result["asset_impacts_pct"]["US"] == pytest.approx(-2.0)
+    assert result["asset_impacts_pct"]["IDX"] == pytest.approx(-11.0)
+    assert result["portfolio_return_pct"] == pytest.approx(-5.6)
+
+
+def test_factor_stress_rejects_missing_exposures_and_invalid_shocks():
+    with pytest.raises(ValueError, match="harus sama"):
+        run_factor_stress_scenario({"A": 1.0}, {}, {"fx": 0.1})
+    with pytest.raises(ValueError, match="Factor shock"):
+        run_factor_stress_scenario(
+            {"A": 1.0}, {"A": {"fx": 1.0}}, {"fx": -1.5}
         )
