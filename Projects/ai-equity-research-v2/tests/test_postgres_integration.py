@@ -13,6 +13,7 @@ from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
 from corporate_event_store import create_event as create_corporate_event, delete_event as delete_corporate_event, list_events as list_corporate_events
 from portfolio_event_store import create_event as create_cashflow_event, delete_event as delete_cashflow_event, list_events as list_cashflow_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
+from security_controls import record_audit_event, verify_audit_chain, list_audit_events
 
 
 @pytest.fixture
@@ -252,3 +253,37 @@ def test_postgres_thesis_update_rolls_back_if_version_insert_fails(postgres_test
             db.execute(f"DROP TRIGGER IF EXISTS {trigger_name} ON research_thesis_versions")
             db.execute(f"DROP FUNCTION IF EXISTS {function_name}()")
         delete_thesis(owner, thesis_id)
+
+
+
+def test_postgres_audit_hash_chain_serializes_concurrent_appends(postgres_test_database):
+    from concurrent.futures import ThreadPoolExecutor
+
+    # Initialize the shared lock row before concurrent writers race to append.
+    record_audit_event(
+        "issuer|audit-bootstrap-" + uuid.uuid4().hex,
+        "admin", "TEST_BOOTSTRAP", "integration_test",
+        details={"scope": "postgres-concurrency"},
+    )
+    suffix = uuid.uuid4().hex
+    actors = [f"issuer|audit-{suffix}-{index}" for index in range(24)]
+
+    def append_event(actor):
+        return record_audit_event(
+            actor, "analyst", "TEST_CONCURRENT_APPEND", "integration_test",
+            resource_id=actor,
+            details={"batch": suffix, "source": "postgres-integration"},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        event_ids = list(executor.map(append_event, actors))
+
+    assert len(set(event_ids)) == len(actors)
+    assert verify_audit_chain()["valid"] is True
+    recent = list_audit_events(limit=100)
+    batch_rows = [
+        row for row in recent
+        if row["action"] == "TEST_CONCURRENT_APPEND"
+        and row["actor_id"] in set(actors)
+    ]
+    assert len(batch_rows) == len(actors)
