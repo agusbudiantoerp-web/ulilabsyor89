@@ -125,6 +125,11 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
             for lot in eligible_lots:
                 lot["quantity"] *= quantity
                 lot["unit_cost"] /= quantity
+                if abs(lot["quantity"] - round(lot["quantity"])) > 1e-9:
+                    warnings.append(
+                        f"{ticker}: split menghasilkan fractional entitlement; cash-in-lieu "
+                        "belum dihitung dan perlu rekonsiliasi broker."
+                    )
         elif kind == "SELL":
             eligible_lots = [
                 lot for lot in lots[ticker]
@@ -205,8 +210,9 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
         },
         "warnings": warnings,
         "limitations": (
-            "Tidak menghitung pajak legal, wash-sale, corporate action selain split, "
-            "biaya broker yang dicatat terpisah, FX, atau rekonsiliasi statement broker. "
-            "SELL amount dianggap hasil bersih sebelum event FEE/TAX terpisah."
+            "Tidak menghitung pajak legal, wash-sale, dividen, rights issue, cash-in-lieu "
+            "untuk fractional entitlement, biaya broker yang dicatat terpisah, FX, atau "
+            "rekonsiliasi statement broker. Split mengubah kuantitas dan unit cost tanpa "
+            "mengubah total cost basis. SELL amount dianggap hasil bersih sebelum event FEE/TAX terpisah."
         ),
     }
