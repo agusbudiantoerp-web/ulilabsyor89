@@ -149,6 +149,67 @@ def verify_backup_manifest(manifest_path: str | Path) -> dict:
     }
 
 
+
+def restore_sqlite_backup(
+    manifest_path: str | Path,
+    target_path: str | Path,
+    *,
+    overwrite: bool = False,
+) -> dict:
+    """Restore a verified SQLite backup atomically without overwriting by default."""
+    if not isinstance(overwrite, bool):
+        raise ValueError("overwrite harus berupa boolean.")
+    verified = verify_backup_manifest(manifest_path)
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    if verified.get("backend") != "SQLite":
+        raise ValueError("Restore SQLite hanya menerima backup dengan backend SQLite.")
+    if manifest.get("validation") != "PRAGMA integrity_check: ok":
+        raise ValueError("Manifest tidak menyatakan bahwa backup lolos integrity_check.")
+
+    source = Path(verified["backup"])
+    target = Path(target_path)
+    if source.resolve() == target.resolve():
+        raise ValueError("Target restore tidak boleh sama dengan file backup sumber.")
+    if target.exists() and not overwrite:
+        raise FileExistsError(f"Target sudah ada; gunakan overwrite=True secara eksplisit: {target}")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(str(source), timeout=30)) as source_db:
+        source_check = source_db.execute("PRAGMA integrity_check").fetchone()[0]
+    if source_check != "ok":
+        raise ValueError(f"Backup sumber gagal integrity_check: {source_check}")
+
+    import tempfile
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".restore.tmp", dir=str(target.parent)
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        shutil.copyfile(source, temporary)
+        with closing(sqlite3.connect(str(temporary), timeout=30)) as restored_db:
+            restored_check = restored_db.execute("PRAGMA integrity_check").fetchone()[0]
+        if restored_check != "ok":
+            raise ValueError(f"Salinan restore gagal integrity_check: {restored_check}")
+
+        if overwrite:
+            os.replace(temporary, target)
+        else:
+            # Publish atomically without clobbering a target created concurrently.
+            os.link(temporary, target)
+            temporary.unlink()
+    finally:
+        temporary.unlink(missing_ok=True)
+
+    return {
+        "restored_to": str(target),
+        "source_backup": str(source),
+        "validation": "PRAGMA integrity_check: ok",
+        "overwritten": overwrite,
+    }
+
+
 def backup_sqlite(source: str | Path, output_dir: str | Path = "backups") -> dict:
     source_path = Path(source)
     if not source_path.is_file():
@@ -224,12 +285,22 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create verified AI Equity Research database backups.")
-    parser.add_argument("backend", choices=("local", "sqlite", "postgres", "verify"))
+    parser.add_argument("backend", choices=("local", "sqlite", "postgres", "verify", "restore-sqlite"))
     parser.add_argument("--source", help="SQLite database path; required for backend=sqlite.")
-    parser.add_argument("--manifest", help="Backup manifest path; required for backend=verify.")
+    parser.add_argument("--manifest", help="Backup manifest path; required for verify/restore-sqlite.")
+    parser.add_argument("--target", help="SQLite restore target path; required for backend=restore-sqlite.")
+    parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing SQLite restore target.")
     parser.add_argument("--output-dir", default="backups")
     args = parser.parse_args()
 
+    if args.backend == "restore-sqlite":
+        if not args.manifest or not args.target:
+            parser.error("--manifest and --target are required when backend=restore-sqlite")
+        result = restore_sqlite_backup(args.manifest, args.target, overwrite=args.overwrite)
+        print(f"Restored to: {result['restored_to']}")
+        print(f"Source backup: {result['source_backup']}")
+        print(f"Validation: {result['validation']}")
+        return 0
     if args.backend == "verify":
         if not args.manifest:
             parser.error("--manifest is required when backend=verify")
