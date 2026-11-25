@@ -238,6 +238,15 @@ def test_postgres_valuation_replacement_rolls_back_when_insert_fails(postgres_te
         with pytest.raises(psycopg.errors.RaiseException, match="injected valuation insert failure"):
             save_valuations(owner, "main", replacement, currency="IDR")
 
+        # Duplicate intraday timestamps must be rejected before DELETE/INSERT,
+        # because the persistent primary key is a calendar date.
+        duplicate_intraday = pd.DataFrame([
+            {"date": "2026-01-01T09:00:00", "portfolio_value": 1200, "external_flow": 0},
+            {"date": "2026-01-01T16:30:00", "portfolio_value": 1300, "external_flow": 0},
+        ])
+        with pytest.raises(ValueError, match="unik"):
+            save_valuations(owner, "main", duplicate_intraday, currency="IDR")
+
         preserved = list_valuations(owner, "main")
         assert preserved["date"].tolist() == ["2026-01-01", "2026-02-01"]
         assert preserved["portfolio_value"].tolist() == [1000.0, 1100.0]
