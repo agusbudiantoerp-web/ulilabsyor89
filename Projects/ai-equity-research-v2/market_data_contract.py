@@ -25,6 +25,13 @@ def build_market_data_metadata(
     """Build a serializable provenance record and explicit quality flags."""
     if bars is None or bars.empty:
         raise ValueError("Data harga kosong; provenance tidak dapat dibuat.")
+    try:
+        max_age = int(max_age_calendar_days)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Batas umur data harus berupa bilangan bulat non-negatif.") from exc
+    if max_age < 0:
+        raise ValueError("Batas umur data harus berupa bilangan bulat non-negatif.")
+
     meta = dict(source_meta or {})
     retrieved = retrieved_at or datetime.now(timezone.utc)
     reference = as_of or datetime.now(timezone.utc)
@@ -32,60 +39,118 @@ def build_market_data_metadata(
         retrieved = retrieved.replace(tzinfo=timezone.utc)
     if reference.tzinfo is None:
         reference = reference.replace(tzinfo=timezone.utc)
+    reference_date = reference.astimezone(timezone.utc).date()
 
     missing = [name for name in REQUIRED_OHLCV if name not in bars.columns]
     checks: list[dict[str, str]] = []
+    last_bar = None
+    age_days = None
+
+    # Validate the index independently from OHLCV so malformed timestamps are
+    # visible rather than causing an opaque .date() / max() failure downstream.
+    parsed_dates = pd.DatetimeIndex(pd.to_datetime(bars.index, errors="coerce", utc=True))
+    invalid_dates = int(parsed_dates.isna().sum())
+    valid_dates = parsed_dates[~parsed_dates.isna()]
+    if invalid_dates:
+        checks.append({
+            "severity": "ERROR", "code": "INVALID_BAR_DATES",
+            "message": f"{invalid_dates} bar memiliki indeks tanggal yang tidak valid.",
+        })
+    if len(valid_dates):
+        last_date = valid_dates.max().date()
+        last_bar = last_date.isoformat()
+        age_days = max(0, (reference_date - last_date).days)
+        if int(valid_dates.duplicated().sum()):
+            checks.append({
+                "severity": "WARNING", "code": "DUPLICATE_DATES",
+                "message": f"{int(valid_dates.duplicated().sum())} tanggal duplikat.",
+            })
+        if not valid_dates.is_monotonic_increasing:
+            checks.append({
+                "severity": "WARNING", "code": "UNSORTED_DATES",
+                "message": "Urutan bar tidak kronologis; urutkan berdasarkan tanggal sebelum analisis.",
+            })
+        if age_days > max_age:
+            checks.append({
+                "severity": "WARNING", "code": "STALE_DATA",
+                "message": f"Bar terakhir berumur {age_days} hari kalender.",
+            })
+        if last_date > reference_date:
+            checks.append({
+                "severity": "ERROR", "code": "FUTURE_BAR",
+                "message": "Tanggal bar terakhir berada di masa depan.",
+            })
+    else:
+        checks.append({
+            "severity": "ERROR", "code": "NO_VALID_BAR_DATES",
+            "message": "Tidak ada tanggal bar yang dapat dibaca.",
+        })
+
     if missing:
-        checks.append({"severity": "ERROR", "code": "MISSING_COLUMNS",
-                       "message": "Kolom OHLCV hilang: " + ", ".join(missing)})
-        last_bar = None
-        age_days = None
+        checks.append({
+            "severity": "ERROR", "code": "MISSING_COLUMNS",
+            "message": "Kolom OHLCV hilang: " + ", ".join(missing),
+        })
     else:
         frame = bars.loc[:, list(REQUIRED_OHLCV)].apply(pd.to_numeric, errors="coerce")
         invalid_rows = int(frame.isna().any(axis=1).sum())
         if invalid_rows:
-            checks.append({"severity": "ERROR", "code": "NON_NUMERIC_OHLCV",
-                           "message": f"{invalid_rows} bar memiliki nilai OHLCV kosong/non-numerik."})
-        nonfinite = sum(1 for row in frame.to_numpy() for value in row if pd.notna(value) and not math.isfinite(float(value)))
+            checks.append({
+                "severity": "ERROR", "code": "NON_NUMERIC_OHLCV",
+                "message": f"{invalid_rows} bar memiliki nilai OHLCV kosong/non-numerik.",
+            })
+        nonfinite = sum(
+            1 for row in frame.to_numpy() for value in row
+            if pd.notna(value) and not math.isfinite(float(value))
+        )
         if nonfinite:
-            checks.append({"severity": "ERROR", "code": "NON_FINITE_OHLCV",
-                           "message": f"{nonfinite} bar memiliki nilai non-finite."})
+            checks.append({
+                "severity": "ERROR", "code": "NON_FINITE_OHLCV",
+                "message": f"{nonfinite} bar memiliki nilai non-finite.",
+            })
         invalid_price = int((frame[["Open", "High", "Low", "Close"]] <= 0).any(axis=1).sum())
         if invalid_price:
-            checks.append({"severity": "ERROR", "code": "NON_POSITIVE_PRICE",
-                           "message": f"{invalid_price} bar memiliki harga nol/negatif."})
+            checks.append({
+                "severity": "ERROR", "code": "NON_POSITIVE_PRICE",
+                "message": f"{invalid_price} bar memiliki harga nol/negatif.",
+            })
         negative_volume = int((frame["Volume"] < 0).sum())
         if negative_volume:
-            checks.append({"severity": "ERROR", "code": "NEGATIVE_VOLUME",
-                           "message": f"{negative_volume} bar memiliki volume negatif."})
+            checks.append({
+                "severity": "ERROR", "code": "NEGATIVE_VOLUME",
+                "message": f"{negative_volume} bar memiliki volume negatif.",
+            })
         bad_ohlc = (
             (frame["High"] < frame[["Open", "Close", "Low"]].max(axis=1))
             | (frame["Low"] > frame[["Open", "Close", "High"]].min(axis=1))
         ).fillna(False)
         if int(bad_ohlc.sum()):
-            checks.append({"severity": "ERROR", "code": "INVALID_OHLC_RELATION",
-                           "message": f"{int(bad_ohlc.sum())} bar memiliki relasi OHLC tidak valid."})
-        duplicate_dates = int(pd.Index(bars.index).duplicated().sum())
-        if duplicate_dates:
-            checks.append({"severity": "WARNING", "code": "DUPLICATE_DATES",
-                           "message": f"{duplicate_dates} tanggal duplikat."})
-        dates = pd.to_datetime(bars.index)
-        if getattr(dates, "tz", None) is not None:
-            dates = dates.tz_localize(None)
-        last_bar = dates.max().date().isoformat()
-        age_days = max(0, (reference.date() - dates.max().date()).days)
-        if age_days > int(max_age_calendar_days):
-            checks.append({"severity": "WARNING", "code": "STALE_DATA",
-                           "message": f"Bar terakhir berumur {age_days} hari kalender."})
-        if dates.max().date() > reference.date():
-            checks.append({"severity": "ERROR", "code": "FUTURE_BAR",
-                           "message": "Tanggal bar terakhir berada di masa depan."})
+            checks.append({
+                "severity": "ERROR", "code": "INVALID_OHLC_RELATION",
+                "message": f"{int(bad_ohlc.sum())} bar memiliki relasi OHLC tidak valid.",
+            })
+
     if not checks:
-        checks.append({"severity": "INFO", "code": "BASIC_CHECKS_PASSED",
-                       "message": "Pemeriksaan dasar OHLCV lolos; verifikasi sumber tetap diperlukan."})
+        checks.append({
+            "severity": "INFO", "code": "BASIC_CHECKS_PASSED",
+            "message": "Pemeriksaan dasar OHLCV lolos; verifikasi sumber tetap diperlukan.",
+        })
     status = "FAIL" if any(item["severity"] == "ERROR" for item in checks) else (
         "WARNING" if any(item["severity"] == "WARNING" for item in checks) else "PASS"
     )
+    try:
+        cache_age = float(meta.get("cache_age_seconds", 0.0))
+    except (TypeError, ValueError):
+        cache_age = float("nan")
+    if not math.isfinite(cache_age) or cache_age < 0:
+        cache_age = 0.0
+        checks.append({
+            "severity": "WARNING", "code": "INVALID_CACHE_AGE",
+            "message": "Umur cache tidak valid; metadata cache dinormalisasi menjadi nol.",
+        })
+        if status == "PASS":
+            status = "WARNING"
+
     return {
         "source": str(meta.get("source") or "unknown"),
         "source_ticker": str(meta.get("ticker") or ""),
@@ -99,7 +164,7 @@ def build_market_data_metadata(
         "bar_count": int(len(bars)),
         "age_calendar_days": age_days,
         "cache_hit": bool(meta.get("cache_hit", False)),
-        "cache_age_seconds": float(meta.get("cache_age_seconds", 0.0)),
+        "cache_age_seconds": cache_age,
         "quality_status": status,
         "quality_checks": checks,
         "corporate_action_note": (
