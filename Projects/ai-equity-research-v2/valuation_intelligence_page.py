@@ -117,6 +117,7 @@ def render_valuation_intelligence() -> None:
             net_debt = c4.number_input("Net debt (+) / net cash (-)", value=0.0)
             wacc_pct = c5.number_input("WACC (%)", min_value=0.1, max_value=50.0, value=12.0)
             terminal_pct = c6.number_input("Terminal growth (%)", min_value=-5.0, max_value=15.0, value=3.0)
+            fx_rate = st.number_input("FX rate: quote currency per 1 model currency", min_value=0.000001, value=1.0, help="Contoh: harga pasar dalam IDR, FCF/net debt dalam USD → masukkan jumlah IDR untuk 1 USD. Jika mata uang sama, gunakan 1.")
             c7, c8, c9 = st.columns(3)
             years = c7.number_input("Forecast years", min_value=1, max_value=30, value=5)
             lower_pct = c8.number_input("Batas growth bawah (%)", min_value=-90.0, max_value=99.0, value=-20.0)
@@ -128,6 +129,7 @@ def render_valuation_intelligence() -> None:
                     current_fcf=fcf, market_price=price, diluted_shares=shares,
                     net_debt=net_debt, wacc=wacc_pct / 100.0,
                     terminal_growth=terminal_pct / 100.0,
+                    fx_rate_quote_per_model=fx_rate,
                     forecast_years=int(years), lower_growth=lower_pct / 100.0,
                     upper_growth=upper_pct / 100.0,
                 )
@@ -154,6 +156,7 @@ def render_valuation_intelligence() -> None:
                 market_price=result["market_price"],
                 diluted_shares=result["diluted_shares"],
                 net_debt=result["net_debt"],
+                fx_rate_quote_per_model=result["fx_rate_quote_per_model"],
                 forecast_years=result["forecast_years"],
                 lower_growth=result["lower_growth"],
                 upper_growth=result["upper_growth"],
@@ -170,4 +173,5 @@ def render_valuation_intelligence() -> None:
             )
             st.markdown("**Sensitivitas implied growth: WACC × terminal growth**")
             st.dataframe(pd.DataFrame(sensitivity_rows), use_container_width=True, hide_index=True)
+            st.caption(f"FX bridge: {result['fx_rate_quote_per_model']:,.6f} quote currency per 1 model currency · market price in model currency: {result['market_price_model_currency']:,.4f}")
             st.warning(result["limitations"])
