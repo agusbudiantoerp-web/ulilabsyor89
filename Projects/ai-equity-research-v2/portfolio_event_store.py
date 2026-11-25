@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import json
 import os
+import math
+import numbers
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+from portfolio_cashflow import normalize_events
 
 
 def _url():
@@ -70,9 +74,22 @@ def create_event(owner_id,event,*,path=None):
     required=("date","event_type","amount")
     if any(event.get(key) is None or str(event.get(key)).strip()=="" for key in required):
         raise ValueError("Date, event_type dan amount wajib diisi.")
+    # Apply the same ledger validation used by portfolio calculations before
+    # persisting anything, so malformed events cannot poison later TWR/XIRR replay.
+    validated = normalize_events([event]).iloc[0].to_dict()
+    normalized = {}
+    for key, value in validated.items():
+        if pd_is_missing(value):
+            normalized[key] = None
+        elif hasattr(value, "isoformat"):
+            normalized[key] = value.isoformat()
+        elif hasattr(value, "item"):
+            normalized[key] = value.item()
+        else:
+            normalized[key] = value
     event_id=uuid.uuid4().hex
     now=datetime.now(timezone.utc).isoformat()
-    payload=json.dumps(event,ensure_ascii=False,default=str,allow_nan=False)
+    payload=json.dumps(normalized,ensure_ascii=False,default=str,allow_nan=False)
     normalized=json.loads(payload)
     ticker=str(normalized.get("ticker") or "").upper().strip()
     initialize(path)
@@ -100,7 +117,9 @@ def list_events(owner_id,*,path=None,limit=5000):
     owner=str(owner_id or "").strip()
     if not owner:
         raise ValueError("Owner identity wajib diisi.")
-    bounded=max(1,min(int(limit),10000))
+    if isinstance(limit, bool) or not isinstance(limit, numbers.Integral) or int(limit) < 1:
+        raise ValueError("Limit harus berupa bilangan bulat positif.")
+    bounded=min(int(limit),10000)
     initialize(path)
     if path is None and _url():
         with _pg() as db:
