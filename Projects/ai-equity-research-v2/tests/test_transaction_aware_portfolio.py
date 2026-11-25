@@ -85,10 +85,8 @@ def test_transaction_replay_rejects_insufficient_cash_and_future_lookahead():
         )
     with pytest.raises(ValueError, match="look-ahead dilarang"):
         run_transaction_aware_portfolio(
-            prices, {"AAA": "IDR"}, [],
-            initial_positions={"AAA": 1},
-            initial_cash=0,
-        ) if False else run_transaction_aware_portfolio(
             {"AAA": pd.Series([100.0], index=pd.to_datetime(["2026-01-02"]))},
-            {"AAA": "IDR"}, [], initial_positions={"AAA": 1},
+            {"AAA": "IDR"},
+            [{"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 0}],
+            initial_positions={"AAA": 1},
         )
