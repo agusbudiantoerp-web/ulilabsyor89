@@ -68,7 +68,7 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest verified development head `8c71a160d2c1e38e13dbe0cece1c40f9a8be429d` (2026-11-25): **323 passed, 5 skipped**.
+- Latest verified development head `8c71a160d2c1e38e13dbe0cece1c40f9a8be429d` (2026-11-25): **324 passed, 5 skipped**.
 - Python compile step passed on the same commit.
 - Five skipped tests require a dedicated disposable PostgreSQL integration database. They have not been run against Preview/staging.
 - Re-run CI after any subsequent source change; do not treat this historical result as proof of Preview or production readiness.
