@@ -30,12 +30,18 @@ def run_portfolio_monte_carlo(
         raise ValueError("Bobot harus finite, non-negatif dan memiliki total positif.")
     if weight.sum() > 1.000001:
         raise ValueError("Total bobot tidak boleh melebihi 100%.")
-    if not isinstance(simulations, int) or not 100 <= simulations <= 100000:
-        raise ValueError("Simulations harus antara 100 dan 100000.")
-    if not isinstance(horizon_days, int) or not 1 <= horizon_days <= 2520:
-        raise ValueError("Horizon harus antara 1 dan 2520 sesi.")
-    if not 0.5 < confidence < 1:
-        raise ValueError("Confidence harus antara 50% dan 100%.")
+    if isinstance(simulations, bool) or not isinstance(simulations, (int, np.integer)) or not 100 <= simulations <= 100000:
+        raise ValueError("Simulations harus integer antara 100 dan 100000.")
+    if isinstance(horizon_days, bool) or not isinstance(horizon_days, (int, np.integer)) or not 1 <= horizon_days <= 2520:
+        raise ValueError("Horizon harus integer antara 1 dan 2520 sesi.")
+    try:
+        confidence = float(confidence)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Confidence harus angka finite antara 50% dan 100%.") from exc
+    if isinstance(confidence, bool) or not math.isfinite(confidence) or not 0.5 < confidence < 1:
+        raise ValueError("Confidence harus angka finite antara 50% dan 100%.")
+    if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or not 0 <= seed <= 2**32 - 1:
+        raise ValueError("Seed harus integer antara 0 dan 2^32-1.")
     mean = values.mean(axis=0)
     covariance = np.cov(values, rowvar=False, ddof=1)
     covariance = np.atleast_2d(covariance)
@@ -310,12 +316,18 @@ def run_regime_switching_monte_carlo(
     weight = np.asarray([float(weights[column]) for column in frame.columns], dtype=float)
     if not np.isfinite(weight).all() or (weight < 0).any() or weight.sum() <= 0 or weight.sum() > 1.000001:
         raise ValueError("Bobot harus finite, non-negatif, total positif dan maksimal 100%.")
-    if not isinstance(simulations, int) or not 100 <= simulations <= 100000:
-        raise ValueError("Simulations harus antara 100 dan 100000.")
-    if not isinstance(horizon_days, int) or not 1 <= horizon_days <= 2520:
-        raise ValueError("Horizon harus antara 1 dan 2520 sesi.")
-    if not 0.5 < confidence < 1:
-        raise ValueError("Confidence harus antara 50% dan 100%.")
+    if isinstance(simulations, bool) or not isinstance(simulations, (int, np.integer)) or not 100 <= simulations <= 100000:
+        raise ValueError("Simulations harus integer antara 100 dan 100000.")
+    if isinstance(horizon_days, bool) or not isinstance(horizon_days, (int, np.integer)) or not 1 <= horizon_days <= 2520:
+        raise ValueError("Horizon harus integer antara 1 dan 2520 sesi.")
+    try:
+        confidence = float(confidence)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Confidence harus angka finite antara 50% dan 100%.") from exc
+    if isinstance(confidence, bool) or not math.isfinite(confidence) or not 0.5 < confidence < 1:
+        raise ValueError("Confidence harus angka finite antara 50% dan 100%.")
+    if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or not 0 <= seed <= 2**32 - 1:
+        raise ValueError("Seed harus integer antara 0 dan 2^32-1.")
     if len(frame) < 40 or not np.isfinite(frame.to_numpy(dtype=float)).all():
         raise ValueError("Minimal 40 observasi return finite diperlukan.")
     stats = {}
@@ -413,14 +425,20 @@ def run_block_bootstrap_monte_carlo(
     frame = historical_returns.apply(pd.to_numeric, errors="coerce").dropna(how="any")
     if len(frame) < 20 or not np.isfinite(frame.to_numpy(dtype=float)).all():
         raise ValueError("Minimal 20 observasi return finite diperlukan.")
-    if not isinstance(block_size, int) or not 1 <= block_size <= min(60, len(frame)):
+    if isinstance(block_size, bool) or not isinstance(block_size, (int, np.integer)) or not 1 <= block_size <= min(60, len(frame)):
         raise ValueError("Block size harus integer 1–60 dan tidak melebihi histori.")
-    if not isinstance(simulations, int) or not 100 <= simulations <= 100000:
-        raise ValueError("Simulations harus antara 100 dan 100000.")
-    if not isinstance(horizon_days, int) or not 1 <= horizon_days <= 2520:
-        raise ValueError("Horizon harus antara 1 dan 2520 sesi.")
-    if not 0.5 < confidence < 1:
-        raise ValueError("Confidence harus antara 50% dan 100%.")
+    if isinstance(simulations, bool) or not isinstance(simulations, (int, np.integer)) or not 100 <= simulations <= 100000:
+        raise ValueError("Simulations harus integer antara 100 dan 100000.")
+    if isinstance(horizon_days, bool) or not isinstance(horizon_days, (int, np.integer)) or not 1 <= horizon_days <= 2520:
+        raise ValueError("Horizon harus integer antara 1 dan 2520 sesi.")
+    try:
+        confidence = float(confidence)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Confidence harus angka finite antara 50% dan 100%.") from exc
+    if isinstance(confidence, bool) or not math.isfinite(confidence) or not 0.5 < confidence < 1:
+        raise ValueError("Confidence harus angka finite antara 50% dan 100%.")
+    if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or not 0 <= seed <= 2**32 - 1:
+        raise ValueError("Seed harus integer antara 0 dan 2^32-1.")
     weight = np.asarray([float(weights[column]) for column in frame.columns], dtype=float)
     if not np.isfinite(weight).all() or (weight < 0).any() or weight.sum() <= 0 or weight.sum() > 1.000001:
         raise ValueError("Bobot harus finite, non-negatif, total positif dan maksimal 100%.")
