@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from corporate_action_calendar import normalize_corporate_events
-from corporate_event_store import create_event, delete_event, list_events
+from corporate_event_store import create_event, create_events, delete_event, list_events
 
 
 def render_corporate_action_calendar() -> None:
@@ -26,10 +26,8 @@ def render_corporate_action_calendar() -> None:
             imported = pd.read_csv(uploaded)
             normalized_import = normalize_corporate_events(imported)
             records = normalized_import["events"].to_dict("records")
-            saved_count = 0
-            for record in records:
-                create_event(owner, record)
-                saved_count += 1
+            created_ids = create_events(owner, records)
+            saved_count = len(created_ids)
             st.success(f"{saved_count} event berhasil diimpor.")
             st.rerun()
         except Exception as exc:
