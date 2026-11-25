@@ -35,7 +35,7 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Audit events cover authentication, research and portfolio operations, cash-flow/valuation lifecycle actions, thesis/reviewer decisions, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
 - Excel/CSV formula-injection protections and PDF dynamic-text escaping are implemented.
 - `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
-- CI compiles Python modules and runs the complete automated suite against an ephemeral PostgreSQL 16 service.
+- CI compiles Python modules and runs the complete automated suite against an ephemeral PostgreSQL 16 service. The workflow uses maintained Node 24-compatible GitHub Actions releases and cancels superseded runs on the same ref.
 
 ## Remaining release gates (not feature-development tasks)
 
@@ -68,11 +68,11 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run: **332 passed, 0 failed, 0 skipped** on the PR merge test ref; PostgreSQL 16 service health check passed.
+- Latest completed full CI run: **332 passed, 0 failed, 0 skipped** on commit `35d93ed241de10cec7a93c9a36a61871370ba9a4`.
 - Python compile step passed in the same run.
-- All PostgreSQL integration tests were included in the full suite using an ephemeral disposable database; this does not replace a separate Preview/staging verification.
-- [GitHub Actions run #857](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45552889590).
-- A subsequent run is triggered for the documentation-only release-readiness update; verify it before declaring the final development head green.
+- All PostgreSQL integration tests were included in the full suite using an ephemeral disposable PostgreSQL 16 database; this does not replace a separate Preview/staging verification.
+- [GitHub Actions run #862](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45558165902).
+- The Node.js 20 deprecation warning from the previous workflow was absent after upgrading the actions.
 - Do not treat CI as proof of Preview or production readiness.
 
 ## Research limitations
