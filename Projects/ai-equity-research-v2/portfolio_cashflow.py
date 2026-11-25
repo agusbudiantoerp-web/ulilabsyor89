@@ -243,6 +243,8 @@ def reconcile_portfolio_ledger(
             cash += amount
         elif kind == "WITHDRAWAL":
             cash -= amount
+            if cash < -1e-8:
+                raise ValueError(f"Cash tidak cukup untuk WITHDRAWAL pada {pd.Timestamp(row['date']).date()}.")
         elif kind == "DIVIDEND":
             cash += amount
         elif kind == "BUY":
