@@ -1,0 +1,71 @@
+import pandas as pd
+import pytest
+
+from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, normalize_events
+
+
+def test_cash_flow_ledger_separates_external_flows_dividends_and_costs():
+    result = cash_flow_ledger([
+        {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000},
+        {"date": "2026-02-01", "event_type": "DIVIDEND", "amount": 25, "ticker": "BBCA"},
+        {"date": "2026-02-02", "event_type": "FEE", "amount": 5},
+        {"date": "2026-03-01", "event_type": "WITHDRAWAL", "amount": 100},
+    ])
+    assert result["net_external_contributions"] == 900
+    assert result["dividend_income"] == 25
+    assert result["transaction_costs"] == 5
+    assert result["event_count"] == 4
+
+
+def test_normalize_events_rejects_missing_ticker_for_dividend():
+    with pytest.raises(ValueError, match="Ticker wajib"):
+        normalize_events([{"date": "2026-01-01", "event_type": "DIVIDEND", "amount": 10}])
+
+
+def test_normalize_events_rejects_unknown_event_and_negative_amount():
+    with pytest.raises(ValueError, match="tidak dikenal"):
+        normalize_events([{"date": "2026-01-01", "event_type": "MAGIC", "amount": 1}])
+    with pytest.raises(ValueError, match="tidak boleh negatif"):
+        normalize_events([{"date": "2026-01-01", "event_type": "DEPOSIT", "amount": -1}])
+
+
+def test_twr_removes_external_deposit_before_linking_returns():
+    # 100 -> 110 after 10% gain; then 110 + 100 deposit -> 231 = another 10% gain.
+    frame = pd.DataFrame([
+        {"date": "2026-01-01", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-02-01", "portfolio_value": 110, "external_flow": 0},
+        {"date": "2026-03-01", "portfolio_value": 231, "external_flow": 100},
+    ])
+    result = calculate_twr(frame)
+    assert result["twr_pct"] == pytest.approx(21.0)
+    assert result["period_returns_pct"] == pytest.approx([10.0, 10.0])
+
+
+def test_twr_rejects_non_positive_valuation():
+    frame = pd.DataFrame([
+        {"date": "2026-01-01", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-02-01", "portfolio_value": 0, "external_flow": 0},
+    ])
+    with pytest.raises(ValueError, match="positif"):
+        calculate_twr(frame)
+
+
+def test_xirr_solves_one_year_double_return():
+    result = calculate_xirr([
+        {"date": "2025-01-01", "amount": -1000},
+        {"date": "2026-01-01", "amount": 1100},
+    ])
+    assert result["xirr_pct"] == pytest.approx(10.0, abs=0.02)
+
+
+def test_xirr_includes_ending_portfolio_valuation():
+    result = calculate_xirr(
+        [{"date": "2025-01-01", "amount": -1000}],
+        ending_value=1100, ending_date="2026-01-01",
+    )
+    assert result["xirr_pct"] == pytest.approx(10.0, abs=0.02)
+
+
+def test_xirr_rejects_flows_without_both_signs():
+    with pytest.raises(ValueError, match="arus negatif"):
+        calculate_xirr([{"date": "2025-01-01", "amount": 100}])
