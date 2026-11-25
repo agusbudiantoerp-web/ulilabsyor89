@@ -125,3 +125,33 @@ def test_fundamental_audit_rejects_boolean_numeric_values(bad_value):
 def test_fundamental_audit_requires_dictionary(record):
     with pytest.raises(ValueError, match="dictionary"):
         audit_fundamental_record(record)
+
+
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        (np.linspace(100, 220, 320), "BULLISH"),
+        (np.linspace(220, 100, 320), "BEARISH"),
+        (np.full(320, 100.0), "SIDEWAYS / MIXED"),
+    ],
+)
+def test_market_regime_classification_is_consistent_for_synthetic_trends(values, expected):
+    result = classify_market_regime(bars(values))
+    assert result["regime"] == expected
+    assert result["bar_date"] == "2025-03-21"
+    assert "not a forecast" in result["method"]
+
+
+def test_market_regime_as_of_result_is_unchanged_by_unobserved_future_prices():
+    history = np.linspace(100, 220, 240)
+    future_a = np.linspace(220, 230, 20)
+    future_b = np.linspace(220, 80, 20)
+
+    observed_result = classify_market_regime(bars(history))
+    # An as-of analysis must be run on rows available at that date, not on
+    # a frame containing later observations (even if those later values change).
+    result_with_future_a = classify_market_regime(bars(np.concatenate([history, future_a])).iloc[:len(history)])
+    result_with_future_b = classify_market_regime(bars(np.concatenate([history, future_b])).iloc[:len(history)])
+
+    assert result_with_future_a == observed_result
+    assert result_with_future_b == observed_result
