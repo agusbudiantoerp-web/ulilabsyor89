@@ -83,10 +83,15 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
         trade_rows = frame["event_type"].isin({"BUY", "SELL"})
         supplied = frame["settlement_date"].notna() & frame["settlement_date"].astype(str).str.strip().ne("")
         validate_rows = trade_rows & supplied
-        parsed = pd.to_datetime(frame.loc[validate_rows, "settlement_date"], errors="coerce")
+        settlement_values = frame.loc[validate_rows, "settlement_date"]
+        if settlement_values.map(
+            lambda value: isinstance(value, numbers.Number) or _is_boolean(value)
+        ).any():
+            raise ValueError("Settlement date transaksi tidak valid.")
+        parsed = pd.to_datetime(settlement_values, errors="coerce", utc=True)
+        trade_dates = pd.to_datetime(frame.loc[validate_rows, "date"], utc=True)
         if parsed.isna().any():
             raise ValueError("Settlement date transaksi tidak valid.")
-        trade_dates = frame.loc[validate_rows, "date"]
         try:
             earlier = parsed.reset_index(drop=True) < trade_dates.reset_index(drop=True)
         except TypeError as exc:
@@ -275,16 +280,21 @@ def reconcile_portfolio_ledger(
     are separate cash outflows. SPLIT quantity is the new-shares-per-old-share
     ratio. Same-day ordering follows the stable order supplied by the caller.
     """
+    if isinstance(initial_cash, bool) or type(initial_cash).__name__ == "bool_":
+        raise ValueError("Initial cash harus berupa angka, bukan boolean.")
+    if isinstance(amount_tolerance_pct, bool) or type(amount_tolerance_pct).__name__ == "bool_":
+        raise ValueError("Amount tolerance harus berupa angka, bukan boolean.")
     cash = float(initial_cash)
     if not math.isfinite(cash) or cash < 0:
         raise ValueError("Initial cash harus finite dan tidak negatif.")
     tolerance = float(amount_tolerance_pct)
     if not math.isfinite(tolerance) or tolerance < 0:
         raise ValueError("Amount tolerance harus finite dan tidak negatif.")
-    positions = {
-        str(ticker).upper().strip(): float(shares)
-        for ticker, shares in (initial_positions or {}).items()
-    }
+    positions = {}
+    for ticker, shares in (initial_positions or {}).items():
+        if isinstance(shares, bool) or type(shares).__name__ == "bool_":
+            raise ValueError("Initial positions harus berupa angka, bukan boolean.")
+        positions[str(ticker).upper().strip()] = float(shares)
     if any(not math.isfinite(value) or value < 0 for value in positions.values()):
         raise ValueError("Initial positions harus finite dan tidak negatif.")
     frame = normalize_events(events)
