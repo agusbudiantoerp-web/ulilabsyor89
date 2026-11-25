@@ -317,3 +317,27 @@ def test_portfolio_reconciliation_applies_same_day_split_before_sell():
     ], initial_positions={"BBCA": 10})
     assert result["positions"]["BBCA"] == pytest.approx(10)
     assert result["cash_balance"] == pytest.approx(500)
+
+
+def test_portfolio_reconciliation_applies_reverse_split_without_changing_cash():
+    result = reconcile_portfolio_ledger([
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 0.1},
+    ], initial_cash=250, initial_positions={"BBCA": 100})
+    assert result["cash_balance"] == pytest.approx(250)
+    assert result["positions"]["BBCA"] == pytest.approx(10)
+
+
+def test_portfolio_reconciliation_warns_about_fractional_split_entitlement():
+    result = reconcile_portfolio_ledger([
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 0.5},
+    ], initial_positions={"BBCA": 101})
+    assert result["positions"]["BBCA"] == pytest.approx(50.5)
+    assert any("fractional entitlement" in warning for warning in result["warnings"])
+
+
+def test_dividend_increases_cash_without_changing_share_quantity():
+    result = reconcile_portfolio_ledger([
+        {"date": "2026-02-01", "event_type": "DIVIDEND", "amount": 500, "ticker": "BBCA"},
+    ], initial_cash=100, initial_positions={"BBCA": 10})
+    assert result["cash_balance"] == pytest.approx(600)
+    assert result["positions"]["BBCA"] == pytest.approx(10)
