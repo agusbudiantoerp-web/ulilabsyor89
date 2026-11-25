@@ -151,6 +151,78 @@ def run_factor_stress_scenario(
 
 
 
+
+def detect_portfolio_structural_break(
+    portfolio_returns: pd.Series,
+    *,
+    window: int = 60,
+    mean_shift_z_threshold: float = 2.5,
+    volatility_ratio_threshold: float = 1.75,
+) -> dict:
+    """Flag a potential recent distribution shift using adjacent return windows.
+
+    This is a transparent two-window diagnostic, not a formal breakpoint test.
+    It is intended to warn against blindly pooling older and newer regimes.
+    """
+    if not isinstance(portfolio_returns, pd.Series):
+        raise ValueError("Portfolio returns harus berupa pandas Series.")
+    if not isinstance(window, int) or window < 20:
+        raise ValueError("Window minimal 20 observasi.")
+    if not math.isfinite(float(mean_shift_z_threshold)) or mean_shift_z_threshold <= 0:
+        raise ValueError("Mean-shift threshold harus finite dan positif.")
+    if not math.isfinite(float(volatility_ratio_threshold)) or volatility_ratio_threshold <= 1:
+        raise ValueError("Volatility ratio threshold harus lebih besar dari 1.")
+    values = pd.to_numeric(portfolio_returns, errors="coerce").dropna()
+    if len(values) < window * 2:
+        raise ValueError(f"Minimal {window * 2} observasi diperlukan untuk dua window.")
+    array = values.to_numpy(dtype=float)
+    if not np.isfinite(array).all():
+        raise ValueError("Portfolio returns harus finite.")
+    reference = array[-2 * window:-window]
+    recent = array[-window:]
+    reference_mean = float(reference.mean())
+    recent_mean = float(recent.mean())
+    reference_vol = float(reference.std(ddof=1) * np.sqrt(252))
+    recent_vol = float(recent.std(ddof=1) * np.sqrt(252))
+    standard_error = math.sqrt(
+        float(reference.var(ddof=1)) / window + float(recent.var(ddof=1)) / window
+    )
+    mean_shift_z = (
+        abs(recent_mean - reference_mean) / standard_error
+        if standard_error > 0 else (0.0 if recent_mean == reference_mean else float("inf"))
+    )
+    if reference_vol > 0:
+        volatility_ratio = recent_vol / reference_vol
+    else:
+        volatility_ratio = (1.0 if recent_vol == 0 else float("inf"))
+    mean_break = mean_shift_z >= mean_shift_z_threshold
+    volatility_break = (
+        volatility_ratio >= volatility_ratio_threshold
+        or volatility_ratio <= 1.0 / volatility_ratio_threshold
+    )
+    detected = bool(mean_break or volatility_break)
+    return {
+        "status": "POTENTIAL_BREAK" if detected else "NO_CLEAR_BREAK",
+        "detected": detected,
+        "window_observations": window,
+        "reference_window_start": str(values.index[-2 * window].date()) if hasattr(values.index[-2 * window], "date") else str(values.index[-2 * window]),
+        "recent_window_start": str(values.index[-window].date()) if hasattr(values.index[-window], "date") else str(values.index[-window]),
+        "reference_mean_daily_pct": reference_mean * 100.0,
+        "recent_mean_daily_pct": recent_mean * 100.0,
+        "reference_volatility_annual_pct": reference_vol * 100.0,
+        "recent_volatility_annual_pct": recent_vol * 100.0,
+        "mean_shift_z": mean_shift_z,
+        "volatility_ratio": volatility_ratio,
+        "mean_break": mean_break,
+        "volatility_break": volatility_break,
+        "method": (
+            "Adjacent fixed-length windows; mean-shift z diagnostic and annualized volatility ratio. "
+            "Exploratory warning only, not a formal statistical breakpoint test or forecast. "
+            "A detected break means full-history simulation may pool non-comparable distributions."
+        ),
+    }
+
+
 def estimate_regime_transition_matrix(
     regime_labels: pd.Series,
     *,
