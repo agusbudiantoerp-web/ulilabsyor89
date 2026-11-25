@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import pandas as pd
+import pytest
 
 from market_data_contract import build_market_data_metadata
 
@@ -61,3 +62,42 @@ def test_market_data_contract_flags_missing_columns():
     )
     assert result["quality_status"] == "FAIL"
     assert result["quality_checks"][0]["code"] == "MISSING_COLUMNS"
+
+
+def test_market_data_contract_flags_unsorted_dates_without_reordering_source():
+    bars = sample_bars().iloc[::-1]
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    result = build_market_data_metadata(bars, retrieved_at=stamp, as_of=stamp)
+    codes = {item["code"] for item in result["quality_checks"]}
+    assert result["quality_status"] == "WARNING"
+    assert "UNSORTED_DATES" in codes
+    assert bars.index[0] > bars.index[-1]
+
+
+def test_market_data_contract_flags_invalid_bar_timestamps():
+    bars = sample_bars()
+    bars.index = pd.Index(["not-a-date", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"])
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    result = build_market_data_metadata(bars, retrieved_at=stamp, as_of=stamp)
+    codes = {item["code"] for item in result["quality_checks"]}
+    assert result["quality_status"] == "FAIL"
+    assert "INVALID_BAR_DATES" in codes
+    assert result["bar_date"] == "2026-11-06"
+
+
+def test_market_data_contract_rejects_negative_freshness_threshold():
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="non-negatif"):
+        build_market_data_metadata(sample_bars(), retrieved_at=stamp, as_of=stamp,
+                                   max_age_calendar_days=-1)
+
+
+def test_market_data_contract_sanitizes_invalid_cache_age():
+    stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
+    result = build_market_data_metadata(
+        sample_bars(), {"cache_age_seconds": float("inf")},
+        retrieved_at=stamp, as_of=stamp,
+    )
+    assert result["cache_age_seconds"] == 0.0
+    assert result["quality_status"] == "WARNING"
+    assert any(item["code"] == "INVALID_CACHE_AGE" for item in result["quality_checks"])
