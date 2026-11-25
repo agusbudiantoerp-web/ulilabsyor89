@@ -16,17 +16,23 @@
 - Portfolio exposure, sector/market/currency concentration, correlations, historical risk, price/FX scenarios, risk-parity and approximate max-Sharpe allocation.
 - Single-ticker, chronological walk-forward and multi-asset backtesting with fees/slippage, risk sizing, lagged signals and benchmark comparisons.
 - Forward outcome tracking at 1/3/5/10/20 completed sessions.
-- Expanded Excel/PDF research packs with available portfolio, market, screener and backtest details.
+- Expanded Excel/PDF research packs with portfolio, market, screener, backtest, market-data provenance, investment theses and thesis-review history.
+- Shared market-data provider adapter with Yahoo Finance, bounded retries, immediate rate-limit handling, thread-safe TTL cache and OHLCV provenance/freshness checks.
+- Peer-relative valuation with currency/fiscal/source metadata, coverage and outlier flags; reverse DCF with enterprise-to-equity bridge and sensitivity.
+- FX-aware IDX/US portfolio returns, Monte Carlo, historical price shocks and user-supplied FX/rate/sector factor stress.
+- Persistent owner-scoped cash-flow/dividend ledger, cash/share reconciliation, TWR/XIRR and saved valuation snapshots.
+- Source-attributed corporate event calendar with confirmed/estimated status and owner-scoped storage.
+- Versioned owner-scoped investment theses, saved research-run links, assigned reviewer inbox and version-specific review decisions.
 
 The scoring engine is deterministic and explainable; it is not a trained ML predictor. Walk-forward evaluation uses fixed rules and does not tune on test folds. Backtests are simplified historical simulations and do not fully model taxes, actual spread, market impact, suspensions, corporate actions, survivorship bias or intrabar execution ambiguity.
 
 ## Multi-user and operational capabilities
 
 - Streamlit-native OIDC login uses immutable issuer-bound `iss|sub` identity and server-managed roles: `viewer`, `analyst`, `portfolio_manager` and `admin`. Unknown principals fail closed.
-- Owner-scoped PostgreSQL/SQLite persistence is implemented for portfolio books, daily learning/signals/outcomes and saved single-ticker, walk-forward and multi-asset research runs.
+- Owner-scoped PostgreSQL/SQLite persistence is implemented for portfolio books, cash-flow events, valuation snapshots, corporate events, thesis/version/review records, daily learning/signals/outcomes and saved single-ticker, walk-forward and multi-asset research runs.
 - Session state is cleared when the authenticated principal changes.
 - Admin-only Security & Audit console includes role-map visibility, permission matrix, audit history/export, hash-chain verification, storage routing, confirmed PostgreSQL schema initialization and read-only connectivity/schema/privilege diagnostics.
-- Audit events cover authentication, research and portfolio operations, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
+- Audit events cover authentication, research and portfolio operations, cash-flow/valuation lifecycle actions, thesis/reviewer decisions, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
 - Excel/CSV formula-injection protections and PDF dynamic-text escaping are implemented.
 - `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
 - CI workflow compiles Python modules and runs the automated suite on feature-branch and PR updates.
@@ -39,7 +45,7 @@ The application code and release documentation are prepared for validation, but 
 2. Dedicated Preview PostgreSQL setup, schema/grant verification and two-user isolation checks.
 3. Role-by-role verification of all page and operation permissions.
 4. End-to-end backtest/report/export review and backup/restore rehearsal.
-5. Fresh CI run on the final development commit and independent security review.
+5. Fresh CI run on the final development commit, opt-in PostgreSQL integration run against a disposable database, and independent security review.
 6. Administrator approval before any merge or production deployment.
 
 Never use production database credentials for Preview or disposable integration tests. Never paste OAuth client secrets, cookie secrets, database URLs, Telegram tokens or chat IDs into chat or GitHub.
@@ -59,6 +65,13 @@ python daily_signal_cli.py backtest BBCA IDX
 ```
 
 The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Telegram credentials and local database files private.
+
+## Current automated CI baseline
+
+- Latest verified run at the time of this document: **263 passed, 5 skipped**.
+- Python compile step passed.
+- Five skipped tests are opt-in PostgreSQL integration tests and require a dedicated disposable test database. They have not been run against Preview/staging.
+- Re-run CI after any subsequent source change; do not treat this historical result as proof of Preview or production readiness.
 
 ## Research limitations
 
