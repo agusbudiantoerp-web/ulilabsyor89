@@ -108,6 +108,46 @@ def _postgres_environment(database_url: str, base_env: dict[str, str] | None = N
     return env
 
 
+def verify_backup_manifest(manifest_path: str | Path) -> dict:
+    """Verify backup artifact identity, size and SHA-256 against its manifest."""
+    manifest_file = Path(manifest_path)
+    if not manifest_file.is_file():
+        raise FileNotFoundError(f"Manifest backup tidak ditemukan: {manifest_file}")
+    try:
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Manifest backup tidak valid atau tidak dapat dibaca.") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError("Struktur manifest backup harus berupa object.")
+    backup_name = manifest.get("backup_file")
+    if (not isinstance(backup_name, str) or not backup_name
+            or Path(backup_name).name != backup_name or backup_name in {".", ".."}):
+        raise ValueError("Nama file backup pada manifest tidak valid.")
+    backup_path = manifest_file.parent / backup_name
+    if not backup_path.is_file():
+        raise FileNotFoundError(f"File backup tidak ditemukan: {backup_path}")
+    expected_size = manifest.get("size_bytes")
+    expected_hash = manifest.get("sha256")
+    if isinstance(expected_size, bool) or not isinstance(expected_size, int) or expected_size < 0:
+        raise ValueError("Ukuran file pada manifest tidak valid.")
+    if (not isinstance(expected_hash, str) or len(expected_hash) != 64
+            or any(ch not in "0123456789abcdef" for ch in expected_hash.lower())):
+        raise ValueError("SHA-256 pada manifest tidak valid.")
+    actual_size = backup_path.stat().st_size
+    actual_hash = _sha256(backup_path)
+    if actual_size != expected_size:
+        raise ValueError("Ukuran file backup tidak cocok dengan manifest.")
+    if actual_hash.lower() != expected_hash.lower():
+        raise ValueError("SHA-256 file backup tidak cocok dengan manifest.")
+    return {
+        "backup": str(backup_path),
+        "backend": manifest.get("backend"),
+        "size_bytes": actual_size,
+        "sha256": actual_hash,
+        "validation": "manifest integrity: ok",
+    }
+
+
 def backup_sqlite(source: str | Path, output_dir: str | Path = "backups") -> dict:
     source_path = Path(source)
     if not source_path.is_file():
