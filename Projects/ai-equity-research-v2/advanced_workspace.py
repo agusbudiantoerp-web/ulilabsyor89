@@ -457,6 +457,29 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "Remaining tax lot cost basis": tax_metrics.get("open_cost_basis"),
         })
 
+    block_bootstrap = st.session_state.get("cross_market_block_bootstrap_result") or {}
+    if block_bootstrap:
+        extra_sheets["Block Bootstrap Percentiles"] = pd.DataFrame([
+            {"Percentile": key, "Return (%)": value}
+            for key, value in block_bootstrap.get("return_percentiles_pct", {}).items()
+        ])
+        metrics.update({
+            "Block bootstrap median return %": block_bootstrap.get("median_return_pct"),
+            "Block bootstrap VaR loss %": block_bootstrap.get("var_loss_pct"),
+            "Block bootstrap CVaR loss %": block_bootstrap.get("cvar_loss_pct"),
+            "Block bootstrap probability of loss %": block_bootstrap.get("probability_of_loss_pct"),
+            "Block bootstrap block size": block_bootstrap.get("block_size"),
+        })
+
+    regime_monte_carlo = st.session_state.get("cross_market_regime_monte_carlo_result") or {}
+    if regime_monte_carlo:
+        metrics.update({
+            "Regime Monte Carlo median return %": regime_monte_carlo.get("median_return_pct"),
+            "Regime Monte Carlo VaR loss %": regime_monte_carlo.get("var_loss_pct"),
+            "Regime Monte Carlo CVaR loss %": regime_monte_carlo.get("cvar_loss_pct"),
+            "Regime Monte Carlo probability of loss %": regime_monte_carlo.get("probability_of_loss_pct"),
+        })
+
     transaction_replay = st.session_state.get("cross_market_transaction_replay_result") or {}
     if transaction_replay:
         replay_curve = transaction_replay.get("curve")
