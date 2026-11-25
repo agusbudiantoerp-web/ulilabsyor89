@@ -90,7 +90,8 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - Summary metrics include P/E, P/B, EV/EBITDA, EV/Sales, ROE, ROIC, revenue growth and operating margin when provider data exists. Source, provider ticker, fiscal year end, quote/reporting currencies, coverage and IQR outlier flags are displayed.
 - Negative/non-positive valuation multiples are excluded from peer medians; missing values remain missing and coverage is displayed.
 - Metric period basis is explicitly labeled (TTM, point-in-time, or provider-defined YoY/trailing). Fiscal year-end dates more than 90 days from the peer-set median are flagged in the comparison table and UI; no automatic normalization is inferred.
-- Yahoo Finance provider fields may still have inconsistent definitions and source periods. Independent issuer-filing verification and user review of the peer set remain necessary.
+- A manual filing verification workflow accepts user-transcribed issuer/BEI fundamentals with source name/URL, fiscal period and reporting currency, then compares revenue, EBITDA, debt, cash, shares and book value against provider values. Metric-level matches/mismatches are shown in the UI and exported to Research Pack.
+- The workflow does not authenticate the uploaded document, perform OCR, normalize units/consolidation scope or certify accounting treatment. Users must verify the official source and units.
 
 ## 14. Reverse DCF
 
