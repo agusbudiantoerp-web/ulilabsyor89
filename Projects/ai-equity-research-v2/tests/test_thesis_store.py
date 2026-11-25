@@ -114,3 +114,18 @@ def test_thesis_update_supersedes_pending_review_of_old_version(tmp_path):
     new_review = request_review("issuer|owner", thesis_id, "issuer|reviewer", path=db)
     assert new_review != review_id
     assert list_reviews_for_thesis("issuer|owner", thesis_id, path=db)[0]["version"] == 2
+
+def test_thesis_update_is_rejected_for_another_owner(tmp_path):
+    db = str(tmp_path / "thesis.sqlite")
+    thesis_id = create_thesis(
+        "issuer|alice", "BBCA", "IDX", "Alice thesis", content(), path=db,
+    )
+    with pytest.raises(KeyError):
+        update_thesis(
+            "issuer|bob", thesis_id, title="Hijacked thesis",
+            content={**content(), "target_price": 1}, status="CLOSED", path=db,
+        )
+    saved = get_thesis("issuer|alice", thesis_id, path=db)
+    assert saved["title"] == "Alice thesis"
+    assert saved["content"]["target_price"] == 1500
+    assert [item["version"] for item in saved["versions"]] == [1]
