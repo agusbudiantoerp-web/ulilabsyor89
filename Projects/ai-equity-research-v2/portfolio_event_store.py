@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import json
 import os
-import math
 import numbers
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+import pandas as pd
 
 from portfolio_cashflow import normalize_events
 
