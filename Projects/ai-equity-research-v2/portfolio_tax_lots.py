@@ -35,7 +35,12 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
             "quantity": quantity, "unit_cost": unit_cost,
         })
 
-    frame = normalize_events(events)
+    raw_events = events.copy() if isinstance(events, pd.DataFrame) else list(events or [])
+    if isinstance(raw_events, pd.DataFrame) and raw_events.empty:
+        raw_events = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
+    elif isinstance(raw_events, list) and not raw_events:
+        raw_events = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
+    frame = normalize_events(raw_events)
     realized = []
     warnings = []
     for row in frame.to_dict("records"):
