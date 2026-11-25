@@ -172,7 +172,7 @@ def render_valuation_intelligence() -> None:
                         key: filing_result[key] for key in (
                             "metric_count", "matched_count", "mismatch_count",
                             "period_mismatch_count", "currency_mismatch_count",
-                            "missing_count", "status_counts",
+                            "missing_count", "invalid_value_count", "status_counts",
                         )
                     }
                     st.session_state["peer_filing_reconciliation_limitations"] = filing_result["limitations"]
@@ -181,11 +181,14 @@ def render_valuation_intelligence() -> None:
             filing_details = st.session_state.get("peer_filing_reconciliation_details")
             filing_metrics = st.session_state.get("peer_filing_reconciliation_metrics") or {}
             if filing_metrics:
-                v1, v2, v3, v4 = st.columns(4)
+                v1, v2, v3, v4, v5 = st.columns(5)
                 v1.metric("Matched", filing_metrics["matched_count"])
-                v2.metric("Mismatch", filing_metrics["mismatch_count"])
-                v3.metric("Period mismatch", filing_metrics["period_mismatch_count"])
-                v4.metric("Currency mismatch", filing_metrics["currency_mismatch_count"])
+                v2.metric("Value mismatch", filing_metrics["mismatch_count"])
+                v3.metric("Invalid values", filing_metrics["invalid_value_count"])
+                v4.metric("Period mismatch", filing_metrics["period_mismatch_count"])
+                v5.metric("Currency mismatch", filing_metrics["currency_mismatch_count"])
+                if filing_metrics["missing_count"]:
+                    st.warning(f"{filing_metrics['missing_count']} nilai provider/filing belum tersedia.")
                 if isinstance(filing_details, pd.DataFrame):
                     st.dataframe(filing_details, use_container_width=True, hide_index=True)
                     st.download_button(
