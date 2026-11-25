@@ -74,13 +74,41 @@ def reconcile_broker_statement(
                 (date_gap, amount_gap, int(internal_index), int(broker_index))
             )
 
-    matched_pairs = {}
-    used_broker = set()
+    candidates_by_internal = {}
     for date_gap, amount_gap, internal_index, broker_index in sorted(candidate_pairs):
-        if internal_index in matched_pairs or broker_index in used_broker:
-            continue
-        matched_pairs[internal_index] = (broker_index, date_gap, amount_gap)
-        used_broker.add(broker_index)
+        candidates_by_internal.setdefault(internal_index, []).append(
+            (date_gap, amount_gap, broker_index)
+        )
+
+    # Use augmenting paths so an early flexible internal row cannot consume
+    # the only broker candidate available to a later constrained row.
+    broker_to_internal = {}
+
+    def assign(internal_index, visited_broker):
+        for _, _, broker_index in candidates_by_internal.get(internal_index, []):
+            if broker_index in visited_broker:
+                continue
+            visited_broker.add(broker_index)
+            previous_internal = broker_to_internal.get(broker_index)
+            if previous_internal is None or assign(previous_internal, visited_broker):
+                broker_to_internal[broker_index] = internal_index
+                return True
+        return False
+
+    internal_order = sorted(
+        candidates_by_internal,
+        key=lambda index: (len(candidates_by_internal[index]), index),
+    )
+    for internal_index in internal_order:
+        assign(internal_index, set())
+
+    matched_pairs = {}
+    for broker_index, internal_index in broker_to_internal.items():
+        candidate = next(
+            item for item in candidates_by_internal[internal_index]
+            if item[2] == broker_index
+        )
+        matched_pairs[internal_index] = (broker_index, candidate[0], candidate[1])
         unmatched.discard(broker_index)
 
     for internal_index, item in internal.iterrows():
