@@ -6,6 +6,8 @@ import math
 import pandas as pd
 import streamlit as st
 
+from security_controls import require_permission
+
 from daily_signal_engine import load_daily_history
 from fx_portfolio_engine import combine_mixed_currency_returns
 from portfolio_simulation import (
@@ -29,6 +31,7 @@ def _download_usdidr(period: str) -> pd.Series:
 
 
 def render_cross_market_simulation() -> None:
+    require_permission(st.session_state.get("_auth_role"), "manage_portfolio")
     st.subheader("Cross-Market Portfolio · FX · Monte Carlo")
     st.caption("Gabungkan saham IDX dan US dalam satu mata uang dasar, lalu jalankan simulasi dan stress test.")
     with st.expander("Cross-market portfolio return", expanded=True):
