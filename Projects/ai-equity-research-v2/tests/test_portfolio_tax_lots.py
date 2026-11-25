@@ -257,3 +257,23 @@ def test_multiple_splits_preserve_total_cost_basis():
     assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(72)
     assert result["open_cost_basis"] == pytest.approx(1200)
     assert result["open_lots"].iloc[0]["unit_cost"] == pytest.approx(1200 / 72)
+
+
+def test_reverse_split_preserves_total_cost_basis_and_adjusts_unit_cost():
+    result = calculate_tax_lots([
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 10000, "ticker": "BBCA", "quantity": 100, "price": 100},
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 0.1},
+    ])
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(10)
+    assert result["open_cost_basis"] == pytest.approx(10000)
+    assert result["open_lots"].iloc[0]["unit_cost"] == pytest.approx(1000)
+
+
+def test_split_fractional_entitlement_is_warned_and_not_silently_settled():
+    result = calculate_tax_lots([
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 10100, "ticker": "BBCA", "quantity": 101, "price": 100},
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 0.5},
+    ])
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(50.5)
+    assert result["open_cost_basis"] == pytest.approx(10100)
+    assert any("fractional entitlement" in warning for warning in result["warnings"])
