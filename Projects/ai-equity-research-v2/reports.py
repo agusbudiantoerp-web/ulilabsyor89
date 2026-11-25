@@ -5,6 +5,8 @@ from io import BytesIO
 from xml.sax.saxutils import escape
 
 import pandas as pd
+
+from report_export_utils import safe_spreadsheet_text
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
@@ -15,6 +17,23 @@ from reportlab.platypus import (
     Table,
     TableStyle
 )
+
+
+def _unique_excel_sheet_name(workbook, proposed: str) -> str:
+    """Return a valid, case-insensitively unique Excel worksheet title."""
+    import re
+
+    cleaned = re.sub(r"[\\[\\]:*?/\\\\\\x00-\\x1f]", "_", str(proposed))
+    cleaned = cleaned.strip().strip("'") or "Scenario"
+    base = cleaned[:31]
+    existing = {name.casefold() for name in workbook.sheetnames}
+    candidate = base
+    suffix = 2
+    while candidate.casefold() in existing:
+        ending = f" ({suffix})"
+        candidate = base[:31 - len(ending)] + ending
+        suffix += 1
+    return candidate
 
 
 def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | None = None, scenario_result: dict | None = None) -> bytes:
@@ -153,8 +172,9 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
                     "Reason": result.get("reason"),
                 })
                 if result.get("forecast"):
+                    sheet_name = _unique_excel_sheet_name(writer.book, str(name)[:20] + " Forecast")
                     pd.DataFrame(result["forecast"]).to_excel(
-                        writer, sheet_name=(str(name)[:20] + " Forecast"), index=False
+                        writer, sheet_name=sheet_name, index=False
                     )
             if scenario_rows:
                 pd.DataFrame(scenario_rows).to_excel(writer, sheet_name="Bear Base Bull", index=False)
@@ -221,9 +241,9 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
         for ws in writer.book.worksheets:
             for row in ws.iter_rows():
                 for cell in row:
-                    if isinstance(cell.value, str) and cell.value.lstrip().startswith(("=", "+", "-", "@")):
+                    if isinstance(cell.value, str):
                         # Treat untrusted provider/analyst text as text, never as an Excel formula.
-                        cell.value = "'" + cell.value
+                        cell.value = safe_spreadsheet_text(cell.value)
             ws.freeze_panes = "A2"
             ws.auto_filter.ref = ws.dimensions
 
