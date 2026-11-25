@@ -21,8 +21,13 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     frame["status"] = frame["status"].astype(str).str.upper().str.strip()
     if frame["ticker"].eq("").any() or frame["source"].astype(str).str.strip().eq("").any():
         raise ValueError("Ticker dan sumber event wajib diisi.")
-    if int(stale_after_days) < 0:
-        raise ValueError("stale_after_days tidak boleh negatif.")
+    try:
+        stale_threshold = float(stale_after_days)
+    except (TypeError, ValueError):
+        raise ValueError("stale_after_days harus berupa bilangan bulat non-negatif.") from None
+    if not math.isfinite(stale_threshold) or stale_threshold < 0 or not stale_threshold.is_integer():
+        raise ValueError("stale_after_days harus berupa bilangan bulat non-negatif.")
+    stale_threshold = int(stale_threshold)
     unknown_types = sorted(set(frame["event_type"]) - EVENT_TYPES)
     unknown_status = sorted(set(frame["status"]) - EVENT_STATUSES)
     if unknown_types or unknown_status:
@@ -47,8 +52,13 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         frame["currency"] = ""
     if "split_ratio" not in frame:
         frame["split_ratio"] = None
-    frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
-    frame["split_ratio"] = pd.to_numeric(frame["split_ratio"], errors="coerce")
+    for column in ("amount", "split_ratio"):
+        raw_values = frame[column]
+        converted = pd.to_numeric(raw_values, errors="coerce")
+        supplied_invalid = raw_values.notna() & raw_values.astype(str).str.strip().ne("") & converted.isna()
+        if supplied_invalid.any():
+            raise ValueError(f"{column} harus berupa angka valid jika diisi.")
+        frame[column] = converted
     for column in ("amount", "split_ratio"):
         supplied = frame[column].notna()
         if supplied.any() and not all(math.isfinite(float(value)) for value in frame.loc[supplied, column]):
@@ -64,7 +74,7 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         reference = reference.tz_convert("UTC")
     frame["event_age_days"] = (reference - frame["retrieved_at"]).dt.total_seconds() / 86400
     frame["future_retrieval_timestamp"] = frame["event_age_days"] < 0
-    frame["stale"] = frame["event_age_days"] > int(stale_after_days)
+    frame["stale"] = frame["event_age_days"] > stale_threshold
     duplicate_keys = ["ticker", "event_type", "event_date"]
     frame["duplicate_event"] = frame.duplicated(duplicate_keys, keep=False)
     frame = frame.sort_values(["event_date", "ticker"], kind="stable").reset_index(drop=True)
