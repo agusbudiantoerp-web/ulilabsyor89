@@ -17,7 +17,8 @@
 - Single-ticker, chronological walk-forward and multi-asset backtesting with fees/slippage, risk sizing, lagged signals and benchmark comparisons.
 - Forward outcome tracking at 1/3/5/10/20 completed sessions.
 - Expanded Excel/PDF research packs with portfolio, market, screener, backtest, market-data provenance, cash-flow ledger, tax-lot results, broker and issuer-filing reconciliation, transaction replay, Monte Carlo outputs, DCF reconciliation, investment theses and thesis-review history.
-- Shared market-data provider adapter with Yahoo Finance, bounded retries, immediate rate-limit handling, thread-safe TTL cache and OHLCV provenance/freshness checks.
+- Shared market-data provider adapter with Yahoo Finance, bounded retries, immediate rate-limit handling, thread-safe TTL cache and OHLCV provenance/freshness checks, including invalid/future/duplicate/unsorted bar dates and invalid cache-age guardrails.
+- Scenario analysis now includes a full operating-assumption sensitivity matrix across revenue growth and EBITDA margin; unavailable cells remain visible with reasons, the UI shows the matrix, and the Excel Research Pack exports all cell-level results.
 - Peer-relative valuation with currency/fiscal/source metadata, coverage and outlier flags; manual issuer-filing CSV verification with metric/period/currency exception reporting; reverse DCF with enterprise-to-equity bridge, sensitivity and cross-check against Multi-Stage DCF.
 - FX-aware IDX/US portfolio returns and transaction-aware replay with historical close marks, base-currency cash events, external-flow-adjusted TWR, explicit FX freshness limits and settlement payables/receivables. Monte Carlo includes seeded parametric, two-state regime-switching and circular moving-block bootstrap methods, plus historical price shocks and user-supplied FX/rate/sector factor stress.
 - Persistent owner-scoped cash-flow/dividend ledger, cash/share reconciliation, TWR/XIRR and saved valuation snapshots. FIFO/weighted-average tax lots, realized P&L, opening lots, one-to-one broker CSV exception matching and explicit unsettled BUY/SELL settlement dates are supported; this is not a broker integration or statutory tax engine.
@@ -68,10 +69,10 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run: **332 passed, 0 failed, 0 skipped** on commit `35d93ed241de10cec7a93c9a36a61871370ba9a4`.
+- Latest completed full CI run: **338 passed, 0 failed, 0 skipped** on development commit `4e2f10fc84611be03cd873a481b3f901aa6ee58e` (PR merge test commit `8554f091bc475f32ce4876c4bfc324123a936f4c`).
 - Python compile step passed in the same run.
 - All PostgreSQL integration tests were included in the full suite using an ephemeral disposable PostgreSQL 16 database; this does not replace a separate Preview/staging verification.
-- [GitHub Actions run #862](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45558165902).
+- [GitHub Actions run #886](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45571702919).
 - The Node.js 20 deprecation warning from the previous workflow was absent after upgrading the actions.
 - Do not treat CI as proof of Preview or production readiness.
 
