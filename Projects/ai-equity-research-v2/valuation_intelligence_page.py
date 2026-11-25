@@ -129,6 +129,10 @@ def render_valuation_intelligence() -> None:
             calculate = st.form_submit_button("Hitung implied FCF growth", type="primary")
         if calculate:
             try:
+                if len(model_currency) != 3 or len(quote_currency) != 3:
+                    raise ValueError("Kode mata uang harus berupa kode 3 huruf, misalnya IDR atau USD.")
+                if model_currency == quote_currency and abs(float(fx_rate) - 1.0) > 1e-9:
+                    raise ValueError("Mata uang model dan quote sama; FX rate harus 1. Gunakan FX hanya bila mata uang berbeda.")
                 result = reverse_dcf_implied_growth(
                     current_fcf=fcf, market_price=price, diluted_shares=shares,
                     net_debt=net_debt, wacc=wacc_pct / 100.0,
