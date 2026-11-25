@@ -6,7 +6,7 @@ import streamlit as st
 
 from corporate_action_calendar import normalize_corporate_events
 from corporate_event_store import create_event, create_events, delete_event, list_events
-from security_controls import record_audit_event
+from security_controls import record_audit_event, require_permission
 from report_export_utils import safe_csv_bytes
 
 
@@ -20,6 +20,7 @@ def _audit_corporate_event(owner, role, action, event_id, details):
 def render_corporate_action_calendar() -> None:
     owner = str(st.session_state.get("_auth_subject_id") or "").strip()
     role = st.session_state.get("_auth_role")
+    require_permission(role, "run_analysis")
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
