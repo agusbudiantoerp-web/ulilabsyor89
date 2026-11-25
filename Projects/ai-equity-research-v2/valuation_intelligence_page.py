@@ -6,7 +6,7 @@ import streamlit as st
 
 from market_engine import resolve_market_ticker
 from peer_valuation import build_peer_comparison, compare_company_to_peers
-from reverse_dcf import reverse_dcf_implied_growth
+from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
 from market_data_provider import YahooFinanceProvider
 
 
@@ -149,4 +149,25 @@ def render_valuation_intelligence() -> None:
                 {"Komponen": "Equity value target", "Nilai": result["target_equity_value"]},
                 {"Komponen": "Terminal value share (%)", "Nilai": result["terminal_value_share_pct"]},
             ]), use_container_width=True, hide_index=True)
+            sensitivity_rows = reverse_dcf_sensitivity(
+                current_fcf=result["current_fcf"],
+                market_price=result["market_price"],
+                diluted_shares=result["diluted_shares"],
+                net_debt=result["net_debt"],
+                forecast_years=result["forecast_years"],
+                lower_growth=result["lower_growth"],
+                upper_growth=result["upper_growth"],
+                wacc_values=[
+                    max(-0.9, result["wacc"] - 0.01),
+                    result["wacc"],
+                    result["wacc"] + 0.01,
+                ],
+                terminal_growth_values=[
+                    result["terminal_growth"] - 0.005,
+                    result["terminal_growth"],
+                    result["terminal_growth"] + 0.005,
+                ],
+            )
+            st.markdown("**Sensitivitas implied growth: WACC × terminal growth**")
+            st.dataframe(pd.DataFrame(sensitivity_rows), use_container_width=True, hide_index=True)
             st.warning(result["limitations"])
