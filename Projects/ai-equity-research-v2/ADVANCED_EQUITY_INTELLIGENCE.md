@@ -165,7 +165,7 @@ Limitations: this is a simplified daily close simulation. It excludes dividends,
 
 ## 9. Research Pack Exports
 
-- Excel output can include portfolio positions, signal history, scalar summary metrics, daily scan results, advanced screener output, portfolio exposure/risk/optimization/stress scenarios, realized P&L and open tax lots, transaction-aware mixed-currency equity curve and replay metrics, market intelligence diagnostics, single-ticker and multi-asset equity curves, trade details, walk-forward folds and saved research-run metadata when those results are available in the current session/account.
+- Excel output can include portfolio positions, signal history, scalar summary metrics, daily scan results, advanced screener output, portfolio exposure/risk/optimization/stress scenarios, realized P&L and open tax lots, transaction-aware mixed-currency equity curve and replay metrics, owner-scoped investment thesis summaries, thesis version history and reviewer decisions, market intelligence diagnostics, single-ticker and multi-asset equity curves, trade details, walk-forward folds and saved research-run metadata when those results are available in the current session/account.
 - PDF output contains a timestamped summary and method/limitation notes.
 - Export controls require the `analyst`, `portfolio_manager` or `admin` role; successful Excel/PDF downloads generate audit events.
 - Excel/CSV exports neutralize formula-like untrusted text; PDF text fields are escaped before rendering.
