@@ -202,6 +202,8 @@ def render_valuation_intelligence() -> None:
             elif multistage.get("available"):
                 st.session_state.pop("valuation_reconciliation_result", None)
                 st.info("Untuk rekonsiliasi, isi ticker dan market yang sama dengan analisis Multi-Stage DCF.")
+            else:
+                st.session_state.pop("valuation_reconciliation_result", None)
             st.dataframe(pd.DataFrame([
                 {"Komponen": "PV explicit FCF", "Nilai": result["pv_explicit_fcf"]},
                 {"Komponen": "Terminal value (undiscounted)", "Nilai": result["terminal_value"]},
