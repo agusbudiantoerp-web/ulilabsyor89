@@ -445,6 +445,42 @@ def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | 
         ]))
         story += [scenario_table, Spacer(1, 8)]
 
+        operating = scenario_result.get("operating_sensitivity") or {}
+        operating_growth = operating.get("revenue_growth_values", [])
+        operating_rows = [["EBITDA margin"] + [f"Revenue growth {float(value):.1%}" for value in operating_growth]]
+        for matrix_row in operating.get("sensitivity", []):
+            cells = [f"{float(matrix_row.get('ebitda_margin')):.1%}"]
+            for cell in matrix_row.get("values", []):
+                value = cell.get("value_per_share")
+                cells.append(
+                    f"{float(value):,.2f}" if cell.get("available") and value is not None else "N/M"
+                )
+            operating_rows.append(cells)
+        if len(operating_rows) > 1:
+            growth_count = max(1, len(operating_growth))
+            column_width = 390.0 / growth_count
+            operating_table = Table(
+                operating_rows,
+                colWidths=[70.0] + [column_width] * growth_count,
+                repeatRows=1,
+            )
+            operating_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163447")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), .3, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 6),
+                ("PADDING", (0, 0), (-1, -1), 3),
+            ]))
+            quote_currency = (scenario_result.get("financials") or {}).get("quote_currency", "quote currency")
+            story += [
+                Paragraph(
+                    f"Operating assumption sensitivity (value per share, {escape(str(quote_currency))})",
+                    styles["Heading3"],
+                ),
+                operating_table,
+                Spacer(1, 8),
+            ]
+
         assumption_rows = [["Scenario", "Assumption", "Value"]]
         for scenario_name, scenario_data in (scenario_result.get("assumptions") or {}).items():
             for key, value in scenario_data.items():
