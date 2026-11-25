@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import numbers
 import pandas as pd
 
 from daily_signal_engine import calculate_indicators, DEFAULT_CONFIG
@@ -210,14 +211,26 @@ def walk_forward_backtest(
     **kwargs,
 ) -> dict:
     """Expanding-history, sequential out-of-sample folds using the fixed documented rule set."""
-    if train_months < 6 or test_months < 1:
-        raise ValueError("Training minimal 6 bulan dan test minimal 1 bulan.")
+    for name, value, minimum in (
+        ("train_months", train_months, 6),
+        ("test_months", test_months, 1),
+    ):
+        if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value < minimum:
+            raise ValueError(f"{name} harus berupa bilangan bulat >= {minimum}.")
     if bars is None or bars.empty:
         raise ValueError("Data historis kosong.")
-    data = bars.sort_index().copy()
+    if not isinstance(bars.index, pd.DatetimeIndex):
+        raise ValueError("Index walk-forward harus berupa DatetimeIndex.")
+    if bars.index.has_duplicates:
+        raise ValueError("Tanggal historis duplikat harus dibersihkan sebelum walk-forward.")
+    if not bars.index.is_monotonic_increasing:
+        raise ValueError("Data walk-forward harus berurutan dari tanggal paling lama.")
+    data = bars.copy()
     dates = pd.DatetimeIndex(data.index)
     if dates.tz is not None:
         data.index = dates.tz_localize(None)
+    if data.index.has_duplicates:
+        raise ValueError("Tanggal duplikat setelah normalisasi timezone harus dibersihkan.")
     first, last = data.index[0], data.index[-1]
     test_start = first + pd.DateOffset(months=int(train_months))
     folds = []
