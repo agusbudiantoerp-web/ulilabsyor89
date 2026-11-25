@@ -16,12 +16,12 @@
 - Portfolio exposure, sector/market/currency concentration, correlations, historical risk, price/FX scenarios, risk-parity and approximate max-Sharpe allocation.
 - Single-ticker, chronological walk-forward and multi-asset backtesting with fees/slippage, risk sizing, lagged signals and benchmark comparisons.
 - Forward outcome tracking at 1/3/5/10/20 completed sessions.
-- Expanded Excel/PDF research packs with portfolio, market, screener, backtest, market-data provenance, investment theses and thesis-review history.
+- Expanded Excel/PDF research packs with portfolio, market, screener, backtest, market-data provenance, cash-flow ledger, tax-lot results, broker and issuer-filing reconciliation, transaction replay, Monte Carlo outputs, DCF reconciliation, investment theses and thesis-review history.
 - Shared market-data provider adapter with Yahoo Finance, bounded retries, immediate rate-limit handling, thread-safe TTL cache and OHLCV provenance/freshness checks.
-- Peer-relative valuation with currency/fiscal/source metadata, coverage and outlier flags; reverse DCF with enterprise-to-equity bridge and sensitivity.
-- FX-aware IDX/US portfolio returns, Monte Carlo, historical price shocks and user-supplied FX/rate/sector factor stress.
-- Persistent owner-scoped cash-flow/dividend ledger, cash/share reconciliation, TWR/XIRR and saved valuation snapshots.
-- Source-attributed corporate event calendar with confirmed/estimated status and owner-scoped storage.
+- Peer-relative valuation with currency/fiscal/source metadata, coverage and outlier flags; manual issuer-filing CSV verification with metric/period/currency exception reporting; reverse DCF with enterprise-to-equity bridge, sensitivity and cross-check against Multi-Stage DCF.
+- FX-aware IDX/US portfolio returns and transaction-aware replay with historical close marks, base-currency cash events, external-flow-adjusted TWR, explicit FX freshness limits and settlement payables/receivables. Monte Carlo includes seeded parametric, two-state regime-switching and circular moving-block bootstrap methods, plus historical price shocks and user-supplied FX/rate/sector factor stress.
+- Persistent owner-scoped cash-flow/dividend ledger, cash/share reconciliation, TWR/XIRR and saved valuation snapshots. FIFO/weighted-average tax lots, realized P&L, opening lots, one-to-one broker CSV exception matching and explicit unsettled BUY/SELL settlement dates are supported; this is not a broker integration or statutory tax engine.
+- Source-attributed corporate event calendar with confirmed/estimated/cancelled status, stale/duplicate/future-retrieval flags, URL validation and owner-scoped storage. Calendar coverage is explicitly non-comprehensive and official feed automation is not included.
 - Versioned owner-scoped investment theses, saved research-run links, assigned reviewer inbox and version-specific review decisions.
 
 The scoring engine is deterministic and explainable; it is not a trained ML predictor. Walk-forward evaluation uses fixed rules and does not tune on test folds. Backtests are simplified historical simulations and do not fully model taxes, actual spread, market impact, suspensions, corporate actions, survivorship bias or intrabar execution ambiguity.
@@ -68,9 +68,9 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest verified run on development head `a46d704897035739687beec67c07213916631269` (2026-11-25): **268 passed, 5 skipped**.
-- Python compile step passed.
-- Five skipped tests are opt-in PostgreSQL integration tests and require a dedicated disposable test database. They have not been run against Preview/staging.
+- Latest verified development head `63b5c872cd5728fb50fa015875b97da7281e5031` (2026-11-25): **314 passed, 5 skipped**.
+- Python compile step passed on the same commit.
+- Five skipped tests require a dedicated disposable PostgreSQL integration database. They have not been run against Preview/staging.
 - Re-run CI after any subsequent source change; do not treat this historical result as proof of Preview or production readiness.
 
 ## Research limitations
