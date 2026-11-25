@@ -5,14 +5,15 @@ import pandas as pd
 
 
 def safe_spreadsheet_text(value):
-    """Prefix formula-like text after common whitespace/control/BOM characters."""
+    """Prefix formula-like text after whitespace or a leading Unicode BOM."""
     if not isinstance(value, str):
         return value
-    probe = value.lstrip(" \\t\\r\\n\\v\\f\\ufeff")
+    probe = value.lstrip()
+    if probe.startswith(chr(0xFEFF)):
+        probe = probe[1:].lstrip()
     if probe.startswith(("=", "+", "-", "@")):
         return "'" + value
     return value
-
 
 def safe_csv_bytes(frame: pd.DataFrame, encoding: str = "utf-8-sig") -> bytes:
     """Serialize a dataframe while neutralizing spreadsheet formula-like text cells."""
