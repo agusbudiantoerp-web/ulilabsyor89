@@ -179,6 +179,7 @@ def render_equity_research():
             st.session_state["equity_result"] = result
             st.session_state["equity_dcf"] = dcf
             st.session_state["equity_multistage_dcf"] = multistage_dcf
+            st.session_state.pop("valuation_reconciliation_result", None)
             _audit_equity_action(
                 "EQUITY_ANALYSIS_RUN",
                 result.get("ticker", symbol.strip().upper()),
