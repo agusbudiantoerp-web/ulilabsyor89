@@ -68,3 +68,9 @@ def test_research_run_requires_at_least_one_nonblank_symbol(tmp_path):
             owner_id="owner-a", run_type="single_ticker", market="IDX",
             symbols=[" ", ""], parameters={}, result={}, path=database,
         )
+
+
+@pytest.mark.parametrize("limit", [0, -1, 1.5, True, "10", None])
+def test_research_run_list_requires_positive_integer_limit(tmp_path, limit):
+    with pytest.raises(ValueError, match="Limit"):
+        list_runs("owner", limit=limit, path=str(tmp_path / "runs.sqlite"))
