@@ -4,7 +4,7 @@ import pytest
 
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
-    run_factor_stress_scenario, run_regime_switching_monte_carlo,
+    run_factor_stress_scenario, run_regime_switching_monte_carlo,\n    run_block_bootstrap_monte_carlo,
 )
 
 
@@ -135,4 +135,32 @@ def test_regime_switching_monte_carlo_requires_minimum_observations_per_regime()
         run_regime_switching_monte_carlo(
             frame, {"A": 0.5, "B": 0.5}, labels,
             [[0.9, 0.1], [0.2, 0.8]], simulations=100, horizon_days=10,
+        )
+
+
+
+def test_block_bootstrap_monte_carlo_is_reproducible_and_reports_method():
+    frame = returns_frame()
+    kwargs = dict(
+        historical_returns=frame, weights={"A": 0.6, "B": 0.4},
+        simulations=300, horizon_days=40, block_size=5, seed=19,
+    )
+    first = run_block_bootstrap_monte_carlo(**kwargs)
+    second = run_block_bootstrap_monte_carlo(**kwargs)
+    assert first["median_return_pct"] == second["median_return_pct"]
+    assert first["var_loss_pct"] == second["var_loss_pct"]
+    assert first["block_size"] == 5
+    assert "moving-block bootstrap" in first["assumptions"]
+
+
+def test_block_bootstrap_monte_carlo_validates_block_size_and_weights():
+    frame = returns_frame()
+    with pytest.raises(ValueError, match="Block size"):
+        run_block_bootstrap_monte_carlo(
+            frame, {"A": 0.5, "B": 0.5}, block_size=100,
+            simulations=100, horizon_days=10,
+        )
+    with pytest.raises(ValueError, match="Bobot"):
+        run_block_bootstrap_monte_carlo(
+            frame, {"A": 0.8, "B": 0.4}, simulations=100, horizon_days=10,
         )
