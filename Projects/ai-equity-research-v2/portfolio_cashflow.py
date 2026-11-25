@@ -31,7 +31,7 @@ def _parse_date_series(series: pd.Series, label: str) -> pd.Series:
     parsed = pd.to_datetime(series, errors="coerce", utc=True)
     if parsed.isna().any():
         raise ValueError(f"{label} tidak valid.")
-    return parsed
+    return parsed.dt.tz_localize(None)
 
 
 def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
@@ -49,7 +49,7 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
     # the Unix epoch when a human-readable event date is required.
     if frame["date"].map(lambda value: isinstance(value, numbers.Number) or _is_boolean(value)).any():
         raise ValueError("Tanggal event tidak valid.")
-    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce", utc=True).dt.tz_localize(None)
     if frame["date"].isna().any():
         raise ValueError("Tanggal event tidak valid.")
     frame["event_type"] = frame["event_type"].astype(str).str.upper().str.strip()
@@ -88,8 +88,8 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
             lambda value: isinstance(value, numbers.Number) or _is_boolean(value)
         ).any():
             raise ValueError("Settlement date transaksi tidak valid.")
-        parsed = pd.to_datetime(settlement_values, errors="coerce", utc=True)
-        trade_dates = pd.to_datetime(frame.loc[validate_rows, "date"], utc=True)
+        parsed = pd.to_datetime(settlement_values, errors="coerce", utc=True).dt.tz_localize(None)
+        trade_dates = frame.loc[validate_rows, "date"]
         if parsed.isna().any():
             raise ValueError("Settlement date transaksi tidak valid.")
         try:
@@ -215,6 +215,7 @@ def calculate_xirr(cash_flows: pd.DataFrame | Iterable[dict], *, ending_value: f
         end = pd.to_datetime(ending_date, errors="coerce", utc=True)
         if pd.isna(end):
             raise ValueError("Ending date tidak valid.")
+        end = end.tz_localize(None)
     elif end_value > 0:
         end = frame["date"].max()
     else:
