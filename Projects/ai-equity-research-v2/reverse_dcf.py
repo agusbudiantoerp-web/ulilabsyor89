@@ -31,7 +31,7 @@ def reverse_dcf_implied_growth(
         raise ValueError("Current FCF harus positif untuk reverse DCF ini.")
     if market_price <= 0 or diluted_shares <= 0:
         raise ValueError("Market price dan diluted shares harus positif.")
-    if wacc <= terminal_growth or wacc <= -1:
+    if terminal_growth <= -1 or wacc <= terminal_growth or wacc <= -1:
         raise ValueError("WACC harus lebih besar daripada terminal growth dan di atas -100%.")
     if forecast_years < 1 or forecast_years > 30:
         raise ValueError("Forecast years harus antara 1 dan 30.")
