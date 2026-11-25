@@ -8,6 +8,9 @@ import pytest
 from daily_signal_storage import record_outcome, save_scan, signal_history
 from portfolio_store import delete_book, list_books, load_book, save_book
 from research_run_store import delete_run, get_run, list_runs, save_run
+from thesis_store import create_thesis, delete_thesis, get_thesis, list_theses
+from corporate_event_store import create_event as create_corporate_event, delete_event as delete_corporate_event, list_events as list_corporate_events
+from portfolio_event_store import create_event as create_cashflow_event, delete_event as delete_cashflow_event, list_events as list_cashflow_events
 
 
 @pytest.fixture
@@ -87,3 +90,38 @@ def test_postgres_learning_records_are_owner_scoped(postgres_test_database):
         import psycopg
         with psycopg.connect(postgres_test_database) as db:
             db.execute("DELETE FROM scans WHERE owner_id = ANY(%s)", ([owner_a, owner_b],))
+
+
+
+def test_postgres_thesis_and_event_stores_are_owner_scoped(postgres_test_database):
+    suffix = uuid.uuid4().hex
+    alice = f"issuer|alice-{suffix}"
+    bob = f"issuer|bob-{suffix}"
+    thesis_id = create_thesis(
+        alice, "BBCA", "IDX", "Postgres isolation thesis",
+        {"bull_case": "growth", "target_price": 12000},
+    )
+    corporate_id = create_corporate_event(alice, {
+        "ticker": "BBCA", "event_type": "EX_DIVIDEND",
+        "event_date": "2027-01-01", "status": "CONFIRMED",
+        "source": "issuer filing", "retrieved_at": "2026-11-25T00:00:00+00:00",
+    })
+    cashflow_id = create_cashflow_event(alice, {
+        "date": "2026-11-25", "event_type": "DEPOSIT",
+        "amount": 1000000, "ticker": "", "notes": "test",
+    })
+    try:
+        assert any(item["id"] == thesis_id for item in list_theses(alice))
+        assert list_theses(bob) == []
+        with pytest.raises(KeyError):
+            get_thesis(bob, thesis_id)
+        assert any(item["id"] == corporate_id for item in list_corporate_events(alice))
+        assert list_corporate_events(bob) == []
+        assert any(item["id"] == cashflow_id for item in list_cashflow_events(alice))
+        assert list_cashflow_events(bob) == []
+        assert delete_corporate_event(bob, corporate_id) is False
+        assert delete_cashflow_event(bob, cashflow_id) is False
+    finally:
+        delete_thesis(alice, thesis_id)
+        delete_corporate_event(alice, corporate_id)
+        delete_cashflow_event(alice, cashflow_id)
