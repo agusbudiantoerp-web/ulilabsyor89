@@ -64,37 +64,51 @@ def initialize(path=None):
         db.execute("CREATE INDEX IF NOT EXISTS idx_corporate_events_owner_date ON corporate_events(owner_id,event_date)")
 
 
-def create_event(owner_id, event, *, path=None):
+def create_events(owner_id, events, *, path=None):
     owner = str(owner_id or "").strip()
-    if not owner or not isinstance(event, dict):
-        raise ValueError("Owner dan event wajib diisi.")
-    required = ("ticker", "event_type", "event_date", "status", "source", "retrieved_at")
-    if any(not str(event.get(key) or "").strip() for key in required):
-        raise ValueError("Ticker, event type, date, status, source dan retrieved_at wajib.")
-    event_id = uuid.uuid4().hex
+    if not owner or not isinstance(events, (list, tuple)) or not events:
+        raise ValueError("Owner dan daftar event wajib diisi.")
     now = datetime.now(timezone.utc).isoformat()
-    payload = json.dumps(event, ensure_ascii=False, default=str, allow_nan=False)
-    json_payload = json.loads(payload)
+    rows, event_ids = [], []
+    for event in events:
+        if not isinstance(event, dict):
+            raise ValueError("Setiap event harus berupa dictionary.")
+        required = ("ticker", "event_type", "event_date", "status", "source", "retrieved_at")
+        if any(not str(event.get(key) or "").strip() for key in required):
+            raise ValueError("Ticker, event type, date, status, source dan retrieved_at wajib.")
+        event_id = uuid.uuid4().hex
+        payload = json.dumps(event, ensure_ascii=False, default=str, allow_nan=False)
+        json_payload = json.loads(payload)
+        rows.append((
+            event_id, owner, str(event["ticker"]).upper(), str(event["event_type"]).upper(),
+            str(event["event_date"]), str(event["status"]).upper(), str(event["source"]),
+            str(event["retrieved_at"]), payload, json_payload, now,
+        ))
+        event_ids.append(event_id)
     initialize(path)
     if path is None and _url():
         from psycopg.types.json import Jsonb
         with _pg() as db:
-            db.execute("""INSERT INTO corporate_events
-                (id,owner_id,ticker,event_type,event_date,status,source,retrieved_at,payload_json,created_at)
-                VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                (event_id,owner,str(event["ticker"]).upper(),str(event["event_type"]).upper(),
-                 str(event["event_date"]),str(event["status"]).upper(),str(event["source"]),
-                 str(event["retrieved_at"]),Jsonb(json_payload),now))
+            with db.cursor() as cur:
+                cur.executemany("""INSERT INTO corporate_events
+                    (id,owner_id,ticker,event_type,event_date,status,source,retrieved_at,payload_json,created_at)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", [
+                    (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], Jsonb(row[9]), row[10])
+                    for row in rows
+                ])
     else:
         with _sqlite(path) as db:
-            db.execute("""INSERT INTO corporate_events
+            db.executemany("""INSERT INTO corporate_events
                 (id,owner_id,ticker,event_type,event_date,status,source,retrieved_at,payload_json,created_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                (event_id,owner,str(event["ticker"]).upper(),str(event["event_type"]).upper(),
-                 str(event["event_date"]),str(event["status"]).upper(),str(event["source"]),
-                 str(event["retrieved_at"]),payload,now))
-    return event_id
+                VALUES(?,?,?,?,?,?,?,?,?,?)""", [
+                (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[10])
+                for row in rows
+            ])
+    return event_ids
 
+
+def create_event(owner_id, event, *, path=None):
+    return create_events(owner_id, [event], path=path)[0]
 
 def list_events(owner_id, *, path=None, limit=1000):
     owner = str(owner_id or "").strip()
