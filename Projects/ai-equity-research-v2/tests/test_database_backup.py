@@ -2,6 +2,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from database_backup import (LOCAL_DATABASES, _postgres_environment, backup_sqlite, verify_backup_manifest)
 
 
