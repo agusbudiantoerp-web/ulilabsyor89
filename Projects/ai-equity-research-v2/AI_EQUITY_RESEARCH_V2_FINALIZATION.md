@@ -31,11 +31,11 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Streamlit-native OIDC login uses immutable issuer-bound `iss|sub` identity and server-managed roles: `viewer`, `analyst`, `portfolio_manager` and `admin`. Unknown principals fail closed.
 - Owner-scoped PostgreSQL/SQLite persistence is implemented for portfolio books, cash-flow events, valuation snapshots, corporate events, thesis/version/review records, daily learning/signals/outcomes and saved single-ticker, walk-forward and multi-asset research runs.
 - Session state is cleared when the authenticated principal changes.
-- Admin-only Security & Audit console includes role-map visibility, permission matrix, audit history/export, hash-chain verification, storage routing, confirmed PostgreSQL schema initialization and read-only connectivity/schema/privilege diagnostics.
+- Admin-only Security & Audit console includes role-map visibility, permission matrix, audit-chain verification, storage routing, confirmed PostgreSQL schema initialization and read-only connectivity/schema/privilege diagnostics.
 - Audit events cover authentication, research and portfolio operations, cash-flow/valuation lifecycle actions, thesis/reviewer decisions, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
 - Excel/CSV formula-injection protections and PDF dynamic-text escaping are implemented.
 - `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
-- CI workflow compiles Python modules and runs the automated suite on feature-branch and PR updates.
+- CI compiles Python modules and runs the complete automated suite against an ephemeral PostgreSQL 16 service.
 
 ## Remaining release gates (not feature-development tasks)
 
@@ -45,7 +45,7 @@ The application code and release documentation are prepared for validation, but 
 2. Dedicated Preview PostgreSQL setup, schema/grant verification and two-user isolation checks.
 3. Role-by-role verification of all page and operation permissions.
 4. End-to-end backtest/report/export review and backup/restore rehearsal.
-5. Fresh CI run on the final development commit, opt-in PostgreSQL integration run against a disposable database, and independent security review.
+5. Final CI run on the final development commit and independent security review.
 6. Administrator approval before any merge or production deployment.
 
 Never use production database credentials for Preview or disposable integration tests. Never paste OAuth client secrets, cookie secrets, database URLs, Telegram tokens or chat IDs into chat or GitHub.
@@ -68,10 +68,12 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest verified development head `8c71a160d2c1e38e13dbe0cece1c40f9a8be429d` (2026-11-25): **324 passed, 5 skipped**.
-- Python compile step passed on the same commit.
-- Five skipped tests require a dedicated disposable PostgreSQL integration database. They have not been run against Preview/staging.
-- Re-run CI after any subsequent source change; do not treat this historical result as proof of Preview or production readiness.
+- Latest completed full CI run: **332 passed, 0 failed, 0 skipped** on the PR merge test ref; PostgreSQL 16 service health check passed.
+- Python compile step passed in the same run.
+- All PostgreSQL integration tests were included in the full suite using an ephemeral disposable database; this does not replace a separate Preview/staging verification.
+- [GitHub Actions run #857](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45552889590).
+- A subsequent run is triggered for the documentation-only release-readiness update; verify it before declaring the final development head green.
+- Do not treat CI as proof of Preview or production readiness.
 
 ## Research limitations
 
