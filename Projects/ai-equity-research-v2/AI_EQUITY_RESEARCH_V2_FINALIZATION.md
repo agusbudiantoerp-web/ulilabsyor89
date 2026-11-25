@@ -34,8 +34,8 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Session state is cleared when the authenticated principal changes.
 - Admin-only Security & Audit console includes role-map visibility, permission matrix, audit-chain verification, storage routing, confirmed PostgreSQL schema initialization and read-only connectivity/schema/privilege diagnostics.
 - Audit events cover authentication, research and portfolio operations, cash-flow/valuation lifecycle actions, thesis/reviewer decisions, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
-- Excel/CSV formula-injection protections and PDF dynamic-text escaping are implemented.
-- `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. A standalone `verify --manifest` command validates file size and SHA-256 and rejects POSIX/Windows path traversal in manifest filenames. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
+- Excel/CSV formula-injection protections include leading whitespace and Unicode BOM handling; dynamic scenario worksheet names are sanitized/de-duplicated. PDF dynamic-text escaping is implemented.
+- `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. `verify --manifest` validates artifact size/hash and rejects POSIX/Windows path traversal. `restore-sqlite --manifest ... --target ...` restores a verified SQLite backup through a temporary file and integrity checks; existing targets are protected unless `--overwrite` is explicitly supplied. PostgreSQL restore is not automated. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
 - CI compiles Python modules and runs the complete automated suite against an ephemeral PostgreSQL 16 service. The workflow uses maintained Node 24-compatible GitHub Actions releases and cancels superseded runs on the same ref.
 
 ## Remaining release gates (not feature-development tasks)
@@ -69,10 +69,10 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run: **445 passed, 0 failed, 0 skipped** on development commit `09a64fbe1b552d3c65890818ed45def0e47f9040`.
+- Latest completed full CI run: **458 passed, 0 failed, 0 skipped** on verified code commit `3169b14ec6a6c54fe537d0fd875f3204d8bb46e5`.
 - Python compile step passed in the same run.
 - All PostgreSQL integration tests were included in the full suite using an ephemeral disposable PostgreSQL 16 database; this does not replace a separate Preview/staging verification.
-- [GitHub Actions run #902](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45579629778).
+- [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45587431676).
 - The Node.js 20 deprecation warning from the previous workflow was absent after upgrading the actions.
 - Do not treat CI as proof of Preview or production readiness.
 
