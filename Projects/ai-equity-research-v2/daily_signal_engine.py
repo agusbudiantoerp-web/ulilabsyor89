@@ -54,6 +54,9 @@ def load_daily_history(symbol: str, market: str, period: str = "1y") -> tuple[pd
     bars = YahooFinanceProvider().fetch_history(
         meta["ticker"], period=period, interval="1d", auto_adjust=True
     )
+    provider_retrieved_at = bars.attrs.get("provider_retrieved_at")
+    provider_cache_hit = bool(bars.attrs.get("provider_cache_hit", False))
+    provider_cache_age = float(bars.attrs.get("provider_cache_age_seconds", 0.0))
     required = ["Open", "High", "Low", "Close", "Volume"]
 
     if isinstance(bars.columns, pd.MultiIndex):
@@ -88,9 +91,15 @@ def load_daily_history(symbol: str, market: str, period: str = "1y") -> tuple[pd
     bars = bars.dropna(subset=["Open", "High", "Low", "Close"])
     if len(bars) < 60:
         raise ValueError("Minimal 60 sesi perdagangan diperlukan.")
-    meta.update({"source": "Yahoo Finance", "retrieved_at": datetime.now(timezone.utc).isoformat()})
+    retrieved_at = datetime.fromisoformat(provider_retrieved_at) if provider_retrieved_at else datetime.now(timezone.utc)
+    meta.update({
+        "source": YahooFinanceProvider.name,
+        "retrieved_at": retrieved_at.isoformat(),
+        "cache_hit": provider_cache_hit,
+        "cache_age_seconds": provider_cache_age,
+    })
     meta["data_provenance"] = build_market_data_metadata(
-        bars, meta, adjustment_mode="auto_adjusted"
+        bars, meta, adjustment_mode="auto_adjusted", retrieved_at=retrieved_at
     )
     return bars, meta
 
