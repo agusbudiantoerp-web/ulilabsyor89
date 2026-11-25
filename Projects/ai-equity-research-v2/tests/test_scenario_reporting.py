@@ -158,3 +158,64 @@ def test_operating_sensitivity_rejects_duplicate_axis_and_oversized_grid():
             revenue_growth_values=[i / 100 for i in range(11)],
             ebitda_margin_values=[i / 100 for i in range(10)],
         )
+
+
+
+def test_main_equity_excel_export_neutralizes_untrusted_text_across_sheets():
+    data = {
+        "ticker": "TEST.JK",
+        "company": '=HYPERLINK("https://evil.example","click")',
+        "sector": "Industrials",
+        "industry": "Services",
+        "currency": "IDR",
+        "financial_currency": "IDR",
+        "as_of": "2026-11-25T00:00:00+00:00",
+        "latest_price_date": "2026-11-24",
+        "latest_financial_period": "2025-12-31",
+        "latest_balance_period": "2025-12-31",
+        "latest_cashflow_period": "2025-12-31",
+        "price": 100.0,
+        "change_pct": 1.0,
+        "period_return_pct": 5.0,
+        "trend": "Bullish",
+        "rsi14": 55.0,
+        "annualized_volatility_pct": 20.0,
+        "data_source": "Yahoo Finance",
+        "data_quality_note": "Verify issuer filing.",
+        "data_quality_warnings": [],
+        "disclaimer": "Research support only.",
+        "ratios": {"Revenue": 100.0},
+        "history": pd.DataFrame([{
+            "=Provider": '=HYPERLINK("https://evil.example","history")',
+        }]),
+    }
+    scenario_name = '=HYPERLINK("https://evil.example","scenario")'
+    scenario = {
+        "available": True,
+        "results": {
+            scenario_name: {
+                "available": True,
+                "intrinsic_value_per_share": 12.0,
+                "upside_downside_pct": 20.0,
+                "enterprise_value": 120.0,
+                "equity_value": 120.0,
+                "terminal_value_share_pct": 80.0,
+                "model_warnings": ["=1+1"],
+                "forecast": [{"Provider": "=2+2"}],
+            },
+        },
+    }
+
+    workbook = load_workbook(
+        BytesIO(make_excel_report(data, scenario_result=scenario)),
+        read_only=True,
+        data_only=False,
+    )
+    assert workbook["Summary"]["B2"].value.startswith("'=")
+    assert workbook["Price History"]["A1"].value.startswith("'=")
+    assert workbook["Price History"]["A2"].value.startswith("'=")
+    assert workbook["Bear Base Bull"]["A2"].value.startswith("'=")
+    forecast_sheet = next(name for name in workbook.sheetnames if name.endswith("Forecast"))
+    assert workbook[forecast_sheet]["A2"].value.startswith("'=")
+    assert workbook["Bear Base Bull"]["H2"].value.startswith("'=")
+    workbook.close()
