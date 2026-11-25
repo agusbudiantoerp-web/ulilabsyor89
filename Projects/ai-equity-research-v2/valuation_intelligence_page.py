@@ -19,6 +19,7 @@ def _peer_record(symbol: str, market: str) -> dict:
         "provider_ticker": ticker,
         "industry": info.get("industry") or info.get("sector") or "Unknown",
         "currency": str(info.get("financialCurrency") or info.get("currency") or resolved.get("currency") or "unknown").upper(),
+        "quote_currency": str(info.get("currency") or resolved.get("currency") or "unknown").upper(),
         "pe_ttm": info.get("trailingPE"),
         "pb": info.get("priceToBook"),
         "ev_ebitda": info.get("enterpriseToEbitda"),
@@ -27,7 +28,11 @@ def _peer_record(symbol: str, market: str) -> dict:
         "roic": info.get("returnOnCapitalEmployed"),
         "revenue_growth": info.get("revenueGrowth"),
         "operating_margin": info.get("operatingMargins"),
-        "fiscal_year_end": info.get("lastFiscalYearEnd"),
+        "fiscal_year_end": (
+            pd.to_datetime(info.get("lastFiscalYearEnd"), unit="s", utc=True).date().isoformat()
+            if isinstance(info.get("lastFiscalYearEnd"), (int, float)) and info.get("lastFiscalYearEnd")
+            else str(info.get("lastFiscalYearEnd") or "unknown")
+        ),
         "source": "Yahoo Finance",
     }
 
@@ -71,11 +76,14 @@ def render_valuation_intelligence() -> None:
             try:
                 comparison = build_peer_comparison(records, industry=industry, currency=currency)
                 st.dataframe(pd.DataFrame(comparison["records"]), use_container_width=True, hide_index=True)
+                if any(bool(row.get("currency_mismatch")) for row in comparison["records"]):
+                    st.warning("Sebagian peer memiliki quote currency berbeda dari financial reporting currency. Periksa sumber dan satuan laporan sebelum membandingkan.")
                 summary_rows = [
                     {"Metric": metric, **values}
                     for metric, values in comparison["metrics"].items()
                 ]
                 st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                st.caption("Outlier ditandai dengan aturan IQR 1,5×; periksa manual sebelum mengecualikan perusahaan dari peer set.")
                 selected = st.selectbox("Ticker untuk dibandingkan dengan median", comparison["tickers"])
                 compared = compare_company_to_peers(comparison, selected)
                 st.dataframe(pd.DataFrame([
