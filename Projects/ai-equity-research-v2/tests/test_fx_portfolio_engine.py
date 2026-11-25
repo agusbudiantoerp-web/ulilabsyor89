@@ -81,3 +81,28 @@ def test_combined_portfolio_exposes_fx_contribution_per_asset():
     )
     assert result["asset_fx_contribution_pct"].loc[dates[1], "US"] == pytest.approx(10.0)
     assert result["asset_fx_contribution_pct"].loc[dates[1], "IDX"] == pytest.approx(0.0)
+
+@pytest.mark.parametrize("gap", [-1, 1.5, float("inf"), "3", True, 31])
+def test_fx_conversion_rejects_invalid_fx_gap_tolerance(gap):
+    local = pd.Series([100.0], index=pd.to_datetime(["2026-01-20"]))
+    with pytest.raises(ValueError, match="max_fx_gap_days"):
+        convert_asset_returns_to_base_currency(
+            local, "IDR", base_currency="IDR", max_fx_gap_days=gap
+        )
+
+
+def test_fx_close_rejects_duplicate_session_dates():
+    duplicate_dates = pd.to_datetime(["2026-01-02", "2026-01-02"])
+    local = pd.Series([100.0, 101.0], index=duplicate_dates)
+    with pytest.raises(ValueError, match="duplikat"):
+        convert_asset_returns_to_base_currency(
+            local, "IDR", base_currency="IDR"
+        )
+
+
+def test_fx_close_rejects_invalid_session_dates():
+    local = pd.Series([100.0, 101.0], index=["2026-01-02", "not-a-date"])
+    with pytest.raises(ValueError, match="Tanggal close asset tidak valid"):
+        convert_asset_returns_to_base_currency(
+            local, "IDR", base_currency="IDR"
+        )
