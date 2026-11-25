@@ -44,6 +44,13 @@ def _asof_value(series: pd.Series, when: pd.Timestamp, max_gap_days: int, label:
     return float(series.iloc[position])
 
 
+def _event_currency(row: dict, default: str) -> str:
+    value = row.get("amount_currency")
+    if value is None or pd.isna(value) or not str(value).strip():
+        return str(default).upper()
+    return str(value).strip().upper()
+
+
 def _fx_factor(currency: str, base: str, when: pd.Timestamp,
                fx: pd.Series | None, max_gap_days: int) -> float:
     currency, base = currency.upper(), base.upper()
@@ -143,7 +150,7 @@ def run_transaction_aware_portfolio(
             elif kind in {"BUY", "SELL"}:
                 if ticker not in prices:
                     raise ValueError(f"Ticker {ticker} tidak memiliki seri harga.")
-                event_currency = str(row.get("amount_currency") or currencies[ticker]).upper()
+                event_currency = _event_currency(row, currencies[ticker])
                 if event_currency not in {"IDR", "USD"}:
                     raise ValueError("amount_currency untuk BUY/SELL harus IDR atau USD.")
                 factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
@@ -165,7 +172,7 @@ def run_transaction_aware_portfolio(
                 factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
                 cash += amount * factor
             elif kind in {"FEE", "TAX"}:
-                event_currency = str(row.get("amount_currency") or base).upper()
+                event_currency = _event_currency(row, base)
                 if event_currency not in {"IDR", "USD"}:
                     raise ValueError("amount_currency untuk FEE/TAX harus IDR atau USD.")
                 factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
