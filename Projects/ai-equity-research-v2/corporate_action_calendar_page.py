@@ -5,19 +5,22 @@ import pandas as pd
 import streamlit as st
 
 from corporate_action_calendar import normalize_corporate_events
+from corporate_event_store import create_event, delete_event, list_events
 
 
 def render_corporate_action_calendar() -> None:
+    owner = str(st.session_state.get("_auth_subject_id") or "").strip()
+    if not owner:
+        st.error("Identitas pengguna terverifikasi tidak tersedia.")
+        return
     st.subheader("Corporate Actions & Event Calendar")
     st.caption("Catat event earnings, dividen, ex-date, pay-date, stock split dan rights issue dengan sumber dan status yang jelas.")
     st.warning("Event tidak diambil dari feed exchange/issuer secara otomatis. Masukkan data yang telah diverifikasi; kalender ini bukan daftar komprehensif.")
-    key = "corporate_action_events"
-    if key not in st.session_state:
-        st.session_state[key] = pd.DataFrame(columns=[
-            "ticker", "event_type", "event_date", "status", "source",
-            "retrieved_at", "source_url", "timezone", "amount", "currency",
-            "split_ratio", "details",
-        ])
+    try:
+        stored_events = list_events(owner)
+    except Exception as exc:
+        st.error(f"Corporate event store tidak dapat dibaca ({type(exc).__name__}).")
+        return
     with st.form("corporate_action_add_form", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
         ticker = c1.text_input("Ticker")
@@ -49,14 +52,13 @@ def render_corporate_action_calendar() -> None:
         }
         candidate = pd.concat([st.session_state[key], pd.DataFrame([row])], ignore_index=True)
         try:
-            normalized = normalize_corporate_events(candidate)
-            st.session_state[key] = normalized["events"]
-            st.success("Event ditambahkan.")
+            normalized = normalize_corporate_events([row])
+            event_id = create_event(owner, normalized["events"].iloc[0].to_dict())
+            st.success(f"Event tersimpan permanen. ID: {event_id[:8]}")
         except Exception as exc:
             st.error(f"Event tidak valid: {type(exc).__name__}: {exc}")
-    events = st.session_state[key]
-    if not events.empty:
-        result = normalize_corporate_events(events)
+    if stored_events:
+        result = normalize_corporate_events(stored_events)
         st.dataframe(result["events"], use_container_width=True, hide_index=True)
         for warning in result["warnings"]:
             st.warning(warning)
@@ -66,8 +68,19 @@ def render_corporate_action_calendar() -> None:
             result["events"].to_csv(index=False).encode("utf-8-sig"),
             file_name="corporate_action_calendar.csv", mime="text/csv",
         )
-        if st.button("Hapus seluruh event sesi"):
-            st.session_state[key] = pd.DataFrame(columns=events.columns)
-            st.rerun()
+        choices = {
+            f"{item['ticker']} · {item['event_type']} · {item['event_date']} · {item['id'][:8]}": item["id"]
+            for item in stored_events
+        }
+        selected = st.selectbox("Pilih event untuk dihapus", list(choices), key="corporate_event_delete_select")
+        if st.button("Hapus event terpilih", key="corporate_event_delete"):
+            try:
+                if delete_event(owner, choices[selected]):
+                    st.success("Event dihapus.")
+                    st.rerun()
+                else:
+                    st.info("Event sudah tidak tersedia.")
+            except Exception as exc:
+                st.error(f"Event tidak dapat dihapus ({type(exc).__name__}).")
     else:
         st.info("Belum ada event.")
