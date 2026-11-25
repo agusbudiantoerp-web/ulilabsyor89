@@ -59,3 +59,17 @@ def test_tax_lots_reject_short_sale_and_unknown_method():
 def test_opening_lots_reject_invalid_values():
     with pytest.raises(ValueError, match="Opening lot"):
         calculate_tax_lots([], opening_lots=[{"ticker": "BBCA", "quantity": -1, "unit_cost": 10}])
+
+
+
+def test_opening_tax_lots_work_without_any_ledger_events():
+    result = calculate_tax_lots(
+        [],
+        opening_lots=[{
+            "ticker": "BBCA", "quantity": 100,
+            "unit_cost": 8500, "acquisition_date": "2025-01-01",
+        }],
+    )
+    assert result["realized_pnl"] == pytest.approx(0)
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(100)
+    assert result["open_cost_basis"] == pytest.approx(850000)
