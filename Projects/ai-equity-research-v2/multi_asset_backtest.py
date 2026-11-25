@@ -162,5 +162,11 @@ def run_multi_asset_backtest(
         "estimated_cost_paid": float((turnover * cost_rate * equity.shift(1).fillna(initial_capital)).sum()),
         "curve": curve.reset_index().to_dict("records"),
         "method": "Long-only equal-weight trend portfolio; signals use completed bar t and returns start at t+1; turnover costs applied on weight changes.",
-        "limitations": "Simulation only. No dividends, taxes, borrow costs, intraday execution, market impact, corporate-action reconciliation or survivorship correction. Missing asset prices on non-trading dates contribute zero return; uninvested cash earns zero. Benchmark is price-only.",
+        "price_adjustment_policy": (
+            "Close is used exactly as supplied; this engine does not apply stock-split adjustments. "
+            "Input histories must use a consistent split-adjusted basis. If the provider already "
+            "adjusts historical prices for splits, do not apply the same split again to this price "
+            "series. Unadjusted raw prices spanning a split must be normalized before backtesting."
+        ),
+        "limitations": "Simulation only. No dividends/total-return adjustment, taxes, borrow costs, intraday execution, market impact, corporate-action reconciliation or survivorship correction. Missing asset prices on non-trading dates contribute zero return; uninvested cash earns zero. Benchmark is price-only and must use a consistent split-adjusted price basis.",
     }
