@@ -89,3 +89,22 @@ def test_calendar_rejects_numpy_boolean_amount():
     import numpy as np
     with pytest.raises(ValueError, match="amount"):
         normalize_corporate_events([base_event(amount=np.bool_(True))])
+
+
+def test_calendar_preserves_local_exchange_date_for_timezone_aware_event():
+    event = base_event(event_date="2026-12-01T00:15:00+07:00")
+    result = normalize_corporate_events([event])
+    assert result["events"].iloc[0]["event_date"] == pd.Timestamp("2026-12-01")
+
+
+def test_calendar_marks_same_local_day_as_duplicate_across_offsets():
+    first = base_event(event_date="2026-12-01T00:15:00+07:00")
+    second = base_event(event_date="2026-12-01T08:00:00+07:00")
+    result = normalize_corporate_events([first, second])
+    assert result["events"]["duplicate_event"].all()
+
+
+@pytest.mark.parametrize("threshold", [True, 1.0])
+def test_calendar_rejects_boolean_or_float_staleness_threshold(threshold):
+    with pytest.raises(ValueError, match="stale_after_days"):
+        normalize_corporate_events([base_event()], stale_after_days=threshold)
