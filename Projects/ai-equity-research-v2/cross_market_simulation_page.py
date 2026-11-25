@@ -7,13 +7,13 @@ import streamlit as st
 from daily_signal_engine import load_daily_history
 from fx_portfolio_engine import combine_mixed_currency_returns
 from portfolio_simulation import run_historical_stress_scenarios, run_portfolio_monte_carlo
+from market_data_provider import YahooFinanceProvider
 
 
 def _download_usdidr(period: str) -> pd.Series:
-    import yfinance as yf
-    frame = yf.download("USDIDR=X", period=period, interval="1d", auto_adjust=True, progress=False, threads=False)
-    if frame is None or frame.empty:
-        raise ValueError("Data USD/IDR tidak tersedia.")
+    frame = YahooFinanceProvider().fetch_history(
+        "USDIDR=X", period=period, interval="1d", auto_adjust=True
+    )
     close = frame["Close"]
     if isinstance(close, pd.DataFrame):
         close = close.iloc[:, 0]
