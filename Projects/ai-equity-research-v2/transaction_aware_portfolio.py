@@ -81,8 +81,10 @@ def run_transaction_aware_portfolio(
     DEPOSIT/WITHDRAWAL amounts use base currency. BUY/SELL/DIVIDEND amounts
     default to the relevant asset's local currency but may specify
     amount_currency (IDR or USD). FEE/TAX amounts default to base currency and
-    may also specify amount_currency.
+    may also specify amount_currency. BUY/SELL may specify settlement_date;
+    positions change on trade date while cash settles on the supplied date.
     """
+
     if not isinstance(price_closes, Mapping) or not price_closes:
         raise ValueError("Minimal satu seri harga aset diperlukan.")
     symbols = list(price_closes)
@@ -121,6 +123,16 @@ def run_transaction_aware_portfolio(
     for series in prices.values():
         dates.update(series.index)
     dates.update(pd.Timestamp(value) for value in frame["date"])
+    for row in frame.to_dict("records"):
+        if row["event_type"] in {"BUY", "SELL"}:
+            raw_settlement = row.get("settlement_date")
+            if raw_settlement is not None and not pd.isna(raw_settlement) and str(raw_settlement).strip():
+                settlement = pd.to_datetime(raw_settlement, errors="coerce")
+                if pd.isna(settlement):
+                    raise ValueError("Settlement date transaksi tidak valid.")
+                if settlement < pd.Timestamp(row["date"]):
+                    raise ValueError("Settlement date tidak boleh lebih awal dari trade date.")
+                dates.add(pd.Timestamp(settlement))
     timeline = pd.DatetimeIndex(sorted(dates), name="date")
     if len(timeline) < 2:
         raise ValueError("Minimal dua tanggal valuasi diperlukan.")
@@ -131,9 +143,21 @@ def run_transaction_aware_portfolio(
         pd.Timestamp(day): group.to_dict("records")
         for day, group in frame.groupby("date", sort=True)
     }
+    settlements_by_date = defaultdict(list)
+    unsettled_payables = 0.0
+    unsettled_receivables = 0.0
+    pending_settlements = []
     rows = []
     previous_value = None
     for when in timeline:
+        for settlement in settlements_by_date.pop(when, []):
+            cash += float(settlement["cash_delta"])
+            if settlement["kind"] == "BUY":
+                unsettled_payables = max(0.0, unsettled_payables - settlement["amount"])
+            else:
+                unsettled_receivables = max(0.0, unsettled_receivables - settlement["amount"])
+            pending_settlements.remove(settlement)
+
         external_flow = 0.0
         for row in events_by_date.get(when, []):
             kind = str(row["event_type"])
@@ -155,16 +179,38 @@ def run_transaction_aware_portfolio(
                     raise ValueError("amount_currency untuk BUY/SELL harus IDR atau USD.")
                 factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
                 amount_base = amount * factor
+                raw_settlement = row.get("settlement_date")
+                settlement_date = (
+                    pd.Timestamp(pd.to_datetime(raw_settlement, errors="coerce"))
+                    if raw_settlement is not None and not pd.isna(raw_settlement) and str(raw_settlement).strip()
+                    else when
+                )
+                if pd.isna(settlement_date) or settlement_date < when:
+                    raise ValueError("Settlement date transaksi tidak valid atau lebih awal dari trade date.")
+                deferred = settlement_date > when
                 if kind == "BUY":
-                    cash -= amount_base
-                    if cash < -1e-8:
-                        raise ValueError(f"Cash tidak cukup untuk BUY {ticker} pada {when.date()}.")
+                    available_cash = cash - unsettled_payables
+                    if available_cash + 1e-8 < amount_base:
+                        raise ValueError(f"Cash tersedia tidak cukup untuk BUY {ticker} pada {when.date()}.")
                     positions[ticker] = positions.get(ticker, 0.0) + quantity
+                    if deferred:
+                        settlement = {"kind": "BUY", "amount": amount_base, "cash_delta": -amount_base}
+                        unsettled_payables += amount_base
+                        settlements_by_date[settlement_date].append(settlement)
+                        pending_settlements.append({**settlement, "settlement_date": settlement_date, "ticker": ticker})
+                    else:
+                        cash -= amount_base
                 else:
                     if quantity > positions.get(ticker, 0.0) + 1e-9:
                         raise ValueError(f"SELL {ticker} melebihi jumlah saham tersedia.")
-                    cash += amount_base
                     positions[ticker] = max(0.0, positions.get(ticker, 0.0) - quantity)
+                    if deferred:
+                        settlement = {"kind": "SELL", "amount": amount_base, "cash_delta": amount_base}
+                        unsettled_receivables += amount_base
+                        settlements_by_date[settlement_date].append(settlement)
+                        pending_settlements.append({**settlement, "settlement_date": settlement_date, "ticker": ticker})
+                    else:
+                        cash += amount_base
             elif kind == "DIVIDEND":
                 event_currency = str(row.get("amount_currency") or currencies[ticker]).upper()
                 if event_currency not in {"IDR", "USD"}:
@@ -179,8 +225,8 @@ def run_transaction_aware_portfolio(
                 cash -= amount * factor
             elif kind == "SPLIT":
                 positions[ticker] = positions.get(ticker, 0.0) * quantity
-            if cash < -1e-8:
-                raise ValueError(f"Cash tidak cukup setelah event {kind} pada {when.date()}.")
+            if cash - unsettled_payables < -1e-8:
+                raise ValueError(f"Cash tersedia tidak cukup setelah event {kind} pada {when.date()}.")
 
         market_value = 0.0
         position_values = {}
@@ -192,7 +238,10 @@ def run_transaction_aware_portfolio(
             value = quantity * local_close * factor
             position_values[ticker] = value
             market_value += value
-        portfolio_value = max(0.0, cash) + market_value
+        available_cash = max(0.0, cash - unsettled_payables)
+        portfolio_value = max(0.0, cash) + market_value + unsettled_receivables - unsettled_payables
+        if portfolio_value <= 0:
+            raise ValueError(f"Portfolio value tidak positif pada {when.date()}.")
         daily_return = None
         if previous_value is not None:
             capital_at_risk = previous_value + external_flow
@@ -203,6 +252,9 @@ def run_transaction_aware_portfolio(
                 raise ValueError("Return harian tidak boleh -100% atau lebih rendah.")
         rows.append({
             "date": when, "cash_balance": max(0.0, cash),
+            "available_cash": available_cash,
+            "unsettled_receivables": unsettled_receivables,
+            "unsettled_payables": unsettled_payables,
             "market_value": market_value, "portfolio_value": portfolio_value,
             "external_flow": external_flow, "daily_twr_return": daily_return,
             "position_values": dict(position_values),
@@ -217,6 +269,10 @@ def run_transaction_aware_portfolio(
         "base_currency": base,
         "curve": curve,
         "ending_cash": float(curve["cash_balance"].iloc[-1]),
+        "ending_available_cash": float(curve["available_cash"].iloc[-1]),
+        "ending_unsettled_receivables": float(curve["unsettled_receivables"].iloc[-1]),
+        "ending_unsettled_payables": float(curve["unsettled_payables"].iloc[-1]),
+        "pending_settlements": pd.DataFrame(pending_settlements),
         "ending_market_value": float(curve["market_value"].iloc[-1]),
         "ending_portfolio_value": float(curve["portfolio_value"].iloc[-1]),
         "ending_positions": dict(positions),
@@ -225,10 +281,10 @@ def run_transaction_aware_portfolio(
         "method": (
             "Event replay at supplied fill dates/prices; daily mark-to-market uses backward as-of closes "
             "and explicit stale-price/FX limits. Deposits/withdrawals are external flows removed from daily TWR. "
-            "Internal trades, dividends, fees and taxes remain in portfolio performance."
+            "Internal trades, dividends, fees and taxes remain in portfolio performance. Supplied settlement dates separate trade-date holdings from settlement-date cash."
         ),
         "limitations": (
-            "No intraday execution, broker fills, settlement cycle, tax-lot realization, market impact, "
+            "No intraday execution, broker fills, inferred settlement calendars, tax-lot realization, market impact, "
             "dividend entitlement inference or automatic currency cash sub-ledgers. Fees/taxes default to base currency "
             "unless amount_currency is supplied."
         ),
