@@ -7,6 +7,7 @@ calculate statutory tax liabilities or infer broker fills.
 from __future__ import annotations
 
 import math
+import numbers
 from collections import defaultdict
 
 import pandas as pd
@@ -51,7 +52,17 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
             raise ValueError("Opening lot quantity dan unit_cost harus angka finite.") from exc
         if not ticker or not math.isfinite(quantity) or not math.isfinite(unit_cost) or quantity <= 0 or unit_cost < 0:
             raise ValueError("Opening lot harus memiliki ticker, quantity positif dan unit_cost non-negatif.")
-        raw_date = str(raw.get("acquisition_date") or "").strip()
+        raw_date_value = raw.get("acquisition_date")
+        if raw_date_value is None or pd.isna(raw_date_value):
+            raw_date = ""
+        elif (
+            isinstance(raw_date_value, bool)
+            or type(raw_date_value).__name__ in {"bool_", "bool"}
+            or isinstance(raw_date_value, numbers.Number)
+        ):
+            raise ValueError("Tanggal acquisition_date opening lot tidak valid.")
+        else:
+            raw_date = str(raw_date_value).strip()
         if raw_date:
             parsed_date = pd.to_datetime(raw_date, errors="coerce")
             if pd.isna(parsed_date):
