@@ -125,17 +125,22 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     if not required.issubset(positions.columns):
         raise ValueError(f"Kolom wajib: {sorted(required)}")
     frame = positions.copy()
-    frame["Market"] = frame["Market"].astype(str).str.upper().str.strip()
-    frame["Ticker"] = frame["Ticker"].astype(str).str.upper().str.strip()
+    frame["Market"] = frame["Market"].fillna("").astype(str).str.upper().str.strip()
+    frame["Ticker"] = frame["Ticker"].fillna("").astype(str).str.upper().str.strip()
+    # Ignore intentionally blank editor rows, but never silently discard a
+    # populated holding because its market or numeric fields are malformed.
+    populated = frame["Ticker"].ne("") & ~frame["Ticker"].str.lower().isin(["nan", "none"])
+    frame = frame.loc[populated].copy()
+    if frame.empty:
+        raise ValueError("Tidak ada posisi valid untuk disimpan.")
+    if not frame["Market"].isin(["IDX", "US"]).all():
+        raise ValueError("Market setiap posisi harus IDX atau US.")
     frame["Shares"] = pd.to_numeric(frame["Shares"], errors="coerce")
     frame["Average Cost"] = pd.to_numeric(frame["Average Cost"], errors="coerce")
-    frame = frame.dropna(subset=["Shares", "Average Cost"])
+    if frame[["Shares", "Average Cost"]].isna().any().any():
+        raise ValueError("Jumlah saham dan harga rata-rata harus berupa angka valid.")
     if not all(math.isfinite(float(value)) for value in frame[["Shares", "Average Cost"]].to_numpy().ravel()):
         raise ValueError("Jumlah saham dan harga rata-rata harus finite.")
-    frame = frame[
-        (frame["Ticker"] != "") & (frame["Ticker"].str.lower() != "nan")
-        & frame["Market"].isin(["IDX", "US"])
-    ]
     if (frame[["Shares", "Average Cost"]] < 0).any().any():
         raise ValueError("Jumlah saham dan harga rata-rata tidak boleh negatif.")
     frame["Cost Value"] = frame["Shares"] * frame["Average Cost"]
