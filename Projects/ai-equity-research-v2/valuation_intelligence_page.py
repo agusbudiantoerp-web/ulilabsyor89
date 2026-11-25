@@ -145,6 +145,7 @@ def render_valuation_intelligence() -> None:
             c1.metric("Implied FCF growth", f"{result['implied_fcf_growth_pct']:.2f}%")
             c2.metric("Market price", f"{result['market_price']:,.2f}")
             c3.metric("Reconciled price", f"{result['implied_price']:,.2f}")
+            st.caption("Komponen enterprise/equity valuation di bawah ditampilkan dalam mata uang model (FCF dan net debt). Harga pasar dan implied price ditampilkan dalam mata uang quote.")
             st.dataframe(pd.DataFrame([
                 {"Komponen": "PV explicit FCF", "Nilai": result["pv_explicit_fcf"]},
                 {"Komponen": "Terminal value (undiscounted)", "Nilai": result["terminal_value"]},
