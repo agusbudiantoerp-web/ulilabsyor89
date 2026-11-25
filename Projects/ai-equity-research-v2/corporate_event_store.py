@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import numbers
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -133,7 +134,9 @@ def list_events(owner_id, *, path=None, limit=1000):
     owner = str(owner_id or "").strip()
     if not owner:
         raise ValueError("Owner identity wajib diisi.")
-    bounded = max(1, min(int(limit), 5000))
+    if isinstance(limit, bool) or not isinstance(limit, numbers.Integral) or int(limit) < 1:
+        raise ValueError("Limit harus berupa bilangan bulat positif.")
+    bounded = min(int(limit), 5000)
     initialize(path)
     if path is None and _url():
         with _pg() as db:
