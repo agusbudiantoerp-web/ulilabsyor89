@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from database_backup import (LOCAL_DATABASES, _postgres_environment, backup_sqlite, verify_backup_manifest)
+from database_backup import (LOCAL_DATABASES, _postgres_environment, backup_sqlite, restore_sqlite_backup, verify_backup_manifest)
 
 
 def test_sqlite_backup_is_integrity_checked_and_has_sha256_manifest(tmp_path):
@@ -136,3 +136,65 @@ def test_backup_cli_can_verify_manifest_without_database_credentials(tmp_path, m
     output = capsys.readouterr().out
     assert "manifest integrity: ok" in output
     assert "SHA-256:" in output
+
+
+
+def test_sqlite_restore_requires_explicit_overwrite_and_restores_integrity_checked_database(tmp_path):
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+        db.execute("INSERT INTO sample VALUES('restored-value')")
+    backup = backup_sqlite(source, tmp_path / "backups")
+    target = tmp_path / "restored" / "production-copy.sqlite3"
+
+    restored = restore_sqlite_backup(backup["manifest"], target)
+    assert restored["validation"] == "PRAGMA integrity_check: ok"
+    with sqlite3.connect(target) as db:
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert db.execute("SELECT value FROM sample").fetchone()[0] == "restored-value"
+
+    target.write_bytes(b"existing target")
+    with pytest.raises(FileExistsError, match="Target sudah ada"):
+        restore_sqlite_backup(backup["manifest"], target)
+    overwritten = restore_sqlite_backup(backup["manifest"], target, overwrite=True)
+    assert overwritten["overwritten"] is True
+    with sqlite3.connect(target) as db:
+        assert db.execute("SELECT value FROM sample").fetchone()[0] == "restored-value"
+
+
+def test_sqlite_restore_rejects_non_sqlite_backup_manifest(tmp_path):
+    import hashlib
+
+    artifact = tmp_path / "postgres.dump"
+    artifact.write_bytes(b"not a sqlite database")
+    manifest = tmp_path / "postgres.dump.manifest.json"
+    manifest.write_text(json.dumps({
+        "backend": "PostgreSQL",
+        "backup_file": artifact.name,
+        "size_bytes": artifact.stat().st_size,
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "validation": "pg_restore --list: ok",
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="backend SQLite"):
+        restore_sqlite_backup(manifest, tmp_path / "restore.sqlite3")
+
+
+def test_sqlite_restore_cli_requires_target_and_restores(tmp_path, monkeypatch, capsys):
+    import sys
+    from database_backup import main
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+        db.execute("INSERT INTO sample VALUES('cli-restore')")
+    backup = backup_sqlite(source, tmp_path / "backups")
+    target = tmp_path / "restore.sqlite3"
+    monkeypatch.setattr(sys, "argv", [
+        "database_backup.py", "restore-sqlite",
+        "--manifest", backup["manifest"], "--target", str(target),
+    ])
+    assert main() == 0
+    output = capsys.readouterr().out
+    assert "PRAGMA integrity_check: ok" in output
+    with sqlite3.connect(target) as db:
+        assert db.execute("SELECT value FROM sample").fetchone()[0] == "cli-restore"
