@@ -108,3 +108,32 @@ def test_calendar_marks_same_local_day_as_duplicate_across_offsets():
 def test_calendar_rejects_boolean_or_float_staleness_threshold(threshold):
     with pytest.raises(ValueError, match="stale_after_days"):
         normalize_corporate_events([base_event()], stale_after_days=threshold)
+
+
+
+def test_calendar_exposes_confirmed_and_cancelled_status_flags():
+    result = normalize_corporate_events([
+        base_event(status="CONFIRMED"),
+        base_event(event_type="EX_DIVIDEND", status="CANCELLED"),
+    ])
+    rows = result["events"].set_index("event_type")
+    assert bool(rows.loc["DIVIDEND_DECLARATION", "status_is_confirmed"])
+    assert not bool(rows.loc["DIVIDEND_DECLARATION", "status_is_cancelled"])
+    assert not bool(rows.loc["EX_DIVIDEND", "status_is_confirmed"])
+    assert bool(rows.loc["EX_DIVIDEND", "status_is_cancelled"])
+
+
+def test_calendar_flags_conflicting_duplicate_corporate_action_details():
+    first = base_event(event_type="STOCK_SPLIT", split_ratio=2)
+    second = base_event(event_type="STOCK_SPLIT", split_ratio=3)
+    result = normalize_corporate_events([first, second])
+    assert result["events"]["duplicate_event"].all()
+    assert result["events"]["conflicting_duplicate"].all()
+    assert any("saling bertentangan" in warning for warning in result["warnings"])
+
+
+def test_calendar_does_not_flag_identical_duplicate_details_as_conflicting():
+    event = base_event(event_type="STOCK_SPLIT", split_ratio=2)
+    result = normalize_corporate_events([event, event])
+    assert result["events"]["duplicate_event"].all()
+    assert not result["events"]["conflicting_duplicate"].any()
