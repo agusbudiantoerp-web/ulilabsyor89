@@ -2,7 +2,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from database_backup import _postgres_environment, backup_sqlite
+from database_backup import LOCAL_DATABASES, _postgres_environment, backup_sqlite
 
 
 def test_sqlite_backup_is_integrity_checked_and_has_sha256_manifest(tmp_path):
@@ -61,3 +61,9 @@ def test_postgres_url_does_not_inherit_stale_credentials():
 
     assert env["PGUSER"] == "backup_user"
     assert "PGPASSWORD" not in env
+
+
+def test_local_backup_inventory_includes_new_owner_scoped_stores():
+    assert "research_theses" in LOCAL_DATABASES
+    assert "corporate_events" in LOCAL_DATABASES
+    assert "portfolio_cashflow_events" in LOCAL_DATABASES
