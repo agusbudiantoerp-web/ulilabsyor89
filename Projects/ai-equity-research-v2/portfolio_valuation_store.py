@@ -94,7 +94,7 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
     def _numeric_series(series):
         # bool/np.bool_ are numerically coercible by pandas, but are never
         # meaningful portfolio values or cash-flow amounts.
-        if series.map(lambda value: isinstance(value, (bool,)) or type(value).__name__ == "bool_").any():
+        if series.map(lambda value: isinstance(value, (bool,)) or type(value).__name__ in {"bool_", "bool"}).any():
             raise ValueError("Portfolio value dan external flow harus berupa angka, bukan boolean.")
         return pd.to_numeric(series, errors="coerce")
 
