@@ -39,6 +39,15 @@ def test_valuation_snapshots_reject_duplicate_dates_and_invalid_values(tmp_path)
     ])
     with pytest.raises(ValueError,match="unik"):
         save_valuations("owner","main",duplicate,path=db)
+
+    # Distinct intraday timestamps still map to one persisted calendar-day key.
+    duplicate_intraday = pd.DataFrame([
+        {"date": "2026-01-01T09:00:00", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-01-01T16:30:00", "portfolio_value": 101, "external_flow": 0},
+    ])
+    with pytest.raises(ValueError, match="unik"):
+        save_valuations("owner", "main", duplicate_intraday, path=db)
+
     invalid=sample()
     invalid.loc[0,"portfolio_value"]=0
     with pytest.raises(ValueError,match="positif"):
