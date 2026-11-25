@@ -194,10 +194,14 @@ def run_transaction_aware_portfolio(
                         raise ValueError(f"Cash tersedia tidak cukup untuk BUY {ticker} pada {when.date()}.")
                     positions[ticker] = positions.get(ticker, 0.0) + quantity
                     if deferred:
-                        settlement = {"kind": "BUY", "amount": amount_base, "cash_delta": -amount_base}
+                        settlement = {
+                            "kind": "BUY", "amount": amount_base,
+                            "cash_delta": -amount_base, "settlement_date": settlement_date,
+                            "ticker": ticker,
+                        }
                         unsettled_payables += amount_base
                         settlements_by_date[settlement_date].append(settlement)
-                        pending_settlements.append({**settlement, "settlement_date": settlement_date, "ticker": ticker})
+                        pending_settlements.append(settlement)
                     else:
                         cash -= amount_base
                 else:
@@ -205,10 +209,14 @@ def run_transaction_aware_portfolio(
                         raise ValueError(f"SELL {ticker} melebihi jumlah saham tersedia.")
                     positions[ticker] = max(0.0, positions.get(ticker, 0.0) - quantity)
                     if deferred:
-                        settlement = {"kind": "SELL", "amount": amount_base, "cash_delta": amount_base}
+                        settlement = {
+                            "kind": "SELL", "amount": amount_base,
+                            "cash_delta": amount_base, "settlement_date": settlement_date,
+                            "ticker": ticker,
+                        }
                         unsettled_receivables += amount_base
                         settlements_by_date[settlement_date].append(settlement)
-                        pending_settlements.append({**settlement, "settlement_date": settlement_date, "ticker": ticker})
+                        pending_settlements.append(settlement)
                     else:
                         cash += amount_base
             elif kind == "DIVIDEND":
