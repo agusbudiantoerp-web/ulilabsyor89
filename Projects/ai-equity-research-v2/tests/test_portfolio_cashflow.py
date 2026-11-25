@@ -308,3 +308,12 @@ def test_normalize_events_rejects_numpy_boolean_numeric_fields(field):
     event[field] = np.bool_(True)
     with pytest.raises(ValueError, match="boolean"):
         normalize_events([event])
+
+
+def test_portfolio_reconciliation_applies_same_day_split_before_sell():
+    result = reconcile_portfolio_ledger([
+        {"date": "2026-02-01", "event_type": "SELL", "amount": 500, "ticker": "BBCA", "quantity": 10, "price": 50},
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 2},
+    ], initial_positions={"BBCA": 10})
+    assert result["positions"]["BBCA"] == pytest.approx(10)
+    assert result["cash_balance"] == pytest.approx(500)
