@@ -43,7 +43,7 @@ The original research, signal, portfolio and backtest menus also include these e
 - **Cash-flow ledger:** persistent owner-scoped deposits, withdrawals, dividends, buys/sells, fees, taxes and split ratios; TWR valuation snapshots can be saved by portfolio ID.
 - **Cross-market portfolio:** explicit IDR/USD base currency and FX alignment with stale-FX rejection. Daily close model only; no intraday synchronization.
 - **Valuation tools:** peer median/coverage and reverse DCF implied FCF growth with sensitivity.
-- **Research governance:** owner-scoped thesis version history, assigned PM/admin review, and thesis/review data included in research exports.
+- **Research governance:** owner-scoped thesis version history, assigned PM/admin review, and thesis/review history plus market-data provenance included in the Excel research pack.
 
 The multi-asset backtest is a separate fixed-rule trend simulation, not a broker execution model. Missing price bars are not forward-filled; uninvested cash earns zero. Benchmark comparisons are price-only and do not include dividends. Local SQLite files may be ephemeral on hosted instances; PostgreSQL is preferred for persistent cloud storage.
 
