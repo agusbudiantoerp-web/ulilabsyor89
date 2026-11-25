@@ -118,7 +118,7 @@ def run_transaction_aware_portfolio(
         raise ValueError("Base currency hanya mendukung IDR atau USD.")
     gap_limits = {}
     for name, value in (("max_price_gap_days", max_price_gap_days), ("max_fx_gap_days", max_fx_gap_days)):
-        if isinstance(value, bool) or type(value).__name__ == "bool_":
+        if isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
             raise ValueError(f"{name} harus berupa bilangan bulat non-negatif.")
         try:
             numeric = float(value)
@@ -129,7 +129,7 @@ def run_transaction_aware_portfolio(
         gap_limits[name] = int(numeric)
     max_price_gap_days = gap_limits["max_price_gap_days"]
     max_fx_gap_days = gap_limits["max_fx_gap_days"]
-    if isinstance(initial_cash, bool) or type(initial_cash).__name__ == "bool_":
+    if isinstance(initial_cash, bool) or type(initial_cash).__name__ in {"bool_", "bool"}:
         raise ValueError("Initial cash harus berupa angka, bukan boolean.")
     cash = float(initial_cash)
     if not math.isfinite(cash) or cash < 0:
@@ -143,7 +143,7 @@ def run_transaction_aware_portfolio(
             raise ValueError("Ticker initial positions tidak boleh kosong.")
         if normalized_ticker in positions:
             raise ValueError("Ticker initial positions duplikat setelah normalisasi.")
-        if isinstance(shares, bool) or type(shares).__name__ == "bool_":
+        if isinstance(shares, bool) or type(shares).__name__ in {"bool_", "bool"}:
             raise ValueError("Initial positions harus berupa angka, bukan boolean.")
         try:
             positions[normalized_ticker] = float(shares)
