@@ -80,20 +80,56 @@ def reconcile_broker_statement(
             (date_gap, amount_gap, broker_index)
         )
 
-    # Use augmenting paths so an early flexible internal row cannot consume
-    # the only broker candidate available to a later constrained row.
+    # Use iterative augmenting paths so large broker statements cannot hit
+    # Python's recursion limit when many same-ticker events compete.
     broker_to_internal = {}
+    internal_to_broker = {}
 
-    def assign(internal_index, visited_broker):
-        for _, _, broker_index in candidates_by_internal.get(internal_index, []):
+    def assign_iteratively(root_internal):
+        stack = [root_internal]
+        visited_internal = {root_internal}
+        visited_broker = set()
+        parent_for_broker = {}
+        next_candidate = {root_internal: 0}
+        free_broker = None
+
+        while stack and free_broker is None:
+            current_internal = stack[-1]
+            candidates = candidates_by_internal.get(current_internal, [])
+            position = next_candidate.get(current_internal, 0)
+            if position >= len(candidates):
+                stack.pop()
+                continue
+
+            _, _, broker_index = candidates[position]
+            next_candidate[current_internal] = position + 1
             if broker_index in visited_broker:
                 continue
+
             visited_broker.add(broker_index)
+            parent_for_broker[broker_index] = current_internal
             previous_internal = broker_to_internal.get(broker_index)
-            if previous_internal is None or assign(previous_internal, visited_broker):
-                broker_to_internal[broker_index] = internal_index
-                return True
-        return False
+            if previous_internal is None:
+                free_broker = broker_index
+                break
+            if previous_internal not in visited_internal:
+                visited_internal.add(previous_internal)
+                next_candidate[previous_internal] = 0
+                stack.append(previous_internal)
+
+        if free_broker is None:
+            return False
+
+        broker_index = free_broker
+        while True:
+            current_internal = parent_for_broker[broker_index]
+            previous_broker = internal_to_broker.get(current_internal)
+            broker_to_internal[broker_index] = current_internal
+            internal_to_broker[current_internal] = broker_index
+            if previous_broker is None:
+                break
+            broker_index = previous_broker
+        return True
 
     internal_order = sorted(
         candidates_by_internal,
@@ -105,7 +141,7 @@ def reconcile_broker_statement(
         ),
     )
     for internal_index in internal_order:
-        assign(internal_index, set())
+        assign_iteratively(internal_index)
 
     matched_pairs = {}
     for broker_index, internal_index in broker_to_internal.items():
