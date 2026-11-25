@@ -41,8 +41,8 @@ def test_excel_report_escapes_formula_like_untrusted_text():
 
 def test_research_excel_export_neutralizes_formula_after_utf8_bom_prefix():
     excel = build_excel_report(
-        portfolio=pd.DataFrame([{"Ticker": "\\ufeff=HYPERLINK(\"https://evil.example\",\"x\")"}])
+        portfolio=pd.DataFrame([{"Ticker": "chr(0xFEFF) + "=HYPERLINK(\"https://evil.example\",\"x\")"}])
     )
     workbook = load_workbook(BytesIO(excel), read_only=True, data_only=False)
-    assert workbook["Portfolio"]["A2"].value.startswith("'\\ufeff=")
+    assert workbook["Portfolio"]["A2"].value.startswith("'" + chr(0xFEFF) + "=")
     workbook.close()
