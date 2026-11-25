@@ -58,6 +58,8 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 ## Data provenance and freshness contract
 
 - Every history download records provider/source ticker, market, exchange, quote currency, retrieval timestamp, latest bar date, bar count and adjustment mode.
+- A provider protocol and Yahoo Finance adapter now centralize daily-history and fundamental requests; transient history failures use bounded exponential retries, while explicit rate-limit responses fail immediately without retry loops.
+- Daily signal history, advanced screener fundamentals, Market Intelligence, peer valuation and benchmark/FX history use the shared adapter.
 - The current Yahoo Finance history loader explicitly requests `auto_adjust=True`; the contract labels the resulting OHLC as provider-adjusted rather than raw/unadjusted.
 - Basic OHLCV validation reports missing/non-numeric/non-finite values, invalid OHLC relationships, non-positive prices, negative volume, duplicate dates and stale bars.
 - Screener results carry the provenance record, and Market Intelligence displays its source, currency, adjustment basis, latest bar and quality status.
