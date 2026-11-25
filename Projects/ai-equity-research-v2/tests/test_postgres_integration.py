@@ -12,6 +12,7 @@ from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
                           request_review, list_reviews_for_reviewer, decide_review)
 from corporate_event_store import create_event as create_corporate_event, delete_event as delete_corporate_event, list_events as list_corporate_events
 from portfolio_event_store import create_event as create_cashflow_event, delete_event as delete_cashflow_event, list_events as list_cashflow_events
+from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
 
 
 @pytest.fixture
@@ -131,3 +132,19 @@ def test_postgres_thesis_and_event_stores_are_owner_scoped(postgres_test_databas
         delete_thesis(alice, thesis_id)
         delete_corporate_event(alice, corporate_id)
         delete_cashflow_event(alice, cashflow_id)
+
+
+def test_postgres_portfolio_valuation_snapshots_are_owner_scoped(postgres_test_database):
+    owner = "issuer|valuation-" + uuid.uuid4().hex
+    other = "issuer|other-" + uuid.uuid4().hex
+    frame = pd.DataFrame([
+        {"date": "2026-01-01", "portfolio_value": 1000, "external_flow": 0},
+        {"date": "2026-02-01", "portfolio_value": 1100, "external_flow": 100},
+    ])
+    save_valuations(owner, "main", frame, currency="IDR")
+    try:
+        assert len(list_valuations(owner, "main")) == 2
+        assert list_valuations(other, "main").empty
+        assert delete_valuations(other, "main") == 0
+    finally:
+        delete_valuations(owner, "main")
