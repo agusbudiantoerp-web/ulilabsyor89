@@ -6,6 +6,7 @@ explicit calendar-day tolerance. It does not model intraday execution.
 from __future__ import annotations
 
 import math
+import numbers
 from typing import Mapping
 
 import pandas as pd
@@ -53,7 +54,7 @@ def convert_asset_returns_to_base_currency(
         raise ValueError("Mata uang aset dan base hanya mendukung IDR atau USD.")
     if (
         isinstance(max_fx_gap_days, bool)
-        or not isinstance(max_fx_gap_days, int)
+        or not isinstance(max_fx_gap_days, numbers.Integral)
         or not 0 <= max_fx_gap_days <= 30
     ):
         raise ValueError("max_fx_gap_days harus integer 0–30.")
@@ -110,23 +111,43 @@ def combine_mixed_currency_returns(
     max_fx_gap_days: int = 3,
 ) -> dict:
     """Combine fixed target weights on union dates; closed markets earn zero that day."""
-    symbols = list(asset_closes)
+    if not all(isinstance(value, Mapping) for value in (asset_closes, asset_currencies, weights)):
+        raise ValueError("Close, currencies dan weights harus berupa mapping.")
+    raw_maps = (asset_closes, asset_currencies, weights)
+    normalized_maps = []
+    for mapping in raw_maps:
+        keys = [str(key).strip().upper() for key in mapping]
+        if any(not key for key in keys):
+            raise ValueError("Ticker portfolio tidak boleh kosong.")
+        if len(set(keys)) != len(keys):
+            raise ValueError("Ticker portfolio duplikat setelah normalisasi.")
+        normalized_maps.append(dict(zip(keys, mapping.values())))
+    close_map, currency_map, weight_map = normalized_maps
+    symbols = list(close_map)
     if not symbols:
         raise ValueError("Minimal satu aset diperlukan.")
-    if set(symbols) != set(asset_currencies) or set(symbols) != set(weights):
-        raise ValueError("Set ticker pada close, currency dan weights harus sama.")
-    clean_weights = {symbol: float(weights[symbol]) for symbol in symbols}
+    if set(symbols) != set(currency_map) or set(symbols) != set(weight_map):
+        raise ValueError("Set ticker pada close, currency dan weights harus sama setelah normalisasi.")
+    clean_weights = {}
+    for symbol in symbols:
+        raw_weight = weight_map[symbol]
+        if isinstance(raw_weight, bool) or type(raw_weight).__name__ == "bool_":
+            raise ValueError("Bobot harus berupa angka, bukan boolean.")
+        try:
+            clean_weights[symbol] = float(raw_weight)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError("Bobot harus berupa angka finite dan tidak negatif.") from None
     if any(not math.isfinite(x) or x < 0 for x in clean_weights.values()):
         raise ValueError("Bobot harus finite dan tidak negatif.")
     total_weight = sum(clean_weights.values())
     if total_weight <= 0 or total_weight > 1.0000001:
         raise ValueError("Total bobot harus lebih besar dari 0 dan maksimal 100%.")
-    requires_fx = any(str(asset_currencies[symbol]).upper().strip() != str(base_currency).upper().strip() for symbol in symbols)
+    requires_fx = any(str(currency_map[symbol]).upper().strip() != str(base_currency).upper().strip() for symbol in symbols)
     if requires_fx and usd_idr_close is None:
         raise ValueError("Data USD/IDR wajib untuk portfolio lintas mata uang.")
     converted = {
         symbol: convert_asset_returns_to_base_currency(
-            asset_closes[symbol], asset_currencies[symbol], usd_idr_close,
+            close_map[symbol], currency_map[symbol], usd_idr_close,
             base_currency, max_fx_gap_days=max_fx_gap_days,
         )
         for symbol in symbols
@@ -150,7 +171,7 @@ def combine_mixed_currency_returns(
     return {
         "base_currency": str(base_currency).upper(),
         "weights": clean_weights,
-        "asset_currencies": {symbol: str(asset_currencies[symbol]).upper() for symbol in symbols},
+        "asset_currencies": {symbol: str(currency_map[symbol]).upper() for symbol in symbols},
         "asset_returns": returns,
         "asset_fx_contribution_pct": fx_contribution,
         "curve": curve,
