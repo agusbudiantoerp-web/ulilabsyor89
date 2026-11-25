@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from daily_signal_backtest import backtest
+from daily_signal_backtest import backtest, walk_forward_backtest
 
 
 def sample_bars(n=300):
@@ -102,3 +102,57 @@ def test_benchmark_uses_entry_exit_costs_including_sell_tax():
 def test_backtest_rejects_non_finite_transaction_costs():
     with pytest.raises(ValueError, match="finite"):
         backtest(sample_bars(), sell_tax_bps=float("nan"))
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"train_months": True},
+        {"train_months": 5},
+        {"train_months": 24.5},
+        {"train_months": "24"},
+        {"test_months": False},
+        {"test_months": 0},
+        {"test_months": 1.5},
+        {"test_months": "6"},
+    ],
+)
+def test_walk_forward_rejects_invalid_window_parameters(kwargs):
+    with pytest.raises(ValueError, match="train_months|test_months"):
+        walk_forward_backtest(sample_bars(), **kwargs)
+
+
+def test_walk_forward_rejects_non_datetime_index():
+    bars = sample_bars()
+    bars.index = range(len(bars))
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        walk_forward_backtest(bars)
+
+
+def test_walk_forward_rejects_duplicate_dates():
+    bars = sample_bars()
+    bars.index = list(bars.index[:-1]) + [bars.index[-2]]
+    with pytest.raises(ValueError, match="duplikat"):
+        walk_forward_backtest(bars)
+
+
+def test_walk_forward_rejects_unsorted_history_instead_of_sorting_silently():
+    bars = sample_bars()
+    bars = bars.iloc[::-1]
+    with pytest.raises(ValueError, match="berurutan"):
+        walk_forward_backtest(bars)
+
+
+def test_walk_forward_rejects_duplicate_dates_after_timezone_normalization():
+    bars = sample_bars()
+    dates = bars.index.tz_localize("Asia/Jakarta")
+    dates = dates.tz_convert("UTC")
+    # Two distinct instants that normalize to the same local-naive session date/time.
+    dates = dates.tz_localize(None)
+    bars.index = dates
+    bars.index = pd.DatetimeIndex([
+        pd.Timestamp("2024-01-01 09:00", tz="Asia/Jakarta"),
+        *[pd.Timestamp(x, tz="Asia/Jakarta") for x in bars.index[1:]]
+    ])
+    with pytest.raises(ValueError, match="duplikat"):
+        walk_forward_backtest(bars)
