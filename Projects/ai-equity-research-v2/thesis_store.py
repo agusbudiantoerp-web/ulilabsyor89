@@ -255,6 +255,7 @@ def delete_thesis(owner_id, thesis_id, *, path=None):
         row = db.execute("SELECT id FROM research_theses WHERE id=? AND owner_id=?", (thesis_id,owner)).fetchone()
         if not row:
             return False
+        db.execute("DELETE FROM research_thesis_reviews WHERE thesis_id=? AND owner_id=?", (thesis_id,owner))
         db.execute("DELETE FROM research_thesis_versions WHERE thesis_id=? AND owner_id=?", (thesis_id,owner))
         return db.execute("DELETE FROM research_theses WHERE id=? AND owner_id=?", (thesis_id,owner)).rowcount > 0
 
