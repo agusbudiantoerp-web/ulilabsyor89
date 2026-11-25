@@ -22,6 +22,7 @@ LOCAL_DATABASES = {
     "research_theses": ("RESEARCH_THESIS_DB_PATH", "data/research_theses.sqlite3"),
     "corporate_events": ("CORPORATE_EVENTS_DB_PATH", "data/corporate_events.sqlite3"),
     "portfolio_cashflow_events": ("PORTFOLIO_EVENTS_DB_PATH", "data/portfolio_cashflow_events.sqlite3"),
+    "portfolio_valuations": ("PORTFOLIO_VALUATIONS_DB_PATH", "data/portfolio_valuations.sqlite3"),
 }
 
 _LIBPQ_QUERY_ENV = {
