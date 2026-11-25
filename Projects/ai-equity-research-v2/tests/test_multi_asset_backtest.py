@@ -55,13 +55,12 @@ def test_multi_asset_rejects_unsorted_dates():
 
 def test_multi_asset_rejects_duplicate_sessions_after_timezone_normalization():
     bars = sample_bars()
-    dates = pd.date_range("2024-11-03 00:30", periods=len(bars), freq="h", tz="America/New_York")
-    dates = dates.tz_convert("UTC")
-    # Two different instants map to the same local wall-clock session after tz removal.
-    dates = dates[:]
-    dates = dates.tz_convert("America/New_York")
-    dates = dates.tz_localize(None).tz_localize("America/New_York", ambiguous="infer")
-    bars.index = dates
+    duplicate_instants = pd.DatetimeIndex([
+        "2024-11-03T01:30:00-04:00",
+        "2024-11-03T01:30:00-05:00",
+    ]).tz_convert("America/New_York")
+    remaining = pd.date_range("2024-11-04", periods=len(bars) - 2, freq="B")
+    bars.index = duplicate_instants.append(remaining)
     with pytest.raises(ValueError, match="duplikat"):
         run_multi_asset_backtest({"AAA": bars})
 
