@@ -60,15 +60,21 @@ def test_postgres_portfolio_replacement_rolls_back_on_position_failure(postgres_
     save_book(book_id, "Original", original, owner_id="issuer|atomic-test")
     try:
         with psycopg.connect(postgres_test_database) as db:
-            db.execute(f"""CREATE FUNCTION {function_name}() RETURNS trigger
-                LANGUAGE plpgsql AS $ BEGIN
-                IF NEW.ticker = 'BBRI' THEN
-                    RAISE EXCEPTION 'injected portfolio position failure';
-                END IF;
-                RETURN NEW;
-                END; $""")
-            db.execute(f"CREATE TRIGGER {trigger_name} BEFORE INSERT ON portfolio_positions
-                FOR EACH ROW EXECUTE FUNCTION {function_name}()")
+            db.execute(
+                f"""CREATE FUNCTION {function_name}() RETURNS trigger
+                LANGUAGE plpgsql AS $func$
+                BEGIN
+                    IF NEW.ticker = 'BBRI' THEN
+                        RAISE EXCEPTION 'injected portfolio position failure';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $func$"""
+            )
+            db.execute(
+                f"""CREATE TRIGGER {trigger_name} BEFORE INSERT ON portfolio_positions
+                FOR EACH ROW EXECUTE FUNCTION {function_name}()"""
+            )
         with pytest.raises(psycopg.errors.RaiseException, match="injected portfolio position failure"):
             save_book(book_id, "Replacement", replacement, owner_id="issuer|atomic-test")
         assert list_books(owner_id="issuer|atomic-test")[0]["name"] == "Original"
