@@ -56,9 +56,17 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
         raise ValueError("Quantity wajib untuk BUY, SELL dan SPLIT.")
     if frame.loc[frame["event_type"].isin({"BUY", "SELL"}), "price"].isna().any():
         raise ValueError("Price wajib untuk BUY dan SELL.")
-    if frame.loc[frame["event_type"].isin({"BUY", "SELL"}), "amount"].le(0).any():
+    trade_rows = frame["event_type"].isin({"BUY", "SELL"})
+    if frame.loc[trade_rows, "amount"].le(0).any():
         raise ValueError("Nominal transaksi BUY/SELL harus lebih besar dari 0.")
-    if frame.loc[frame["event_type"].eq("SPLIT"), "amount"].ne(0).any():
+    if frame.loc[trade_rows, "quantity"].isna().any() or frame.loc[trade_rows, "quantity"].le(0).any():
+        raise ValueError("Quantity BUY/SELL harus lebih besar dari 0.")
+    if frame.loc[trade_rows, "price"].isna().any() or frame.loc[trade_rows, "price"].le(0).any():
+        raise ValueError("Price BUY/SELL harus lebih besar dari 0.")
+    split_rows = frame["event_type"].eq("SPLIT")
+    if frame.loc[split_rows, "quantity"].isna().any() or frame.loc[split_rows, "quantity"].le(0).any():
+        raise ValueError("Rasio split harus lebih besar dari 0.")
+    if frame.loc[split_rows, "amount"].ne(0).any():
         raise ValueError("Amount untuk event SPLIT harus 0; gunakan quantity sebagai rasio split.")
     return frame.sort_values(["date"], kind="stable").reset_index(drop=True)
 
@@ -239,6 +247,8 @@ def reconcile_portfolio_ledger(
             cash += amount
         elif kind == "BUY":
             cash -= amount
+            if cash < -1e-8:
+                raise ValueError(f"Cash tidak cukup untuk BUY {ticker} pada {pd.Timestamp(row['date']).date()}.")
             positions[ticker] = positions.get(ticker, 0.0) + quantity
             expected = quantity * price
             if expected > 0 and abs(amount / expected - 1.0) * 100.0 > tolerance:
@@ -257,7 +267,11 @@ def reconcile_portfolio_ledger(
                 )
         elif kind in {"FEE", "TAX"}:
             cash -= amount
+            if cash < -1e-8:
+                raise ValueError(f"Cash tidak cukup untuk {kind} pada {pd.Timestamp(row['date']).date()}.")
         elif kind == "SPLIT":
+            if ticker not in positions:
+                warnings.append(f"{ticker}: split tercatat tanpa posisi awal; periksa histori transaksi.")
             positions[ticker] = positions.get(ticker, 0.0) * quantity
     if cash < -1e-8:
         raise ValueError("Cash balance negatif; periksa urutan dan nominal transaksi.")
