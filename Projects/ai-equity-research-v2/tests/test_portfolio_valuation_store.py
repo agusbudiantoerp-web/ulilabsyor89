@@ -101,3 +101,12 @@ def test_valuation_snapshots_reject_numeric_dates(tmp_path, value):
     with pytest.raises(ValueError, match="Tanggal"):
         save_valuations("owner", "main", invalid, path=db)
     assert list_valuations("owner", "main", path=db).empty
+
+
+def test_valuation_snapshots_reject_numpy_boolean_values(tmp_path):
+    import numpy as np
+    db = str(tmp_path / "valuations.sqlite")
+    invalid = sample().astype({"portfolio_value": "object"})
+    invalid.loc[0, "portfolio_value"] = np.bool_(True)
+    with pytest.raises(ValueError, match="boolean"):
+        save_valuations("owner", "main", invalid, path=db)
