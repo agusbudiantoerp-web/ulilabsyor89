@@ -5,7 +5,7 @@ import pytest
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
-    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,
+    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,\n    detect_portfolio_structural_break,
 )
 
 
@@ -183,3 +183,31 @@ def test_estimate_regime_transition_matrix_validates_labels_and_smoothing():
         estimate_regime_transition_matrix(pd.Series(["calm", "unknown"]))
     with pytest.raises(ValueError, match="Smoothing"):
         estimate_regime_transition_matrix(pd.Series(["calm", "stress"]), smoothing=0)
+
+
+def test_detect_portfolio_structural_break_flags_recent_volatility_shift():
+    rng = np.random.default_rng(123)
+    values = np.concatenate([
+        rng.normal(0.0005, 0.004, 60),
+        rng.normal(-0.001, 0.035, 60),
+    ])
+    series = pd.Series(values, index=pd.date_range("2025-01-01", periods=120))
+    result = detect_portfolio_structural_break(series, window=60)
+    assert result["detected"] is True
+    assert result["volatility_break"] is True
+    assert result["status"] == "POTENTIAL_BREAK"
+    assert result["recent_window_start"] == str(series.index[60].date())
+
+
+def test_detect_portfolio_structural_break_does_not_flag_stable_constant_returns():
+    series = pd.Series([0.001] * 80, index=pd.date_range("2026-01-01", periods=80))
+    result = detect_portfolio_structural_break(series, window=40)
+    assert result["detected"] is False
+    assert result["volatility_ratio"] == pytest.approx(1.0)
+
+
+def test_detect_portfolio_structural_break_validates_history_and_thresholds():
+    with pytest.raises(ValueError, match="Minimal 40 observasi"):
+        detect_portfolio_structural_break(pd.Series([0.01] * 39), window=20)
+    with pytest.raises(ValueError, match="Volatility ratio threshold"):
+        detect_portfolio_structural_break(pd.Series([0.01] * 80), window=40, volatility_ratio_threshold=1.0)
