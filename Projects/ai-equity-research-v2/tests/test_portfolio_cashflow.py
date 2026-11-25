@@ -189,3 +189,20 @@ def test_normalize_events_validates_explicit_settlement_date():
         normalize_events([{**base, "settlement_date": "2026-01-01"}])
     normalized = normalize_events([{**base, "settlement_date": "2026-01-03"}])
     assert pd.Timestamp(normalized.iloc[0]["settlement_date"]) == pd.Timestamp("2026-01-03")
+
+
+@pytest.mark.parametrize("field,value", [
+    ("date", True),
+    ("date", 1767225600000000000),
+    ("amount", True),
+    ("quantity", False),
+    ("price", True),
+])
+def test_normalize_events_rejects_boolean_or_numeric_date_and_boolean_numbers(field, value):
+    event = {
+        "date": "2026-01-01", "event_type": "BUY", "amount": 100,
+        "ticker": "BBCA", "quantity": 1, "price": 100,
+    }
+    event[field] = value
+    with pytest.raises(ValueError):
+        normalize_events([event])
