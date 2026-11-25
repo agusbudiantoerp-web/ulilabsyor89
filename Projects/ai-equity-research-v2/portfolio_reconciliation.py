@@ -32,9 +32,17 @@ def reconcile_broker_statement(
         "price_tolerance_pct": price_tolerance_pct,
         "quantity_tolerance": quantity_tolerance,
     }.items():
-        if not math.isfinite(float(value)) or float(value) < 0:
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"{name} harus berupa angka finite dan tidak negatif.") from exc
+        if isinstance(value, bool) or not math.isfinite(numeric_value) or numeric_value < 0:
             raise ValueError(f"{name} harus finite dan tidak negatif.")
-    if not isinstance(date_tolerance_days, int) or not 0 <= date_tolerance_days <= 30:
+    if (
+        isinstance(date_tolerance_days, bool)
+        or not isinstance(date_tolerance_days, int)
+        or not 0 <= date_tolerance_days <= 30
+    ):
         raise ValueError("date_tolerance_days harus integer 0–30.")
     internal = _normalized_or_empty(internal_events)
     broker = _normalized_or_empty(broker_events)
