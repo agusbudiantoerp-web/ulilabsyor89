@@ -79,7 +79,14 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
     required={"date","portfolio_value","external_flow"}
     if not required.issubset(frame.columns) or frame.empty:
         raise ValueError("Valuations wajib berisi date, portfolio_value dan external_flow.")
-    frame["date"]=pd.to_datetime(frame["date"],errors="coerce")
+    # The database key and reporting model are calendar-day based. Normalize
+    # before duplicate detection so two intraday timestamps cannot collide
+    # later when persisted as the same YYYY-MM-DD key.
+    def _calendar_date(value):
+        parsed = pd.to_datetime(value, errors="coerce")
+        return None if pd.isna(parsed) else parsed.date().isoformat()
+
+    frame["date"] = frame["date"].map(_calendar_date)
     frame["portfolio_value"]=pd.to_numeric(frame["portfolio_value"],errors="coerce")
     frame["external_flow"]=pd.to_numeric(frame["external_flow"],errors="coerce")
     if frame[["date","portfolio_value","external_flow"]].isna().any().any():
@@ -93,7 +100,7 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
         raise ValueError("Portfolio value harus positif.")
     now=datetime.now(timezone.utc).isoformat()
     initialize(path)
-    rows=[(owner,portfolio,pd.Timestamp(row["date"]).date().isoformat(),float(row["portfolio_value"]),float(row["external_flow"]),unit,now) for row in frame.to_dict("records")]
+    rows=[(owner,portfolio,row["date"],float(row["portfolio_value"]),float(row["external_flow"]),unit,now) for row in frame.to_dict("records")]
     if path is None and _url():
         with _pg() as db:
             with db.cursor() as cur:
