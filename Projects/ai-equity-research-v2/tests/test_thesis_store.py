@@ -1,6 +1,8 @@
 import pytest
 
-from thesis_store import create_thesis, delete_thesis, get_thesis, list_theses, update_thesis
+from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses, update_thesis,
+                          request_review, list_reviews_for_thesis, list_reviews_for_reviewer,
+                          get_review_for_reviewer, decide_review)
 
 
 def content():
@@ -61,3 +63,37 @@ def test_thesis_delete_is_owner_scoped_and_removes_versions(tmp_path):
     assert list_theses("owner", path=db) == []
     with pytest.raises(KeyError):
         get_thesis("owner", thesis_id, path=db)
+
+
+def test_thesis_review_is_assigned_to_reviewer_and_versioned(tmp_path):
+    db = str(tmp_path / "reviews.sqlite")
+    thesis_id = create_thesis("issuer|owner", "BBCA", "IDX", "BBCA thesis", content(), path=db)
+    review_id = request_review("issuer|owner", thesis_id, "issuer|reviewer", path=db)
+    assert len(list_reviews_for_thesis("issuer|owner", thesis_id, path=db)) == 1
+    assert len(list_reviews_for_reviewer("issuer|reviewer", path=db)) == 1
+    assert list_reviews_for_reviewer("issuer|other", path=db) == []
+    review = get_review_for_reviewer("issuer|reviewer", review_id, path=db)
+    assert review["content"]["bull_case"] == "Revenue growth accelerates"
+    with pytest.raises(KeyError):
+        get_review_for_reviewer("issuer|other", review_id, path=db)
+    assert decide_review("issuer|reviewer", review_id, "CHANGES_REQUESTED", "Please refine downside case", path=db) == "CHANGES_REQUESTED"
+    assert list_reviews_for_thesis("issuer|owner", thesis_id, path=db)[0]["status"] == "CHANGES_REQUESTED"
+    with pytest.raises(KeyError):
+        decide_review("issuer|reviewer", review_id, "APPROVED", "second decision", path=db)
+
+
+def test_thesis_review_rejects_self_review_and_duplicate_pending_request(tmp_path):
+    db = str(tmp_path / "reviews.sqlite")
+    thesis_id = create_thesis("issuer|owner", "BBCA", "IDX", "BBCA thesis", content(), path=db)
+    with pytest.raises(ValueError, match="tidak dapat menjadi reviewer"):
+        request_review("issuer|owner", thesis_id, "issuer|owner", path=db)
+    request_review("issuer|owner", thesis_id, "issuer|reviewer", path=db)
+    with pytest.raises(ValueError, match="masih menunggu"):
+        request_review("issuer|owner", thesis_id, "issuer|reviewer", path=db)
+
+
+def test_thesis_owner_cannot_request_review_for_another_users_thesis(tmp_path):
+    db = str(tmp_path / "reviews.sqlite")
+    thesis_id = create_thesis("issuer|alice", "BBCA", "IDX", "BBCA thesis", content(), path=db)
+    with pytest.raises(KeyError):
+        request_review("issuer|bob", thesis_id, "issuer|reviewer", path=db)
