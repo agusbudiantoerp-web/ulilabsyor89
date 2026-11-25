@@ -77,3 +77,22 @@ if __name__ == "__main__":
         self.assertGreaterEqual(result["terminal_value_share_pct"], 0)
         self.assertLessEqual(result["terminal_value_share_pct"], 100)
         self.assertTrue(any("Terminal CAPEX intensity" in item for item in result["model_warnings"]))
+
+
+    def test_extreme_finite_revenue_is_rejected_on_numerical_overflow(self):
+        financials = dict(self.f)
+        financials["revenue_base"] = 1e308
+        result = project_multistage_dcf(financials, self.a, years=5)
+        self.assertFalse(result["available"])
+        self.assertIn("Numerical overflow", result["reason"])
+
+    def test_terminal_overflow_is_reported_as_unavailable(self):
+        financials = dict(self.f)
+        financials["revenue_base"] = 1e307
+        assumptions = dict(self.a)
+        assumptions["high_growth"] = 1.5
+        assumptions["transition_growth"] = 1.0
+        assumptions["stable_growth"] = 0.5
+        result = project_multistage_dcf(financials, assumptions, years=5)
+        self.assertFalse(result["available"])
+        self.assertIn("Numerical overflow", result["reason"])
