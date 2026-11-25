@@ -50,11 +50,11 @@ def render_corporate_action_calendar() -> None:
             "amount": amount if amount > 0 else None, "currency": currency,
             "split_ratio": split_ratio if split_ratio > 0 else None, "details": details,
         }
-        candidate = pd.concat([st.session_state[key], pd.DataFrame([row])], ignore_index=True)
         try:
             normalized = normalize_corporate_events([row])
             event_id = create_event(owner, normalized["events"].iloc[0].to_dict())
             st.success(f"Event tersimpan permanen. ID: {event_id[:8]}")
+            st.rerun()
         except Exception as exc:
             st.error(f"Event tidak valid: {type(exc).__name__}: {exc}")
     if stored_events:
