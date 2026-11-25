@@ -427,6 +427,22 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "FX translation P/L IDR": fx_metrics.get("fx_translation_pnl_idr"),
             "Portfolio scenario value IDR": fx_metrics.get("scenario_portfolio_idr"),
         })
+    tax_realized = st.session_state.get("portfolio_tax_lot_realized_frame")
+    tax_open = st.session_state.get("portfolio_tax_lot_open_lots_frame")
+    tax_metrics = st.session_state.get("portfolio_tax_lot_metrics") or {}
+    if isinstance(tax_realized, pd.DataFrame) and not tax_realized.empty:
+        extra_sheets["Portfolio Realized P&L"] = tax_realized.copy()
+    if isinstance(tax_open, pd.DataFrame) and not tax_open.empty:
+        extra_sheets["Portfolio Open Tax Lots"] = tax_open.copy()
+    if tax_metrics:
+        metrics.update({
+            "Tax lot method": tax_metrics.get("method"),
+            "Realized P&L": tax_metrics.get("realized_pnl"),
+            "Realized sale proceeds": tax_metrics.get("realized_sale_proceeds"),
+            "Realized cost basis": tax_metrics.get("realized_cost_basis"),
+            "Remaining tax lot cost basis": tax_metrics.get("open_cost_basis"),
+        })
+
     optimization_metrics = st.session_state.get("portfolio_optimization_metrics") or {}
     if optimization_metrics:
         for key, value in optimization_metrics.items():
