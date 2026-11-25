@@ -69,7 +69,7 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run: **338 passed, 0 failed, 0 skipped** on development commit `c552c3c5ffa38b41e56ef27970c06851d50c27b1` (PR merge test commit `[PR merge test commit for run #897]`).
+- Latest completed full CI run: **338 passed, 0 failed, 0 skipped** on development commit `c552c3c5ffa38b41e56ef27970c06851d50c27b1` (PR merge test commit (PR merge ref validated by run #897)).
 - Python compile step passed in the same run.
 - All PostgreSQL integration tests were included in the full suite using an ephemeral disposable PostgreSQL 16 database; this does not replace a separate Preview/staging verification.
 - [GitHub Actions run #897](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45572009592).
