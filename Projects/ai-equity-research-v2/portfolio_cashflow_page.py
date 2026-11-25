@@ -6,6 +6,7 @@ import streamlit as st
 
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_event_store import create_event, delete_event, list_events
+from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
 
 
 def render_portfolio_cashflow() -> None:
@@ -115,22 +116,50 @@ def render_portfolio_cashflow() -> None:
         "Masukkan valuasi akhir setiap periode. External flow positif untuk setoran "
         "dan negatif untuk penarikan yang terjadi tepat sebelum valuasi periode tersebut."
     )
+    c1, c2 = st.columns(2)
+    valuation_portfolio_id = c1.text_input("Portfolio ID untuk histori valuasi", value="main", key="portfolio_valuation_portfolio_id")
+    valuation_currency = c2.selectbox("Mata uang valuasi", ["IDR", "USD"], key="portfolio_valuation_currency")
+    try:
+        saved_valuations = list_valuations(owner, valuation_portfolio_id)
+    except Exception as exc:
+        st.error(f"Histori valuasi tidak dapat dibaca ({type(exc).__name__}).")
+        saved_valuations = pd.DataFrame()
     default_values = pd.DataFrame([
         {"date": pd.Timestamp("2026-01-01"), "portfolio_value": 100000000, "external_flow": 0},
         {"date": pd.Timestamp("2026-02-01"), "portfolio_value": 105000000, "external_flow": 0},
     ])
-    valuation_key = "portfolio_cashflow_valuations"
+    valuation_key = "portfolio_cashflow_valuations_" + valuation_portfolio_id
     if valuation_key not in st.session_state:
-        st.session_state[valuation_key] = default_values
+        if not saved_valuations.empty:
+            st.session_state[valuation_key] = saved_valuations[["date", "portfolio_value", "external_flow"]].copy()
+            st.session_state[valuation_key]["date"] = pd.to_datetime(st.session_state[valuation_key]["date"])
+        else:
+            st.session_state[valuation_key] = default_values
     valuations = st.data_editor(
         st.session_state[valuation_key], num_rows="dynamic", use_container_width=True,
-        key="portfolio_cashflow_valuation_editor",
+        key="portfolio_cashflow_valuation_editor_" + valuation_portfolio_id,
         column_config={
             "date": st.column_config.DateColumn("Tanggal"),
             "portfolio_value": st.column_config.NumberColumn("Nilai portfolio", min_value=0.01),
             "external_flow": st.column_config.NumberColumn("External flow (+ setoran / - penarikan)"),
         },
     )
+    save_col, delete_col = st.columns(2)
+    if save_col.button("Simpan histori valuasi permanen", key="portfolio_cashflow_save_valuations"):
+        try:
+            count = save_valuations(owner, valuation_portfolio_id, valuations, currency=valuation_currency)
+            st.success(f"{count} titik valuasi tersimpan untuk portfolio {valuation_portfolio_id}.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Histori valuasi tidak dapat disimpan: {type(exc).__name__}: {exc}")
+    if delete_col.button("Hapus histori valuasi portfolio ini", key="portfolio_cashflow_delete_valuations"):
+        try:
+            removed = delete_valuations(owner, valuation_portfolio_id)
+            st.session_state.pop(valuation_key, None)
+            st.success(f"{removed} titik valuasi dihapus.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Histori valuasi tidak dapat dihapus: {type(exc).__name__}.")
     if st.button("Hitung TWR", key="portfolio_cashflow_calc_twr"):
         try:
             result = calculate_twr(valuations)
