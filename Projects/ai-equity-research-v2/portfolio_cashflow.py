@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 import math
+import numbers
 from typing import Iterable
 
 import pandas as pd
@@ -24,6 +25,13 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
         raise ValueError("Kolom event wajib: " + ", ".join(sorted(missing)))
     if frame.empty:
         return pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
+    def _is_boolean(value):
+        return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+    # Do not let pandas interpret integer/boolean values as nanoseconds from
+    # the Unix epoch when a human-readable event date is required.
+    if frame["date"].map(lambda value: isinstance(value, numbers.Number) or _is_boolean(value)).any():
+        raise ValueError("Tanggal event tidak valid.")
     frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
     if frame["date"].isna().any():
         raise ValueError("Tanggal event tidak valid.")
@@ -31,6 +39,9 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
     unknown = sorted(set(frame["event_type"]) - EVENT_TYPES)
     if unknown:
         raise ValueError("Jenis event tidak dikenal: " + ", ".join(unknown))
+    for column in ("amount", "quantity", "price"):
+        if column in frame and frame[column].map(_is_boolean).any():
+            raise ValueError(f"{column} harus berupa angka, bukan boolean.")
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
     if frame["amount"].isna().any() or not all(math.isfinite(float(x)) for x in frame["amount"]):
         raise ValueError("Nominal event harus berupa angka finite.")
