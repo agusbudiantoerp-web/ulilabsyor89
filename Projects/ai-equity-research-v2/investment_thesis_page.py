@@ -4,7 +4,8 @@ from __future__ import annotations
 import streamlit as st
 
 from security_controls import record_audit_event, require_permission
-from thesis_store import create_thesis, get_thesis, list_theses, update_thesis
+from thesis_store import (create_thesis, get_thesis, list_theses, update_thesis,
+                          request_review, list_reviews_for_thesis)
 from research_run_store import get_run, list_runs
 
 
@@ -117,6 +118,29 @@ def render_investment_thesis() -> None:
                 st.json(version["content"])
         if existing.get("review_date"):
             st.info(f"Review berikutnya dijadwalkan: {existing['review_date']}")
+        try:
+            reviews = list_reviews_for_thesis(owner, thesis_id)
+            if reviews:
+                st.markdown("**Status review reviewer**")
+                st.dataframe(reviews, use_container_width=True, hide_index=True)
+            role_map = st.secrets.get("auth_roles", {})
+            reviewer_choices = {
+                str(principal): str(configured_role).lower()
+                for principal, configured_role in role_map.items()
+                if str(configured_role).lower() in {"portfolio_manager", "admin"}
+                and str(principal) != owner
+            } if hasattr(role_map, "items") else {}
+            if reviewer_choices:
+                reviewer = st.selectbox("Pilih reviewer (portfolio manager/admin)", list(reviewer_choices), key="thesis_reviewer_select")
+                if st.button("Minta review versi tesis saat ini", key="thesis_request_review"):
+                    review_id = request_review(owner, thesis_id, reviewer, actor_id=owner)
+                    _audit(owner, "THESIS_REVIEW_REQUEST", review_id, {"thesis_id": thesis_id, "reviewer_id": reviewer})
+                    st.success("Permintaan review berhasil dikirim.")
+                    st.rerun()
+            else:
+                st.caption("Belum ada portfolio manager/admin lain pada auth_roles yang dapat dipilih sebagai reviewer.")
+        except Exception as exc:
+            st.warning(f"Workflow review belum dapat ditampilkan ({type(exc).__name__}).")
         linked_id = existing["content"].get("linked_research_run_id")
         if linked_id:
             try:
