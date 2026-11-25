@@ -149,3 +149,16 @@ def test_portfolio_reconciliation_rejects_zero_split_ratio():
         normalize_events([
             {"date": "2026-01-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 0}
         ])
+
+
+def test_portfolio_reconciliation_supports_preexisting_opening_positions():
+    result = reconcile_portfolio_ledger(
+        [{
+            "date": "2026-01-01", "event_type": "SELL", "amount": 1200,
+            "ticker": "BBCA", "quantity": 10, "price": 120,
+        }],
+        initial_cash=100,
+        initial_positions={"BBCA": 25},
+    )
+    assert result["cash_balance"] == pytest.approx(1300)
+    assert result["positions"]["BBCA"] == pytest.approx(15)
