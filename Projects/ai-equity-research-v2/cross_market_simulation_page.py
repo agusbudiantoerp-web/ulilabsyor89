@@ -11,7 +11,7 @@ from fx_portfolio_engine import combine_mixed_currency_returns
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
-    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,
+    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,\n    detect_portfolio_structural_break,
 )
 from market_data_provider import YahooFinanceProvider
 from transaction_aware_portfolio import run_transaction_aware_portfolio
@@ -203,6 +203,27 @@ def render_cross_market_simulation() -> None:
             value=0.20, step=0.01, key="fx_regime_stress_to_calm",
         )
         weighted_history = result["asset_returns"].mul(pd.Series(result["weights"]), axis=1).sum(axis=1)
+        try:
+            structural_break = detect_portfolio_structural_break(weighted_history, window=60)
+            if structural_break["detected"]:
+                st.warning(
+                    "Potensi structural break terdeteksi pada data terbaru. "
+                    "Distribusi return historis lama dan baru mungkin tidak sebanding; "
+                    "jangan menganggap simulasi full-history sebagai estimasi stabil."
+                )
+            with st.expander("Diagnostik structural break", expanded=bool(structural_break["detected"])):
+                st.write({
+                    "Status": structural_break["status"],
+                    "Awal window pembanding": structural_break["reference_window_start"],
+                    "Awal window terbaru": structural_break["recent_window_start"],
+                    "Volatilitas tahunan pembanding (%)": round(structural_break["reference_volatility_annual_pct"], 2),
+                    "Volatilitas tahunan terbaru (%)": round(structural_break["recent_volatility_annual_pct"], 2),
+                    "Rasio volatilitas": round(structural_break["volatility_ratio"], 3),
+                    "Mean shift z": round(structural_break["mean_shift_z"], 3),
+                })
+                st.caption(structural_break["method"])
+        except ValueError as exc:
+            st.info(f"Diagnostik structural break belum tersedia: {exc}")
         rolling_volatility = weighted_history.rolling(20, min_periods=20).std() * (252 ** 0.5)
         regime_labels = rolling_volatility.dropna().apply(
             lambda value: "stress" if value >= vol_threshold else "calm"
