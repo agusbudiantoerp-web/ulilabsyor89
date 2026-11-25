@@ -212,7 +212,7 @@ def render_portfolio_cashflow() -> None:
                 opening_lots_raw = st.text_input(
                     "Tax lot awal (format TICKER:jumlah:biaya_per_saham; pisahkan dengan koma)",
                     value="", key="portfolio_tax_lot_opening",
-                    help="Contoh: BBCA:100:8500, TLKM:50:3000. Isi hanya untuk saham yang dibeli sebelum histori ledger.",
+                    help="Contoh: BBCA:100:8500, TLKM:50:3000. Isi hanya saham yang dibeli sebelum histori ledger; karena tanggal perolehan tidak diketahui, lot awal diperlakukan sebagai lot tertua.",
                 )
                 if st.button("Hitung realized P&L & tax lots", key="portfolio_tax_lot_calculate"):
                     try:
