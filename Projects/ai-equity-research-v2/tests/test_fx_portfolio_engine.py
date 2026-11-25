@@ -67,3 +67,17 @@ def test_weights_and_currencies_must_be_explicit_and_valid():
         combine_mixed_currency_returns(
             {"A": closes}, {"A": "IDR"}, {"A": 1.1}, fx, "IDR"
         )
+
+
+def test_combined_portfolio_exposes_fx_contribution_per_asset():
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    fx = pd.Series([15000.0, 16500.0], index=dates)
+    usd = pd.Series([100.0, 100.0], index=dates)
+    idr = pd.Series([100.0, 100.0], index=dates)
+    result = combine_mixed_currency_returns(
+        {"US": usd, "IDX": idr},
+        {"US": "USD", "IDX": "IDR"},
+        {"US": 0.5, "IDX": 0.5}, fx, "IDR",
+    )
+    assert result["asset_fx_contribution_pct"].loc[dates[1], "US"] == pytest.approx(10.0)
+    assert result["asset_fx_contribution_pct"].loc[dates[1], "IDX"] == pytest.approx(0.0)
