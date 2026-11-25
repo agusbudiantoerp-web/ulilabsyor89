@@ -79,6 +79,13 @@ def render_valuation_intelligence() -> None:
                 st.dataframe(pd.DataFrame(comparison["records"]), use_container_width=True, hide_index=True)
                 if any(bool(row.get("currency_mismatch")) for row in comparison["records"]):
                     st.warning("Sebagian peer memiliki quote currency berbeda dari financial reporting currency. Periksa sumber dan satuan laporan sebelum membandingkan.")
+                if comparison["fiscal_period_warning_tickers"]:
+                    st.warning(
+                        "Fiscal year-end sebagian peer berbeda lebih dari 90 hari dari median peer: "
+                        + ", ".join(comparison["fiscal_period_warning_tickers"])
+                        + ". Periode tidak dinormalisasi otomatis."
+                    )
+                st.caption("Basis periode metrik: P/E, EV/EBITDA, EV/Sales umumnya TTM; P/B point-in-time; growth YoY provider-defined. ROE/ROIC/margin mengikuti definisi trailing provider.")
                 summary_rows = [
                     {"Metric": metric, **values}
                     for metric, values in comparison["metrics"].items()
