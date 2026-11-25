@@ -19,12 +19,18 @@ def _clean_series(series: pd.Series, label: str) -> pd.Series:
     if not isinstance(series, pd.Series) or series.empty:
         raise ValueError(f"Data {label} kosong.")
     result = pd.to_numeric(series, errors="coerce").copy()
-    result.index = pd.to_datetime(result.index)
-    if result.index.tz is not None:
-        result.index = result.index.tz_localize(None)
+    try:
+        parsed_index = pd.DatetimeIndex(pd.to_datetime(series.index, errors="coerce"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Index tanggal {label} tidak valid atau timezone tidak konsisten.") from exc
+    if parsed_index.isna().any():
+        raise ValueError(f"Index tanggal {label} mengandung tanggal tidak valid.")
+    if parsed_index.tz is not None:
+        parsed_index = parsed_index.tz_convert("UTC").tz_localize(None)
+    if parsed_index.has_duplicates:
+        raise ValueError(f"Index tanggal {label} mengandung tanggal duplikat; agregasikan secara eksplisit.")
+    result.index = parsed_index
     result = result.sort_index()
-    if result.index.has_duplicates:
-        result = result.groupby(level=0).last()
     if result.isna().any() or not all(math.isfinite(float(x)) for x in result):
         raise ValueError(f"Data {label} mengandung nilai non-finite.")
     if (result <= 0).any():
@@ -94,8 +100,17 @@ def run_transaction_aware_portfolio(
     base = str(base_currency).upper().strip()
     if base not in {"IDR", "USD"}:
         raise ValueError("Base currency hanya mendukung IDR atau USD.")
-    if max_price_gap_days < 0 or max_fx_gap_days < 0:
-        raise ValueError("Toleransi umur harga/FX tidak boleh negatif.")
+    gap_limits = {}
+    for name, value in (("max_price_gap_days", max_price_gap_days), ("max_fx_gap_days", max_fx_gap_days)):
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{name} harus berupa bilangan bulat non-negatif.") from None
+        if not math.isfinite(numeric) or numeric < 0 or not numeric.is_integer():
+            raise ValueError(f"{name} harus berupa bilangan bulat non-negatif.")
+        gap_limits[name] = int(numeric)
+    max_price_gap_days = gap_limits["max_price_gap_days"]
+    max_fx_gap_days = gap_limits["max_fx_gap_days"]
     cash = float(initial_cash)
     if not math.isfinite(cash) or cash < 0:
         raise ValueError("Initial cash harus finite dan tidak negatif.")
