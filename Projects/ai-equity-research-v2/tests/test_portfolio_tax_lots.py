@@ -106,3 +106,25 @@ def test_opening_lot_rejects_invalid_acquisition_date():
         calculate_tax_lots([], opening_lots=[
             {"ticker": "BBCA", "quantity": 5, "unit_cost": 80, "acquisition_date": "not-a-date"},
         ])
+
+def test_average_cost_sale_preserves_lots_acquired_after_sale_date():
+    result = calculate_tax_lots(
+        [{
+            "date": "2026-02-01", "event_type": "SELL", "amount": 600,
+            "ticker": "BBCA", "quantity": 5, "price": 120,
+        }],
+        method="AVERAGE_COST",
+        opening_lots=[
+            {"ticker": "BBCA", "quantity": 10, "unit_cost": 100, "acquisition_date": "2026-01-01"},
+            {"ticker": "BBCA", "quantity": 5, "unit_cost": 200, "acquisition_date": "2026-03-01"},
+        ],
+    )
+    assert result["realized_cost_basis"] == pytest.approx(500)
+    assert result["realized_pnl"] == pytest.approx(100)
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(10)
+    assert result["open_cost_basis"] == pytest.approx(1500)
+    future_lot = result["open_lots"].loc[
+        result["open_lots"]["acquisition_date"].eq("2026-03-01")
+    ].iloc[0]
+    assert future_lot["quantity"] == pytest.approx(5)
+    assert future_lot["unit_cost"] == pytest.approx(200)
