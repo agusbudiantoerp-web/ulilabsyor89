@@ -6,6 +6,7 @@ import math
 import pandas as pd
 from market_engine import resolve_market_ticker
 from market_data_contract import build_market_data_metadata
+from market_data_provider import YahooFinanceProvider
 
 RULESET_VERSION = "1.0.0"
 
@@ -50,14 +51,9 @@ def calculate_indicators(bars: pd.DataFrame) -> pd.DataFrame:
 
 def load_daily_history(symbol: str, market: str, period: str = "1y") -> tuple[pd.DataFrame, dict]:
     meta = resolve_market_ticker(symbol, market)
-    try:
-        import yfinance as yf
-    except ImportError as exc:
-        raise RuntimeError("Paket yfinance belum terpasang.") from exc
-    bars = yf.download(meta["ticker"], period=period, interval="1d", auto_adjust=True,
-                       progress=False, threads=False)
-    if bars is None or bars.empty:
-        raise ValueError(f"Data harian {meta['ticker']} tidak tersedia.")
+    bars = YahooFinanceProvider().fetch_history(
+        meta["ticker"], period=period, interval="1d", auto_adjust=True
+    )
     required = ["Open", "High", "Low", "Close", "Volume"]
 
     if isinstance(bars.columns, pd.MultiIndex):
