@@ -196,3 +196,20 @@ def test_transaction_replay_rejects_invalid_price_gap_configuration(gap):
             [],
             max_price_gap_days=gap,
         )
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"initial_cash": True},
+    {"initial_positions": {"AAA": True}},
+    {"max_price_gap_days": True},
+    {"max_fx_gap_days": False},
+])
+def test_transaction_replay_rejects_boolean_numeric_inputs(kwargs):
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="boolean|bilangan bulat"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 101.0], index=dates)},
+            {"AAA": "IDR"},
+            [],
+            **kwargs,
+        )
