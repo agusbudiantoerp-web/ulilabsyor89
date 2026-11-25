@@ -265,3 +265,44 @@ def test_transaction_replay_rejects_numpy_boolean_opening_inputs(kwargs):
             {"AAA": pd.Series([100.0, 101.0], index=dates)},
             {"AAA": "IDR"}, [], **kwargs,
         )
+
+
+def test_provider_split_adjusted_close_is_restored_before_share_split_replay():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"])
+    result = run_transaction_aware_portfolio(
+        {"AAA": pd.Series([50.0, 55.0, 60.0], index=dates)},
+        {"AAA": "IDR"},
+        [{"date": "2026-01-02", "event_type": "SPLIT", "amount": 0, "ticker": "AAA", "quantity": 2}],
+        initial_positions={"AAA": 10},
+        price_adjustment_policy="PROVIDER_SPLIT_ADJUSTED",
+    )
+    assert result["curve"].loc[pd.Timestamp("2026-01-01"), "market_value"] == pytest.approx(1000)
+    assert result["curve"].loc[pd.Timestamp("2026-01-02"), "market_value"] == pytest.approx(1100)
+    assert result["ending_market_value"] == pytest.approx(1200)
+    assert result["ending_positions"]["AAA"] == pytest.approx(20)
+    assert result["price_adjustment_policy"] == "PROVIDER_SPLIT_ADJUSTED"
+
+
+def test_same_day_split_precedes_buy_even_when_buy_row_is_first():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    result = run_transaction_aware_portfolio(
+        {"AAA": pd.Series([50.0, 55.0], index=dates)},
+        {"AAA": "IDR"},
+        [
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 500, "ticker": "AAA", "quantity": 10, "price": 50},
+            {"date": "2026-01-01", "event_type": "SPLIT", "amount": 0, "ticker": "AAA", "quantity": 2},
+        ],
+        initial_cash=500,
+        initial_positions={"AAA": 10},
+    )
+    assert result["ending_positions"]["AAA"] == pytest.approx(30)
+    assert result["ending_market_value"] == pytest.approx(1650)
+
+
+def test_transaction_replay_rejects_unknown_price_adjustment_policy():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="price_adjustment_policy"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 101.0], index=dates)},
+            {"AAA": "IDR"}, [], price_adjustment_policy="ADJ_CLOSE",
+        )
