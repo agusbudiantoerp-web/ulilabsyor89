@@ -168,6 +168,12 @@ def run_transaction_aware_portfolio(
             amount = float(row["amount"])
             quantity = float(row["quantity"]) if pd.notna(row["quantity"]) else 0.0
             if kind in {"DEPOSIT", "WITHDRAWAL"}:
+                event_currency = _event_currency(row, base)
+                if event_currency != base:
+                    raise ValueError(
+                        f"Nominal DEPOSIT/WITHDRAWAL harus dalam base currency {base}; "
+                        "konversi kas lintas mata uang tidak dilakukan otomatis."
+                    )
                 if kind == "DEPOSIT":
                     cash += amount
                     external_flow += amount
