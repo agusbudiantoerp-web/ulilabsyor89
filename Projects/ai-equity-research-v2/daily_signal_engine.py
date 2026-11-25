@@ -5,6 +5,7 @@ from typing import Any
 import math
 import pandas as pd
 from market_engine import resolve_market_ticker
+from market_data_contract import build_market_data_metadata
 
 RULESET_VERSION = "1.0.0"
 
@@ -92,6 +93,9 @@ def load_daily_history(symbol: str, market: str, period: str = "1y") -> tuple[pd
     if len(bars) < 60:
         raise ValueError("Minimal 60 sesi perdagangan diperlukan.")
     meta.update({"source": "Yahoo Finance", "retrieved_at": datetime.now(timezone.utc).isoformat()})
+    meta["data_provenance"] = build_market_data_metadata(
+        bars, meta, adjustment_mode="auto_adjusted"
+    )
     return bars, meta
 
 def evaluate_signal(bars: pd.DataFrame, market_meta: dict | None = None,
