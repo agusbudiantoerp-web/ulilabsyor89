@@ -55,3 +55,16 @@ def test_calendar_requires_source_and_stock_split_ratio():
         normalize_corporate_events([base_event(source=" ")])
     with pytest.raises(ValueError, match="Split ratio wajib"):
         normalize_corporate_events([base_event(event_type="STOCK_SPLIT")])
+
+
+
+def test_calendar_rejects_non_finite_amount_and_split_ratio():
+    with pytest.raises(ValueError, match="amount harus berupa angka finite"):
+        normalize_corporate_events([base_event(amount=float("inf"))])
+    with pytest.raises(ValueError, match="split_ratio harus berupa angka finite"):
+        normalize_corporate_events([base_event(event_type="STOCK_SPLIT", split_ratio=float("inf"))])
+
+
+def test_calendar_rejects_malformed_source_url_when_provided():
+    with pytest.raises(ValueError, match="source_url harus berupa URL"):
+        normalize_corporate_events([base_event(source_url="issuer-portal/report.pdf")])
