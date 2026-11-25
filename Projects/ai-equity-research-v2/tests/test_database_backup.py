@@ -217,3 +217,64 @@ def test_sqlite_restore_refuses_target_with_wal_or_shm_sidecars(tmp_path):
 
     with sqlite3.connect(target) as db:
         assert db.execute("SELECT value FROM sample").fetchone()[0] == "existing-value"
+
+
+def test_postgres_backup_uses_private_libpq_environment_and_redacted_manifest(tmp_path, monkeypatch):
+    import hashlib
+    import subprocess
+    import database_backup
+
+    database_url = "postgresql://backup_user:s3cr%40t@db.example.net:5432/research_db?sslmode=require"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setattr(database_backup.shutil, "which", lambda name: f"/usr/bin/{name}")
+    calls = []
+
+    def fake_run(command, *, env, check, capture_output, text, timeout):
+        calls.append((command, env.copy(), timeout))
+        if command[0].endswith("pg_dump"):
+            output = Path(command[command.index("--file") + 1])
+            output.write_bytes(b"postgres-custom-dump")
+        return subprocess.CompletedProcess(command, 0, stdout="validated", stderr="")
+
+    monkeypatch.setattr(database_backup.subprocess, "run", fake_run)
+    result = database_backup.backup_postgres(tmp_path / "backups")
+
+    assert len(calls) == 2
+    dump_command, dump_env, dump_timeout = calls[0]
+    restore_command, restore_env, restore_timeout = calls[1]
+    assert "--dbname" not in dump_command
+    assert database_url not in " ".join(dump_command + restore_command)
+    assert "s3cr@t" not in " ".join(dump_command + restore_command)
+    assert dump_env["PGPASSWORD"] == "s3cr@t"
+    assert dump_env["PGSSLMODE"] == "require"
+    assert "DATABASE_URL" not in dump_env
+    assert dump_timeout == 900
+    assert restore_command[1:3] == ["--list", result["backup"]]
+    assert restore_timeout == 120
+
+    manifest_text = Path(result["manifest"]).read_text(encoding="utf-8")
+    assert "DATABASE_URL (value redacted)" in manifest_text
+    assert "s3cr@t" not in manifest_text
+    assert database_backup.verify_backup_manifest(result["manifest"])["sha256"] == hashlib.sha256(
+        Path(result["backup"]).read_bytes()
+    ).hexdigest()
+
+
+def test_postgres_backup_removes_partial_dump_when_validation_fails(tmp_path, monkeypatch):
+    import subprocess
+    import database_backup
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:secret@db.example.net/research_db")
+    monkeypatch.setattr(database_backup.shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    def fake_run(command, **kwargs):
+        if command[0].endswith("pg_dump"):
+            Path(command[command.index("--file") + 1]).write_bytes(b"partial-dump")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        raise subprocess.CalledProcessError(1, command, stderr="invalid archive")
+
+    monkeypatch.setattr(database_backup.subprocess, "run", fake_run)
+    with pytest.raises(subprocess.CalledProcessError):
+        database_backup.backup_postgres(tmp_path / "backups")
+    assert list((tmp_path / "backups").glob("*.dump")) == []
+    assert list((tmp_path / "backups").glob("*.manifest.json")) == []
