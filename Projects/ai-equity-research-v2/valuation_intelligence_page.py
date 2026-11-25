@@ -118,7 +118,7 @@ def render_valuation_intelligence() -> None:
             net_debt = c4.number_input("Net debt (+) / net cash (-)", value=0.0)
             wacc_pct = c5.number_input("WACC (%)", min_value=0.1, max_value=50.0, value=12.0)
             terminal_pct = c6.number_input("Terminal growth (%)", min_value=-5.0, max_value=15.0, value=3.0)
-            fx_rate = st.number_input("FX rate: quote currency per 1 model currency", min_value=0.000001, value=1.0, help="Contoh: harga pasar dalam IDR, FCF/net debt dalam USD → masukkan jumlah IDR untuk 1 USD. Jika mata uang sama, gunakan 1.")
+            fx_rate = st.number_input("FX rate: quote currency per 1 model currency", min_value=0.000001, value=18000.0, help="Contoh: harga pasar dalam IDR, FCF/net debt dalam USD → masukkan jumlah IDR untuk 1 USD. Jika mata uang sama, gunakan 1.")
             c10, c11 = st.columns(2)
             model_currency = c10.text_input("Mata uang FCF / net debt", "USD").strip().upper()
             quote_currency = c11.text_input("Mata uang harga pasar", "IDR").strip().upper()
@@ -144,8 +144,8 @@ def render_valuation_intelligence() -> None:
         if result:
             c1, c2, c3 = st.columns(3)
             c1.metric("Implied FCF growth", f"{result['implied_fcf_growth_pct']:.2f}%")
-            c2.metric("Market price", f"{result['market_price']:,.2f}")
-            c3.metric("Reconciled price", f"{result['implied_price']:,.2f}")
+            c2.metric("Market price (" + result.get("quote_currency", "quote") + ")", f"{result['market_price']:,.2f}")
+            c3.metric("Reconciled price (" + result.get("quote_currency", "quote") + ")", f"{result['implied_price']:,.2f}")
             st.caption("Komponen enterprise/equity valuation di bawah ditampilkan dalam mata uang model (FCF dan net debt). Harga pasar dan implied price ditampilkan dalam mata uang quote.")
             st.dataframe(pd.DataFrame([
                 {"Komponen": "PV explicit FCF", "Nilai": result["pv_explicit_fcf"]},
