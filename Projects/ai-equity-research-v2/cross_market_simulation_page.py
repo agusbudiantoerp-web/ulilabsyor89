@@ -53,11 +53,15 @@ def render_cross_market_simulation() -> None:
                                 currencies[symbol] = currency
                             except Exception as exc:
                                 errors.append({"ticker": symbol, "market": market, "error": type(exc).__name__})
-                    try:
-                        fx = _download_usdidr(period)
-                    except Exception as exc:
+                    needs_fx = any(currency != base for currency in currencies.values())
+                    if needs_fx:
+                        try:
+                            fx = _download_usdidr(period)
+                        except Exception as exc:
+                            fx = None
+                            errors.append({"ticker": "USDIDR=X", "market": "FX", "error": type(exc).__name__})
+                    else:
                         fx = None
-                        errors.append({"ticker": "USDIDR=X", "market": "FX", "error": type(exc).__name__})
                 if closes and fx is not None:
                     weights = {symbol: 1.0 / len(closes) for symbol in closes}
                     try:
