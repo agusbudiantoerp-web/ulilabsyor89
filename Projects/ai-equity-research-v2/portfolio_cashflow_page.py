@@ -8,6 +8,7 @@ from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, 
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
 from security_controls import record_audit_event
+from report_export_utils import safe_csv_bytes
 
 
 def _audit_cashflow(owner, role, action, resource_type, resource_id, details):
@@ -71,7 +72,7 @@ def render_portfolio_cashflow() -> None:
     if not events.empty:
         st.dataframe(events, use_container_width=True, hide_index=True)
         st.download_button(
-            "Unduh event ledger CSV", events.to_csv(index=False).encode("utf-8-sig"),
+            "Unduh event ledger CSV", safe_csv_bytes(events),
             file_name="portfolio_cashflow_ledger.csv", mime="text/csv",
         )
         delete_options = {
