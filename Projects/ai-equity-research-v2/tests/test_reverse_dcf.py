@@ -54,3 +54,11 @@ def test_reverse_dcf_flags_price_outside_growth_range():
             net_debt=0, wacc=0.10, terminal_growth=0.03,
             forecast_years=5, lower_growth=-0.1, upper_growth=0.1,
         )
+
+
+def test_reverse_dcf_rejects_terminal_growth_at_or_below_minus_100_percent():
+    with pytest.raises(ValueError, match="WACC"):
+        reverse_dcf_implied_growth(
+            current_fcf=100, market_price=10, diluted_shares=10,
+            net_debt=0, wacc=0.10, terminal_growth=-1.1,
+        )
