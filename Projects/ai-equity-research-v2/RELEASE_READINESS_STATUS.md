@@ -7,13 +7,13 @@ Last updated: 2026-11-25
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
 - Production branch `main` remains unchanged.
-- Latest observed development CI: **324 passed, 5 skipped** on commit `3aba7bae9712d27a7f59773ea5ee810b1f022930`.
+- Latest observed development CI: **324 passed, 5 skipped** on commit `779712bfe85fc9cd869c74d570b457c0789d1c8a`.
 - No production deployment, secret rotation, production database mutation or live broker connection was performed.
 
 ## Implemented in the development branch
 
 - IDX/US research, DCF, Multi-Stage DCF, Reverse DCF and cross-model EV/equity/price bridge checks.
-- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow with strict currency/URL/ticker/numeric validation and separate invalid-value reporting. Filing validation checks three-letter currency codes, structurally valid HTTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, distinguishes invalid provider values from genuinely missing data, and exposes invalid-value counts separately in the valuation UI.
+- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow with strict currency/URL/ticker/numeric validation and separate invalid-value reporting. Filing validation checks three-letter currency codes, structurally valid HTTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, distinguishes invalid provider values from genuinely missing data, and exposes invalid-value counts separately in the valuation UI. Multi-Stage DCF now returns explicit unavailable results for non-finite forecast/terminal calculations rather than leaking numerical overflow.
 - Portfolio cash-flow ledger, TWR/XIRR, FIFO/weighted-average tax lots, realized P&L, opening lots and split basis adjustments.
 - Manual broker-statement CSV reconciliation with matched/missing/unexpected and amount/quantity/price/date exceptions.
 - Transaction-aware historical portfolio replay with explicit trade fills, optional settlement dates, reserved unsettled buy payables, unsettled sell receivables, stale-price/FX checks and external-flow-adjusted TWR.
