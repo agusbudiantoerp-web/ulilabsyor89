@@ -6,10 +6,19 @@ import streamlit as st
 
 from corporate_action_calendar import normalize_corporate_events
 from corporate_event_store import create_event, create_events, delete_event, list_events
+from security_controls import record_audit_event
+
+
+def _audit_corporate_event(owner, role, action, event_id, details):
+    try:
+        record_audit_event(owner, role, action, "corporate_event", event_id, details=details)
+    except Exception as exc:
+        st.warning(f"Event tersimpan, tetapi audit event gagal dicatat ({type(exc).__name__}).")
 
 
 def render_corporate_action_calendar() -> None:
     owner = str(st.session_state.get("_auth_subject_id") or "").strip()
+    role = st.session_state.get("_auth_role")
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
@@ -28,6 +37,7 @@ def render_corporate_action_calendar() -> None:
             records = normalized_import["events"].to_dict("records")
             created_ids = create_events(owner, records)
             saved_count = len(created_ids)
+            _audit_corporate_event(owner, role, "CORPORATE_EVENT_BULK_IMPORT", "bulk:" + str(len(created_ids)), {"count": saved_count})
             st.success(f"{saved_count} event berhasil diimpor.")
             st.rerun()
         except Exception as exc:
@@ -70,6 +80,7 @@ def render_corporate_action_calendar() -> None:
         try:
             normalized = normalize_corporate_events([row])
             event_id = create_event(owner, normalized["events"].iloc[0].to_dict())
+            _audit_corporate_event(owner, role, "CORPORATE_EVENT_CREATE", event_id, {"ticker": ticker.upper(), "event_type": event_type})
             st.success(f"Event tersimpan permanen. ID: {event_id[:8]}")
             st.rerun()
         except Exception as exc:
@@ -93,6 +104,7 @@ def render_corporate_action_calendar() -> None:
         if st.button("Hapus event terpilih", key="corporate_event_delete"):
             try:
                 if delete_event(owner, choices[selected]):
+                    _audit_corporate_event(owner, role, "CORPORATE_EVENT_DELETE", choices[selected], {})
                     st.success("Event dihapus.")
                     st.rerun()
                 else:
