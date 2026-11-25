@@ -15,7 +15,7 @@ The current workspace already includes DCF and Multi-Stage DCF, scenario analysi
 - E4: bounded reverse DCF solver, enterprise-to-equity bridge and UI are implemented. Independent reconciliation against the existing multi-stage DCF and scenario sensitivity integration remain.
 - E5: source-attributed event calendar, stale/duplicate/estimated flags and owner-scoped SQLite/PostgreSQL persistence are implemented. Automated exchange/issuer feed and adjusted-price corporate-action reconciliation remain.
 - E6: seeded multivariate Monte Carlo, PSD covariance safeguard, VaR/CVaR, drawdown and user-defined price shocks are implemented. FX/rate/sector joint shocks and regime-switching models remain.
-- E8: owner-scoped versioned thesis records, role permission, PostgreSQL schema/health grants, UI and links to saved research runs are implemented. Reviewer approval workflow and report-level linkage remain.
+- E8: owner-scoped versioned thesis records, role permission, PostgreSQL schema/health grants, UI, saved-run links and assigned reviewer approval workflow are implemented. Report-level linkage and richer governance analytics remain.
 
 These are implementation milestones, not completion claims for the full acceptance criteria below. All remaining items are still part of feature development before deployment.
 
