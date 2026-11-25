@@ -65,13 +65,11 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
                 total_basis = sum(lot["quantity"] * lot["unit_cost"] for lot in lots[ticker])
                 average = total_basis / available if available else 0.0
                 basis = quantity * average
-                remaining = quantity
-                for lot in lots[ticker]:
-                    take = min(lot["quantity"], remaining)
-                    lot["quantity"] -= take
-                    remaining -= take
-                    if remaining <= 1e-9:
-                        break
+                remaining_quantity = max(0.0, available - quantity)
+                lots[ticker] = ([{
+                    "ticker": ticker, "acquisition_date": "AVERAGE_COST",
+                    "quantity": remaining_quantity, "unit_cost": average,
+                }] if remaining_quantity > 1e-9 else [])
             else:
                 remaining = quantity
                 basis = 0.0
