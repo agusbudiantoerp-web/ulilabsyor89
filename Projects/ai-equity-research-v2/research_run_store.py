@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import numbers
 import os
 import sqlite3
 import uuid
@@ -187,7 +188,9 @@ def list_runs(owner_id: str, limit: int = 100, path: str | None = None) -> list[
     owner = str(owner_id or "").strip()
     if not owner:
         raise ValueError("Owner identity wajib diisi.")
-    bounded = max(1, min(int(limit), 500))
+    if isinstance(limit, bool) or not isinstance(limit, numbers.Integral) or int(limit) < 1:
+        raise ValueError("Limit harus berupa bilangan bulat positif.")
+    bounded = min(int(limit), 500)
     initialize(path)
     query = """
         SELECT id,run_type,market,symbols_json,parameters_json,created_at
