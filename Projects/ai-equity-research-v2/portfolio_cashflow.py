@@ -17,6 +17,23 @@ EXTERNAL_FLOW_TYPES = {"DEPOSIT", "WITHDRAWAL"}
 CASH_EVENT_TYPES = {"DEPOSIT", "WITHDRAWAL", "DIVIDEND", "BUY", "SELL", "FEE", "TAX"}
 
 
+def _reject_boolean_values(frame: pd.DataFrame, columns: tuple[str, ...]) -> None:
+    for column in columns:
+        if column in frame and frame[column].map(
+            lambda value: isinstance(value, bool) or type(value).__name__ == "bool_"
+        ).any():
+            raise ValueError(f"{column} tidak boleh berupa boolean.")
+
+
+def _parse_date_series(series: pd.Series, label: str) -> pd.Series:
+    if series.map(lambda value: isinstance(value, numbers.Number)).any():
+        raise ValueError(f"{label} tidak valid.")
+    parsed = pd.to_datetime(series, errors="coerce", utc=True)
+    if parsed.isna().any():
+        raise ValueError(f"{label} tidak valid.")
+    return parsed
+
+
 def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
     frame = events.copy() if isinstance(events, pd.DataFrame) else pd.DataFrame(list(events))
     required = {"date", "event_type", "amount"}
@@ -133,7 +150,8 @@ def calculate_twr(valuations: pd.DataFrame) -> dict:
     if not required.issubset(valuations.columns):
         raise ValueError("Valuations wajib memiliki date, portfolio_value, external_flow.")
     frame = valuations.copy()
-    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    _reject_boolean_values(frame, ("date", "portfolio_value", "external_flow"))
+    frame["date"] = _parse_date_series(frame["date"], "Tanggal valuasi")
     frame["portfolio_value"] = pd.to_numeric(frame["portfolio_value"], errors="coerce")
     frame["external_flow"] = pd.to_numeric(frame["external_flow"], errors="coerce")
     if frame[["date", "portfolio_value", "external_flow"]].isna().any().any():
@@ -174,17 +192,24 @@ def calculate_xirr(cash_flows: pd.DataFrame | Iterable[dict], *, ending_value: f
     frame = cash_flows.copy() if isinstance(cash_flows, pd.DataFrame) else pd.DataFrame(list(cash_flows))
     if not {"date", "amount"}.issubset(frame.columns):
         raise ValueError("Cash flows wajib memiliki date dan amount.")
-    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    _reject_boolean_values(frame, ("date", "amount"))
+    frame["date"] = _parse_date_series(frame["date"], "Tanggal cash flow")
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
     if frame.empty or frame[["date", "amount"]].isna().any().any():
         raise ValueError("Cash flow kosong atau tidak valid.")
     if not all(math.isfinite(float(x)) for x in frame["amount"]):
         raise ValueError("Cash flow harus finite.")
+    if isinstance(ending_value, bool) or type(ending_value).__name__ == "bool_":
+        raise ValueError("Ending value harus berupa angka, bukan boolean.")
     end_value = float(ending_value)
     if not math.isfinite(end_value) or end_value < 0:
         raise ValueError("Ending value harus finite dan tidak negatif.")
     if ending_date is not None:
-        end = pd.Timestamp(ending_date)
+        if isinstance(ending_date, numbers.Number) or isinstance(ending_date, bool):
+            raise ValueError("Ending date tidak valid.")
+        end = pd.to_datetime(ending_date, errors="coerce", utc=True)
+        if pd.isna(end):
+            raise ValueError("Ending date tidak valid.")
     elif end_value > 0:
         end = frame["date"].max()
     else:
