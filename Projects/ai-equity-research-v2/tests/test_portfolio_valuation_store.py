@@ -78,3 +78,26 @@ def test_valuation_snapshot_replacement_rolls_back_when_insert_fails(tmp_path):
     preserved = list_valuations("owner", "main", path=db)
     assert len(preserved) == 2
     assert preserved["date"].tolist() == ["2026-01-01", "2026-02-01"]
+
+
+@pytest.mark.parametrize("field,value", [
+    ("portfolio_value", True),
+    ("external_flow", False),
+])
+def test_valuation_snapshots_reject_boolean_numeric_fields(tmp_path, field, value):
+    db = str(tmp_path / "valuations.sqlite")
+    invalid = sample()
+    invalid.loc[0, field] = value
+    with pytest.raises(ValueError, match="boolean"):
+        save_valuations("owner", "main", invalid, path=db)
+    assert list_valuations("owner", "main", path=db).empty
+
+
+@pytest.mark.parametrize("value", [True, False, 0, 1, 1767225600000000000])
+def test_valuation_snapshots_reject_numeric_dates(tmp_path, value):
+    db = str(tmp_path / "valuations.sqlite")
+    invalid = sample()
+    invalid.loc[0, "date"] = value
+    with pytest.raises(ValueError, match="Tanggal"):
+        save_valuations("owner", "main", invalid, path=db)
+    assert list_valuations("owner", "main", path=db).empty
