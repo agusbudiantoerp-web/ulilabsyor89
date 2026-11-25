@@ -72,7 +72,9 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
             except (TypeError, ValueError):
                 provider_number = filing_number = None
             variance = None
-            if not period_ok:
+            if not period_ok and not currency_ok:
+                status = "PERIOD_AND_CURRENCY_MISMATCH"
+            elif not period_ok:
                 status = "PERIOD_MISMATCH"
             elif not currency_ok:
                 status = "CURRENCY_MISMATCH"
@@ -103,8 +105,8 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
         "metric_count": int(len(details)),
         "matched_count": int(counts.get("MATCH", 0)),
         "mismatch_count": int(counts.get("MISMATCH", 0)),
-        "period_mismatch_count": int(counts.get("PERIOD_MISMATCH", 0)),
-        "currency_mismatch_count": int(counts.get("CURRENCY_MISMATCH", 0)),
+        "period_mismatch_count": int(counts.get("PERIOD_MISMATCH", 0) + counts.get("PERIOD_AND_CURRENCY_MISMATCH", 0)),
+        "currency_mismatch_count": int(counts.get("CURRENCY_MISMATCH", 0) + counts.get("PERIOD_AND_CURRENCY_MISMATCH", 0)),
         "missing_count": int(counts.get("FILING_MISSING", 0) + counts.get("PROVIDER_MISSING", 0)),
         "status_counts": counts,
         "details": details,
