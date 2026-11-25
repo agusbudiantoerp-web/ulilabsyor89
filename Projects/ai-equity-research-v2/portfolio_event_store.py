@@ -104,10 +104,10 @@ def list_events(owner_id,*,path=None,limit=5000):
     initialize(path)
     if path is None and _url():
         with _pg() as db:
-            rows=db.execute("SELECT id,payload_json,created_at FROM portfolio_cashflow_events WHERE owner_id=%s ORDER BY event_date,id LIMIT %s",(owner,bounded)).fetchall()
+            rows=db.execute("SELECT id,payload_json,created_at FROM portfolio_cashflow_events WHERE owner_id=%s ORDER BY event_date,created_at,id LIMIT %s",(owner,bounded)).fetchall()
     else:
         with _sqlite(path) as db:
-            rows=db.execute("SELECT id,payload_json,created_at FROM portfolio_cashflow_events WHERE owner_id=? ORDER BY event_date,id LIMIT ?",(owner,bounded)).fetchall()
+            rows=db.execute("SELECT id,payload_json,created_at FROM portfolio_cashflow_events WHERE owner_id=? ORDER BY event_date,created_at,id LIMIT ?",(owner,bounded)).fetchall()
     result=[]
     for row in rows:
         payload=row["payload_json"]
