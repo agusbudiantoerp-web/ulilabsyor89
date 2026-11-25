@@ -8,9 +8,10 @@ Last updated: 2026-11-25
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
 - Latest development commit at this update: `09a64fbe1b552d3c65890818ed45def0e47f9040`.
 - Production branch `main` remains unchanged.
-- Latest completed full CI run: **445 passed, 0 failed, 0 skipped**. Python compilation and PostgreSQL 16 integration service both passed on the latest PR merge commit. [GitHub Actions latest development run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45579629778).
+- Latest completed full CI run: **445 passed, 0 failed, 0 skipped**. Python compilation and PostgreSQL 16 integration service both passed on the latest development commit. [GitHub Actions latest development run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45579629778).
 - CI provisions an isolated PostgreSQL 16 service for the complete automated and PostgreSQL integration test suite. Database credentials are ephemeral test-only values, not production secrets.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
+- Backup manifests can now be independently verified against artifact size and SHA-256, with POSIX/Windows path-traversal checks and a `database_backup.py verify --manifest ...` CLI mode.
 - No production deployment, secret rotation, production database mutation or live broker connection was performed.
 
 ## Implemented in the development branch
