@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from daily_signal_engine import load_daily_history
+from market_data_provider import YahooFinanceProvider
 from market_intelligence import (
     BENCHMARKS, audit_fundamental_record, audit_price_history,
     classify_market_regime, relative_strength,
@@ -30,13 +31,10 @@ def _audit_event_safely(
 
 
 def _download_benchmark(market: str, period: str) -> pd.DataFrame:
-    import yfinance as yf
     ticker = BENCHMARKS[market]
-    frame = yf.download(ticker, period=period, interval="1d", auto_adjust=True,
-                        progress=False, threads=False)
-    if frame is None or frame.empty:
-        raise ValueError(f"Benchmark {ticker} tidak tersedia dari Yahoo Finance.")
-    return frame
+    return YahooFinanceProvider().fetch_history(
+        ticker, period=period, interval="1d", auto_adjust=True
+    )
 
 
 def render_market_intelligence() -> None:
