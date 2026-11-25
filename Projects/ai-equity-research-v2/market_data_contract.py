@@ -48,7 +48,7 @@ def build_market_data_metadata(
 
     # Validate the index independently from OHLCV so malformed timestamps are
     # visible rather than causing an opaque .date() / max() failure downstream.
-    parsed_dates = pd.DatetimeIndex(pd.to_datetime(bars.index, errors="coerce", utc=True))
+    parsed_dates = pd.DatetimeIndex([\n        pd.to_datetime(value, errors="coerce", utc=True) for value in bars.index\n    ])
     invalid_dates = int(parsed_dates.isna().sum())
     valid_dates = parsed_dates[~parsed_dates.isna()]
     if invalid_dates:
