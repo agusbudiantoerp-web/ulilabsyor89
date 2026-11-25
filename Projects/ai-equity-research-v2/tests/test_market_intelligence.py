@@ -109,3 +109,19 @@ def test_price_history_audit_accepts_timezone_aware_dates():
     result = audit_price_history(frame)
     assert result["status"] in {"PASS", "WARNING"}
     assert result["last_bar"] == "2024-11-01"
+
+
+
+@pytest.mark.parametrize("bad_value", [True, False, np.bool_(True)])
+def test_fundamental_audit_rejects_boolean_numeric_values(bad_value):
+    result = audit_fundamental_record({
+        "trailingPE": bad_value, "marketCap": 1000, "currency": "IDR",
+    })
+    assert result["status"] == "FAIL"
+    assert "trailingPE" in result["invalid_fields"]
+
+
+@pytest.mark.parametrize("record", [None, [], "not-a-record", 42])
+def test_fundamental_audit_requires_dictionary(record):
+    with pytest.raises(ValueError, match="dictionary"):
+        audit_fundamental_record(record)
