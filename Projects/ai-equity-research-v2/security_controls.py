@@ -21,11 +21,11 @@ ROLE_PERMISSIONS = {
     "analyst": {"view_dashboard", "view_reports", "run_analysis", "export_reports", "manage_thesis"},
     "portfolio_manager": {
         "view_dashboard", "view_reports", "run_analysis", "export_reports",
-        "manage_portfolio", "manage_thesis",
+        "manage_portfolio", "manage_thesis", "approve_thesis",
     },
     "admin": {
         "view_dashboard", "view_reports", "run_analysis", "export_reports",
-        "manage_portfolio", "manage_thesis", "manage_users", "manage_model_config", "view_audit",
+        "manage_portfolio", "manage_thesis", "approve_thesis", "manage_users", "manage_model_config", "view_audit",
     },
 }
 
