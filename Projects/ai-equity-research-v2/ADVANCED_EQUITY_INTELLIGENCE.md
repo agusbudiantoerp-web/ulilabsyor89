@@ -104,8 +104,9 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - Reproducible multivariate-normal daily return simulations with a user-selectable seed, horizon and simulation count.
 - Reports return percentiles, probability of loss, VaR, CVaR and median maximum drawdown.
 - Covariance eigenvalues are clipped at zero when numerical estimation yields a non-positive-semidefinite covariance matrix.
+- Optional two-state Markov regime-switching simulation uses rolling 20-session portfolio volatility to label calm/stress history, estimates separate means/covariances, and accepts user-supplied transition probabilities. The UI shows regime sample counts and requires at least 20 observations in each state.
 - User-defined instantaneous price shocks calculate weighted asset contributions and unallocated cash. Factor stress combines FX, interest-rate and sector shocks using explicit user-supplied betas; FX beta is initialized from the asset/base currency relationship.
-- Simulations assume IID multivariate-normal returns and exclude regime changes, parameter uncertainty, taxes, liquidity, FX shocks unless already embedded in returns, and corporate actions. They are scenarios, not forecasts.
+- The basic simulation assumes IID multivariate-normal returns. The optional regime model assumes a two-state Markov process and regime-conditional multivariate-normal returns; historical regime labels are based on a user-selected rolling-volatility threshold, not an independently validated classifier. Both exclude parameter uncertainty, taxes, liquidity and corporate actions unless already embedded in returns. They are scenarios, not forecasts.
 
 ## 16. Corporate Actions & Event Calendar
 
