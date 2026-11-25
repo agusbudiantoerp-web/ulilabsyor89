@@ -106,6 +106,8 @@ def relative_strength(asset_bars: pd.DataFrame, benchmark_bars: pd.DataFrame) ->
 
 def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> dict[str, Any]:
     """Return actionable data-quality flags without silently repairing source values."""
+    if isinstance(max_age_calendar_days, bool) or not isinstance(max_age_calendar_days, int) or not 0 <= max_age_calendar_days <= 365:
+        raise ValueError("max_age_calendar_days harus integer 0 sampai 365.")
     if bars is None or bars.empty:
         return {"status": "FAIL", "checks": [{"severity": "ERROR", "message": "Data harga kosong."}]}
     frame = bars.copy()
@@ -115,6 +117,18 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
     if missing:
         checks.append({"severity": "ERROR", "message": f"Kolom wajib hilang: {', '.join(missing)}."})
         return {"status": "FAIL", "checks": checks, "rows": int(len(frame))}
+    try:
+        dates = pd.DatetimeIndex(pd.to_datetime(frame.index, errors="coerce"))
+    except (TypeError, ValueError) as exc:
+        return {"status": "FAIL", "rows": int(len(frame)), "checks": [
+            {"severity": "ERROR", "message": f"Index tanggal tidak valid atau timezone tidak konsisten: {exc}."}
+        ]}
+    if dates.isna().any():
+        return {"status": "FAIL", "rows": int(len(frame)), "checks": [
+            {"severity": "ERROR", "message": "Index tanggal mengandung tanggal tidak valid."}
+        ]}
+    if dates.tz is not None:
+        dates = dates.tz_localize(None)
     numeric = frame[required].apply(pd.to_numeric, errors="coerce")
     invalid = int(numeric[["Open", "High", "Low", "Close"]].isna().any(axis=1).sum())
     if invalid:
@@ -135,10 +149,9 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
     negative_volume = int((numeric["Volume"] < 0).sum())
     if negative_volume:
         checks.append({"severity": "ERROR", "message": f"{negative_volume} bar memiliki volume negatif."})
-    duplicate_dates = int(frame.index.duplicated().sum())
+    duplicate_dates = int(dates.duplicated().sum())
     if duplicate_dates:
         checks.append({"severity": "WARNING", "message": f"{duplicate_dates} tanggal duplikat."})
-    dates = pd.to_datetime(frame.index)
     age = max(0, (pd.Timestamp.now().date() - dates.max().date()).days)
     if age > max_age_calendar_days:
         checks.append({"severity": "WARNING", "message": f"Bar terakhir berumur {age} hari kalender."})
