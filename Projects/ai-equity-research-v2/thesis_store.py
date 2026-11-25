@@ -97,6 +97,7 @@ def initialize(path=None):
                     FOREIGN KEY(thesis_id) REFERENCES research_theses(id) ON DELETE CASCADE)""")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_reviewer ON research_thesis_reviews(reviewer_id,status,created_at DESC)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_owner ON research_thesis_reviews(owner_id,thesis_id,created_at DESC)")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_pending_thesis_review ON research_thesis_reviews(thesis_id,owner_id,reviewer_id,version) WHERE status='PENDING'")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_theses_owner_updated ON research_theses(owner_id,updated_at DESC)")
         return
     with _connect(path) as db:
@@ -118,6 +119,7 @@ def initialize(path=None):
             FOREIGN KEY(thesis_id) REFERENCES research_theses(id) ON DELETE CASCADE)""")
         db.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_reviewer ON research_thesis_reviews(reviewer_id,status,created_at DESC)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_owner ON research_thesis_reviews(owner_id,thesis_id,created_at DESC)")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_pending_thesis_review ON research_thesis_reviews(thesis_id,owner_id,reviewer_id,version) WHERE status='PENDING'")
         db.execute("CREATE INDEX IF NOT EXISTS idx_theses_owner_updated ON research_theses(owner_id,updated_at DESC)")
 
 
