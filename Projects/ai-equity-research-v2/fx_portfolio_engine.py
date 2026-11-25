@@ -140,6 +140,7 @@ def combine_mixed_currency_returns(
     return {
         "base_currency": str(base_currency).upper(),
         "weights": clean_weights,
+        "asset_currencies": {symbol: str(asset_currencies[symbol]).upper() for symbol in symbols},
         "asset_returns": returns,
         "curve": curve,
         "total_return_pct": (float(equity.iloc[-1]) - 1.0) * 100.0,
