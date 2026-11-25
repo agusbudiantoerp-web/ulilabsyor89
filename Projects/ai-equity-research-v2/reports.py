@@ -174,6 +174,25 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
             if sensitivity_rows:
                 pd.DataFrame(sensitivity_rows).to_excel(writer, sheet_name="Scenario Sensitivity", index=False)
 
+            operating = scenario_result.get("operating_sensitivity") or {}
+            operating_rows = []
+            for matrix_row in operating.get("sensitivity", []):
+                growth_values = operating.get("revenue_growth_values", [])
+                for index, cell in enumerate(matrix_row.get("values", [])):
+                    operating_rows.append({
+                        "EBITDA margin": matrix_row.get("ebitda_margin"),
+                        "Revenue growth": growth_values[index] if index < len(growth_values) else cell.get("revenue_growth"),
+                        "Available": cell.get("available"),
+                        "Value per share": cell.get("value_per_share"),
+                        "Equity value": cell.get("equity_value"),
+                        "Upside / Downside %": cell.get("upside_downside_pct"),
+                        "Reason": cell.get("reason"),
+                    })
+            if operating_rows:
+                pd.DataFrame(operating_rows).to_excel(
+                    writer, sheet_name="Operating Sensitivity", index=False
+                )
+
             assumptions_rows = []
             for scenario_name, scenario_data in (scenario_result.get("assumptions") or {}).items():
                 for key, value in scenario_data.items():
