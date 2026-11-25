@@ -19,7 +19,23 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: equity_test
+          POSTGRES_PASSWORD: equity_test_only
+          POSTGRES_DB: equity_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U equity_test -d equity_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AI_EQUITY_RESEARCH_TEST_DATABASE_URL: postgresql://equity_test:equity_test_only@localhost:5432/equity_test
     defaults:
       run:
         working-directory: Projects/ai-equity-research-v2
@@ -38,7 +54,7 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Compile Python modules
         run: python -m compileall -q . -x "\\.venv|equity-research-lab-main"
-      - name: Run complete automated test suite
+      - name: Run complete automated and PostgreSQL integration test suite
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: python -m pytest tests -q -p no:cacheprovider
