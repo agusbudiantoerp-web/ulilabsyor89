@@ -139,3 +139,19 @@ def test_transaction_replay_rejects_settlement_before_trade_date():
             [{"date": "2026-01-02", "event_type": "BUY", "amount": 100, "ticker": "AAA", "quantity": 1, "price": 100, "settlement_date": "2026-01-01"}],
             initial_cash=100,
         )
+
+
+
+def test_transaction_replay_keeps_settlement_pending_after_market_data_ends():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    result = run_transaction_aware_portfolio(
+        {"AAA": pd.Series([100.0, 100.0], index=dates)},
+        {"AAA": "IDR"},
+        [
+            {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 1000, "ticker": "AAA", "quantity": 10, "price": 100, "settlement_date": "2026-01-03"},
+        ],
+    )
+    assert result["ending_unsettled_payables"] == pytest.approx(1000)
+    assert result["ending_available_cash"] == pytest.approx(0)
+    assert len(result["pending_settlements"]) == 1
