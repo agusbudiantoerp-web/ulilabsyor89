@@ -206,3 +206,58 @@ def test_normalize_events_rejects_boolean_or_numeric_date_and_boolean_numbers(fi
     event[field] = value
     with pytest.raises(ValueError):
         normalize_events([event])
+
+
+@pytest.mark.parametrize("field,value", [
+    ("date", True),
+    ("date", 1767225600000000000),
+    ("portfolio_value", True),
+    ("external_flow", False),
+])
+def test_twr_rejects_boolean_and_numeric_dates(field, value):
+    frame = pd.DataFrame([
+        {"date": "2026-01-01", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-02-01", "portfolio_value": 110, "external_flow": 0},
+    ]).astype({field: "object"})
+    frame.loc[0, field] = value
+    with pytest.raises(ValueError):
+        calculate_twr(frame)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("date", True),
+    ("date", 1767225600000000000),
+    ("amount", True),
+])
+def test_xirr_rejects_boolean_and_numeric_dates(field, value):
+    flows = pd.DataFrame([
+        {"date": "2025-01-01", "amount": -1000},
+        {"date": "2026-01-01", "amount": 1100},
+    ]).astype({field: "object"})
+    flows.loc[0, field] = value
+    with pytest.raises(ValueError):
+        calculate_xirr(flows)
+
+
+def test_xirr_rejects_boolean_ending_value_and_numeric_ending_date():
+    flows = [
+        {"date": "2025-01-01", "amount": -1000},
+        {"date": "2026-01-01", "amount": 500},
+    ]
+    with pytest.raises(ValueError, match="boolean"):
+        calculate_xirr(flows, ending_value=True, ending_date="2026-12-31")
+    with pytest.raises(ValueError, match="Ending date"):
+        calculate_xirr(flows, ending_value=500, ending_date=1767225600000000000)
+
+
+def test_twr_and_xirr_accept_mixed_timezone_aware_dates():
+    twr = calculate_twr(pd.DataFrame([
+        {"date": "2026-01-01T00:00:00Z", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-02-01T07:00:00+07:00", "portfolio_value": 110, "external_flow": 0},
+    ]))
+    xirr = calculate_xirr([
+        {"date": "2025-01-01T00:00:00Z", "amount": -1000},
+        {"date": "2026-01-01T07:00:00+07:00", "amount": 1100},
+    ])
+    assert twr["twr_pct"] == pytest.approx(10.0)
+    assert xirr["xirr_pct"] == pytest.approx(10.0, abs=0.02)
