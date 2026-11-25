@@ -16,6 +16,7 @@ from research_reporting import build_excel_report, build_pdf_report
 from security_controls import has_permission, require_permission, record_audit_event
 from research_run_store import delete_run, get_run, list_runs, save_run
 from thesis_store import get_thesis, list_reviews_for_thesis, list_theses
+from portfolio_event_store import list_events as list_portfolio_cashflow_events
 
 
 def _audit_event_safely(
@@ -537,6 +538,22 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             extra_sheets["Thesis Review History"] = pd.DataFrame(review_exports)
     except Exception as exc:
         st.warning(f"Investment thesis tidak ditambahkan ke Research Pack: {type(exc).__name__}.")
+
+    try:
+        cashflow_events = list_portfolio_cashflow_events(owner_id, limit=5000)
+        if cashflow_events:
+            cashflow_frame = pd.DataFrame(cashflow_events)
+            extra_sheets["Portfolio Cash Flow Ledger"] = cashflow_frame
+            metrics["Portfolio cash-flow events"] = len(cashflow_events)
+            metrics["Portfolio cash-flow net deposits"] = float(
+                cashflow_frame.loc[cashflow_frame["event_type"].eq("DEPOSIT"), "amount"].sum()
+                - cashflow_frame.loc[cashflow_frame["event_type"].eq("WITHDRAWAL"), "amount"].sum()
+            )
+            metrics["Portfolio dividend income"] = float(
+                cashflow_frame.loc[cashflow_frame["event_type"].eq("DIVIDEND"), "amount"].sum()
+            )
+    except Exception as exc:
+        st.warning(f"Portfolio cash-flow ledger tidak ditambahkan ke Research Pack: {type(exc).__name__}.")
 
     if has_permission(st.session_state.get("_auth_role"), "export_reports"):
         c1, c2 = st.columns(2)
