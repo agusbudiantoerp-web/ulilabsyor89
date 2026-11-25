@@ -59,7 +59,9 @@ def test_multi_asset_rejects_duplicate_sessions_after_timezone_normalization():
         "2024-11-03T01:30:00-04:00",
         "2024-11-03T01:30:00-05:00",
     ]).tz_convert("America/New_York")
-    remaining = pd.date_range("2024-11-04", periods=len(bars) - 2, freq="B")
+    remaining = pd.date_range(
+        "2024-11-04", periods=len(bars) - 2, freq="B", tz="America/New_York"
+    )
     bars.index = duplicate_instants.append(remaining)
     with pytest.raises(ValueError, match="duplikat"):
         run_multi_asset_backtest({"AAA": bars})
