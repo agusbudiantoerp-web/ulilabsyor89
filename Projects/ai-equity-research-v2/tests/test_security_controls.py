@@ -18,6 +18,9 @@ def test_role_permissions_fail_closed():
     assert has_permission("analyst", "manage_thesis")
     assert has_permission("portfolio_manager", "manage_thesis")
     assert not has_permission("viewer", "manage_thesis")
+    assert has_permission("portfolio_manager", "approve_thesis")
+    assert has_permission("admin", "approve_thesis")
+    assert not has_permission("analyst", "approve_thesis")
     with pytest.raises(PermissionError):
         require_permission("viewer", "manage_portfolio")
     with pytest.raises(ValueError):
