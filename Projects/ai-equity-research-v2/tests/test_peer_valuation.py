@@ -70,3 +70,30 @@ def test_peer_comparison_flags_iqr_outlier_when_coverage_is_sufficient():
     ]
     result = build_peer_comparison(records, industry="Banks", currency="IDR")
     assert "D" in result["metrics"]["pe_ttm"]["outlier_tickers"]
+
+
+
+def test_peer_comparison_exposes_metric_period_basis_and_fiscal_year_end_mismatch():
+    records = [
+        {"ticker": "A", "industry": "Banks", "currency": "IDR", "fiscal_year_end": "2025-12-31", "pe_ttm": 10},
+        {"ticker": "B", "industry": "Banks", "currency": "IDR", "fiscal_year_end": "2025-12-31", "pe_ttm": 11},
+        {"ticker": "C", "industry": "Banks", "currency": "IDR", "fiscal_year_end": "2025-03-31", "pe_ttm": 12},
+    ]
+    result = build_peer_comparison(records, industry="Banks", currency="IDR")
+    by_ticker = {row["ticker"]: row for row in result["records"]}
+    assert by_ticker["C"]["fiscal_period_warning"] is True
+    assert by_ticker["A"]["fiscal_period_warning"] is False
+    assert by_ticker["A"]["metric_periods"]["pe_ttm"].startswith("TTM")
+    assert by_ticker["A"]["metric_periods"]["pb"].startswith("Point-in-time")
+    assert "C" in result["fiscal_period_warning_tickers"]
+    assert "periode per metrik" in result["limitations"]
+
+
+def test_peer_comparison_handles_unknown_fiscal_year_end_without_false_warning():
+    records = [
+        {"ticker": "A", "industry": "Banks", "currency": "IDR", "fiscal_year_end": "unknown", "pe_ttm": 10},
+        {"ticker": "B", "industry": "Banks", "currency": "IDR", "fiscal_year_end": None, "pe_ttm": 11},
+    ]
+    result = build_peer_comparison(records, industry="Banks", currency="IDR")
+    assert result["fiscal_period_warning_tickers"] == []
+    assert not any(row["fiscal_period_warning"] for row in result["records"])
