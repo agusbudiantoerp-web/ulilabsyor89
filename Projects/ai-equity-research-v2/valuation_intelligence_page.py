@@ -10,6 +10,7 @@ from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
 from market_data_provider import YahooFinanceProvider
 from report_export_utils import safe_csv_bytes
 from valuation_reconciliation import reconcile_dcf_models
+from peer_filing_reconciliation import reconcile_peer_filing_records
 
 
 def _peer_record(symbol: str, market: str) -> dict:
@@ -116,6 +117,78 @@ def render_valuation_intelligence() -> None:
         if errors:
             with st.expander(f"Ticker gagal diambil ({len(errors)})"):
                 st.dataframe(pd.DataFrame(errors), use_container_width=True, hide_index=True)
+
+        with st.expander("Verifikasi fundamental dengan data laporan emiten/BEI (CSV)", expanded=False):
+            st.caption(
+                "Masukkan angka yang ditranskripsi dari laporan resmi emiten/BEI. "
+                "Gunakan satuan dan mata uang pelaporan yang sama dengan data provider; "
+                "URL sumber wajib dicantumkan. Sistem membandingkan angka, bukan mengesahkan dokumen."
+            )
+            filing_template = pd.DataFrame(columns=[
+                "ticker", "period_end", "currency", "source_name", "source_url",
+                "total_revenue", "ebitda", "total_debt", "cash",
+                "shares_outstanding", "book_value_per_share",
+            ])
+            st.download_button(
+                "Unduh template verifikasi filing CSV",
+                filing_template.to_csv(index=False).encode("utf-8-sig"),
+                file_name="issuer_filing_verification_template.csv",
+                mime="text/csv", key="peer_filing_template_download",
+            )
+            filing_upload = st.file_uploader(
+                "Unggah data filing terverifikasi", type=["csv"],
+                key="peer_filing_verification_upload",
+            )
+            f1, f2 = st.columns(2)
+            filing_tolerance = f1.number_input(
+                "Toleransi selisih angka (%)", min_value=0.0, max_value=50.0,
+                value=5.0, step=1.0, key="peer_filing_tolerance",
+            )
+            filing_period_tolerance = f2.number_input(
+                "Toleransi beda periode (hari)", min_value=0, max_value=366,
+                value=90, key="peer_filing_period_tolerance",
+            )
+            if st.button("Bandingkan provider vs filing", key="peer_filing_compare"):
+                try:
+                    if filing_upload is None:
+                        raise ValueError("Unggah CSV filing terlebih dahulu.")
+                    provider_records = st.session_state.get("peer_valuation_records", [])
+                    if not provider_records:
+                        raise ValueError("Ambil data peer dari provider terlebih dahulu.")
+                    filing_records = pd.read_csv(filing_upload)
+                    filing_result = reconcile_peer_filing_records(
+                        provider_records, filing_records,
+                        tolerance_pct=float(filing_tolerance),
+                        period_tolerance_days=int(filing_period_tolerance),
+                    )
+                    st.session_state["peer_filing_reconciliation_details"] = filing_result["details"].copy()
+                    st.session_state["peer_filing_reconciliation_metrics"] = {
+                        key: filing_result[key] for key in (
+                            "metric_count", "matched_count", "mismatch_count",
+                            "period_mismatch_count", "currency_mismatch_count",
+                            "missing_count", "status_counts",
+                        )
+                    }
+                    st.session_state["peer_filing_reconciliation_limitations"] = filing_result["limitations"]
+                except Exception as exc:
+                    st.error(f"Verifikasi filing gagal: {type(exc).__name__}: {exc}")
+            filing_details = st.session_state.get("peer_filing_reconciliation_details")
+            filing_metrics = st.session_state.get("peer_filing_reconciliation_metrics") or {}
+            if filing_metrics:
+                v1, v2, v3, v4 = st.columns(4)
+                v1.metric("Matched", filing_metrics["matched_count"])
+                v2.metric("Mismatch", filing_metrics["mismatch_count"])
+                v3.metric("Period mismatch", filing_metrics["period_mismatch_count"])
+                v4.metric("Currency mismatch", filing_metrics["currency_mismatch_count"])
+                if isinstance(filing_details, pd.DataFrame):
+                    st.dataframe(filing_details, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Unduh filing reconciliation CSV",
+                        safe_csv_bytes(filing_details),
+                        file_name="peer_filing_reconciliation.csv", mime="text/csv",
+                        key="peer_filing_reconciliation_download",
+                    )
+                st.caption(st.session_state.get("peer_filing_reconciliation_limitations", ""))
 
     st.divider()
     with st.expander("Reverse DCF — implied FCF growth", expanded=True):
