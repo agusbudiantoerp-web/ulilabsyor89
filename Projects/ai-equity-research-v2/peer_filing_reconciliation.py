@@ -7,7 +7,7 @@ import pandas as pd
 
 
 FILING_METRICS = {
-    "revenue": "totalRevenue",
+    "total_revenue": "totalRevenue",
     "ebitda": "ebitda",
     "total_debt": "totalDebt",
     "cash": "totalCash",
@@ -22,7 +22,7 @@ def reconcile_peer_filing_records(provider_records, filing_records, *, tolerance
         raise ValueError("Tolerance persentase harus finite dan tidak negatif.")
     if not isinstance(period_tolerance_days, int) or not 0 <= period_tolerance_days <= 366:
         raise ValueError("Period tolerance harus integer 0–366 hari.")
-    provider = pd.DataFrame(list(provider_records or []))
+    provider = provider_records.copy() if isinstance(provider_records, pd.DataFrame) else pd.DataFrame(list(provider_records or []))
     filings = pd.DataFrame(filing_records.copy() if isinstance(filing_records, pd.DataFrame) else list(filing_records or []))
     required = {"ticker", "period_end", "currency", "source_name", "source_url", *FILING_METRICS.keys()}
     missing = sorted(required - set(filings.columns))
