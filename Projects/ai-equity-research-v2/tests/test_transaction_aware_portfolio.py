@@ -78,7 +78,7 @@ def test_transaction_replay_rejects_stale_fx_and_short_sale():
 def test_transaction_replay_rejects_insufficient_cash_and_future_lookahead():
     dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
     prices = {"AAA": pd.Series([100.0, 100.0], index=dates)}
-    with pytest.raises(ValueError, match="Cash tidak cukup"):
+    with pytest.raises(ValueError, match="Cash tersedia tidak cukup"):
         run_transaction_aware_portfolio(
             prices, {"AAA": "IDR"},
             [{"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "AAA", "quantity": 1, "price": 100}],
