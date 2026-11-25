@@ -68,3 +68,18 @@ def test_calendar_rejects_non_finite_amount_and_split_ratio():
 def test_calendar_rejects_malformed_source_url_when_provided():
     with pytest.raises(ValueError, match="source_url harus berupa URL"):
         normalize_corporate_events([base_event(source_url="issuer-portal/report.pdf")])
+
+
+@pytest.mark.parametrize("threshold", [-1, 1.5, float("inf"), "invalid"])
+def test_calendar_rejects_invalid_staleness_threshold(threshold):
+    with pytest.raises(ValueError, match="stale_after_days"):
+        normalize_corporate_events([base_event()], stale_after_days=threshold)
+
+
+def test_calendar_rejects_malformed_numeric_fields_instead_of_silently_dropping_them():
+    with pytest.raises(ValueError, match="amount harus berupa angka valid"):
+        normalize_corporate_events([base_event(amount="not-a-number")])
+    with pytest.raises(ValueError, match="split_ratio harus berupa angka valid"):
+        normalize_corporate_events([
+            base_event(event_type="STOCK_SPLIT", split_ratio="two-for-one")
+        ])
