@@ -38,15 +38,14 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     frame["status"] = frame["status"].astype(str).str.upper().str.strip()
     if frame["ticker"].eq("").any() or frame["source"].astype(str).str.strip().eq("").any():
         raise ValueError("Ticker dan sumber event wajib diisi.")
-    if isinstance(stale_after_days, bool) or type(stale_after_days).__name__ in {"bool_", "bool"}:
+    if (
+        isinstance(stale_after_days, bool)
+        or type(stale_after_days).__name__ in {"bool_", "bool"}
+        or not isinstance(stale_after_days, numbers.Integral)
+        or stale_after_days < 0
+    ):
         raise ValueError("stale_after_days harus berupa bilangan bulat non-negatif.")
-    try:
-        stale_threshold = float(stale_after_days)
-    except (TypeError, ValueError):
-        raise ValueError("stale_after_days harus berupa bilangan bulat non-negatif.") from None
-    if not math.isfinite(stale_threshold) or stale_threshold < 0 or not stale_threshold.is_integer():
-        raise ValueError("stale_after_days harus berupa bilangan bulat non-negatif.")
-    stale_threshold = int(stale_threshold)
+    stale_threshold = int(stale_after_days)
     unknown_types = sorted(set(frame["event_type"]) - EVENT_TYPES)
     unknown_status = sorted(set(frame["status"]) - EVENT_STATUSES)
     if unknown_types or unknown_status:
