@@ -4,7 +4,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger
+from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_event_store import create_event, delete_event, list_events
 
 
@@ -87,6 +87,27 @@ def render_portfolio_cashflow() -> None:
             st.error(f"Ledger tidak dapat dihitung: {type(exc).__name__}: {exc}")
     else:
         st.caption("Belum ada event yang dicatat.")
+
+    if not events.empty:
+        st.markdown("**Rekonsiliasi saldo kas & saham**")
+        opening_cash = st.number_input(
+            "Saldo kas awal sebelum event pertama", min_value=0.0, value=0.0,
+            key="portfolio_cashflow_opening_cash",
+        )
+        if st.button("Rekonsiliasi cash & holdings", key="portfolio_cashflow_reconcile"):
+            try:
+                reconciliation = reconcile_portfolio_ledger(events, initial_cash=opening_cash)
+                st.metric("Saldo kas hasil rekonsiliasi", f"{reconciliation['cash_balance']:,.2f}")
+                holdings = pd.DataFrame([
+                    {"Ticker": ticker, "Shares": shares}
+                    for ticker, shares in reconciliation["positions"].items()
+                ])
+                st.dataframe(holdings, use_container_width=True, hide_index=True)
+                for warning in reconciliation["warnings"]:
+                    st.warning(warning)
+                st.caption(reconciliation["limitations"])
+            except Exception as exc:
+                st.error(f"Rekonsiliasi gagal: {type(exc).__name__}: {exc}")
 
     st.divider()
     st.markdown("**Time-Weighted Return (TWR)**")
