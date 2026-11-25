@@ -1,6 +1,6 @@
 import pytest
 
-from reverse_dcf import reverse_dcf_implied_growth
+from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
 
 
 def model_at_growth(growth):
@@ -62,3 +62,14 @@ def test_reverse_dcf_rejects_terminal_growth_at_or_below_minus_100_percent():
             current_fcf=100, market_price=10, diluted_shares=10,
             net_debt=0, wacc=0.10, terminal_growth=-1.1,
         )
+
+
+def test_reverse_dcf_sensitivity_reports_valid_and_invalid_cells():
+    rows = reverse_dcf_sensitivity(
+        current_fcf=100, market_price=model_at_growth(0.12), diluted_shares=10,
+        net_debt=50, forecast_years=5, lower_growth=-0.2, upper_growth=0.5,
+        wacc_values=[0.10, 0.12], terminal_growth_values=[0.03, 0.12],
+    )
+    assert len(rows) == 4
+    assert any(row["status"] == "OK" for row in rows)
+    assert any(row["status"] == "INVALID" for row in rows)
