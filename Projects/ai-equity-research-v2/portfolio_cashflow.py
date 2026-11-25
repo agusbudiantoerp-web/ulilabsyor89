@@ -100,6 +100,8 @@ def calculate_twr(valuations: pd.DataFrame) -> dict:
     if frame[["date", "portfolio_value", "external_flow"]].isna().any().any():
         raise ValueError("Tanggal, nilai portfolio dan external flow harus valid.")
     frame = frame.sort_values("date", kind="stable").reset_index(drop=True)
+    if frame["date"].duplicated().any():
+        raise ValueError("Tanggal valuasi TWR harus unik; agregasikan transaksi dalam satu titik valuasi.")
     if len(frame) < 2:
         raise ValueError("Minimal dua titik valuasi diperlukan.")
     values = frame["portfolio_value"].tolist()
@@ -155,6 +157,10 @@ def calculate_xirr(cash_flows: pd.DataFrame | Iterable[dict], *, ending_value: f
     frame = frame.groupby("date", as_index=False)["amount"].sum().sort_values("date")
     if frame["amount"].min() >= 0 or frame["amount"].max() <= 0:
         raise ValueError("XIRR memerlukan setidaknya satu arus negatif dan satu arus positif.")
+    signs = [1 if value > 0 else -1 for value in frame["amount"] if value != 0]
+    sign_changes = sum(signs[i] != signs[i - 1] for i in range(1, len(signs)))
+    if sign_changes > 1:
+        raise ValueError("Arus kas berganti tanda beberapa kali; XIRR dapat memiliki lebih dari satu akar.")
     origin = frame["date"].min()
     days = (frame["date"] - origin).dt.days.to_numpy(dtype=float)
     amounts = frame["amount"].to_numpy(dtype=float)
