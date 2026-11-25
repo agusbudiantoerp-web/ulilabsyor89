@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import numbers
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -83,12 +84,23 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
     # before duplicate detection so two intraday timestamps cannot collide
     # later when persisted as the same YYYY-MM-DD key.
     def _calendar_date(value):
+        # Numeric values (including booleans) are not dates here: pandas would
+        # otherwise interpret them as nanoseconds from the Unix epoch.
+        if isinstance(value, (bool,)) or isinstance(value, numbers.Number):
+            return None
         parsed = pd.to_datetime(value, errors="coerce")
         return None if pd.isna(parsed) else parsed.date().isoformat()
 
+    def _numeric_series(series):
+        # bool/np.bool_ are numerically coercible by pandas, but are never
+        # meaningful portfolio values or cash-flow amounts.
+        if series.map(lambda value: isinstance(value, (bool,)) or type(value).__name__ == "bool_").any():
+            raise ValueError("Portfolio value dan external flow harus berupa angka, bukan boolean.")
+        return pd.to_numeric(series, errors="coerce")
+
     frame["date"] = frame["date"].map(_calendar_date)
-    frame["portfolio_value"]=pd.to_numeric(frame["portfolio_value"],errors="coerce")
-    frame["external_flow"]=pd.to_numeric(frame["external_flow"],errors="coerce")
+    frame["portfolio_value"]=_numeric_series(frame["portfolio_value"])
+    frame["external_flow"]=_numeric_series(frame["external_flow"])
     if frame[["date","portfolio_value","external_flow"]].isna().any().any():
         raise ValueError("Tanggal, nilai portfolio dan external flow harus valid.")
     if frame["date"].duplicated().any():
