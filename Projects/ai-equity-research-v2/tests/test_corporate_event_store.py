@@ -44,3 +44,31 @@ def test_corporate_event_bulk_import_persists_all_rows(tmp_path):
     ids = create_events("owner", [event(), {**event(), "ticker": "BBRI"}], path=db)
     assert len(ids) == 2
     assert len(list_events("owner", path=db)) == 2
+
+
+
+@pytest.mark.parametrize("changes", [
+    {"event_type": "UNKNOWN"},
+    {"status": "PENDING"},
+    {"event_date": "not-a-date"},
+    {"retrieved_at": "yesterday-ish"},
+    {"source_url": "javascript:alert(1)"},
+    {"amount": "inf"},
+    {"event_type": "STOCK_SPLIT", "split_ratio": None},
+])
+def test_corporate_event_store_rejects_invalid_events_at_write_boundary(tmp_path, changes):
+    db = str(tmp_path / "events.sqlite")
+    with pytest.raises(ValueError):
+        create_event("owner", {**event(), **changes}, path=db)
+    assert list_events("owner", path=db) == []
+
+
+def test_corporate_event_store_normalizes_optional_fields(tmp_path):
+    db = str(tmp_path / "events.sqlite")
+    event_id = create_event("owner", event(), path=db)
+    stored = list_events("owner", path=db)[0]
+    assert stored["id"] == event_id
+    assert stored["ticker"] == "BBCA"
+    assert stored["event_type"] == "EX_DIVIDEND"
+    assert stored["amount"] is None
+    assert stored["split_ratio"] is None
