@@ -166,6 +166,7 @@ def render_valuation_intelligence() -> None:
                     "quote_currency": quote_currency,
                     "market": reverse_market, "symbol": reverse_symbol,
                 }
+                st.session_state.pop("valuation_reconciliation_result", None)
             except Exception as exc:
                 st.error(f"Reverse DCF tidak dapat dihitung: {type(exc).__name__}: {exc}")
         result = st.session_state.get("reverse_dcf_result")
@@ -188,6 +189,7 @@ def render_valuation_intelligence() -> None:
                 st.markdown("**Rekonsiliasi Multi-Stage DCF vs Reverse DCF**")
                 try:
                     reconciliation = reconcile_dcf_models(multistage, result)
+                    st.session_state["valuation_reconciliation_result"] = reconciliation
                     r1, r2, r3 = st.columns(3)
                     r1.metric("EV gap vs market-implied", f"{reconciliation['enterprise_value_gap_pct']:+.2f}%")
                     r2.metric("Equity value gap", f"{reconciliation['equity_value_gap']:,.2f} {reconciliation['financial_currency']}")
@@ -198,6 +200,7 @@ def render_valuation_intelligence() -> None:
                 except Exception as exc:
                     st.warning(f"Rekonsiliasi DCF belum dapat dilakukan: {type(exc).__name__}: {exc}")
             elif multistage.get("available"):
+                st.session_state.pop("valuation_reconciliation_result", None)
                 st.info("Untuk rekonsiliasi, isi ticker dan market yang sama dengan analisis Multi-Stage DCF.")
             st.dataframe(pd.DataFrame([
                 {"Komponen": "PV explicit FCF", "Nilai": result["pv_explicit_fcf"]},
