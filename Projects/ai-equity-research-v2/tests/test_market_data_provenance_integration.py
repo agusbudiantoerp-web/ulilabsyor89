@@ -6,6 +6,8 @@ import daily_signal_engine
 
 
 def test_load_daily_history_attaches_provider_provenance(monkeypatch):
+    from market_data_provider import YahooFinanceProvider
+    YahooFinanceProvider.clear_cache()
     index = pd.bdate_range(end=pd.Timestamp.now().normalize(), periods=70)
     close = pd.Series(range(100, 170), index=index, dtype=float)
     bars = pd.DataFrame({
