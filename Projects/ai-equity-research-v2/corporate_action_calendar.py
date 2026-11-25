@@ -104,6 +104,17 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     frame["stale"] = frame["event_age_days"] > stale_threshold
     duplicate_keys = ["ticker", "event_type", "event_date"]
     frame["duplicate_event"] = frame.duplicated(duplicate_keys, keep=False)
+    # Expose status semantics explicitly to downstream screens and exports.
+    frame["status_is_confirmed"] = frame["status"].eq("CONFIRMED")
+    frame["status_is_cancelled"] = frame["status"].eq("CANCELLED")
+    frame["conflicting_duplicate"] = False
+    for field in ("amount", "currency", "split_ratio"):
+        if field not in frame.columns:
+            continue
+        conflict = frame.groupby(duplicate_keys, dropna=False)[field].transform(
+            lambda values: values.nunique(dropna=True) > 1
+        )
+        frame["conflicting_duplicate"] |= frame["duplicate_event"] & conflict
     frame = frame.sort_values(["event_date", "ticker"], kind="stable").reset_index(drop=True)
     warnings = []
     if frame["stale"].any():
@@ -112,6 +123,8 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         warnings.append("Ada retrieved_at yang berada di masa depan; metadata perlu diperiksa.")
     if frame["duplicate_event"].any():
         warnings.append(f"{int(frame['duplicate_event'].sum())} baris event duplikat perlu ditinjau.")
+    if frame["conflicting_duplicate"].any():
+        warnings.append(f"{int(frame['conflicting_duplicate'].sum())} baris event duplikat memiliki detail yang saling bertentangan.")
     if (frame["status"] == "ESTIMATED").any():
         warnings.append("Sebagian tanggal merupakan estimasi provider, bukan konfirmasi issuer/exchange.")
     return {
