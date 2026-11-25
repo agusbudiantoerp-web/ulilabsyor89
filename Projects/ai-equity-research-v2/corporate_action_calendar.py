@@ -10,6 +10,22 @@ EVENT_TYPES = {"EARNINGS", "DIVIDEND_DECLARATION", "EX_DIVIDEND", "PAY_DATE", "S
 EVENT_STATUSES = {"CONFIRMED", "ESTIMATED", "CANCELLED"}
 
 
+def _parse_event_calendar_dates(series: pd.Series) -> pd.Series:
+    """Keep the issuer/exchange calendar date; do not shift it through UTC."""
+    parsed = []
+    for value in series:
+        if isinstance(value, numbers.Number) or isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
+            raise ValueError("Tanggal event dan retrieved_at harus berupa tanggal yang valid.")
+        try:
+            timestamp = pd.Timestamp(value)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError("Tanggal event dan retrieved_at harus berupa tanggal yang valid.") from None
+        if pd.isna(timestamp):
+            raise ValueError("Tanggal event dan retrieved_at harus berupa tanggal yang valid.")
+        parsed.append(pd.Timestamp(timestamp.date()))
+    return pd.Series(parsed, index=series.index, dtype="datetime64[ns]")
+
+
 def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> dict:
     frame = events.copy() if isinstance(events, pd.DataFrame) else pd.DataFrame(list(events))
     required = {"ticker", "event_type", "event_date", "status", "source", "retrieved_at"}
@@ -22,6 +38,8 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     frame["status"] = frame["status"].astype(str).str.upper().str.strip()
     if frame["ticker"].eq("").any() or frame["source"].astype(str).str.strip().eq("").any():
         raise ValueError("Ticker dan sumber event wajib diisi.")
+    if isinstance(stale_after_days, bool) or type(stale_after_days).__name__ in {"bool_", "bool"}:
+        raise ValueError("stale_after_days harus berupa bilangan bulat non-negatif.")
     try:
         stale_threshold = float(stale_after_days)
     except (TypeError, ValueError):
@@ -36,10 +54,11 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     def _is_boolean(value):
         return isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}
 
-    for column in ("event_date", "retrieved_at"):
-        if frame[column].map(lambda value: isinstance(value, numbers.Number) or _is_boolean(value)).any():
-            raise ValueError("Tanggal event dan retrieved_at harus berupa tanggal yang valid.")
-    frame["event_date"] = pd.to_datetime(frame["event_date"], errors="coerce", utc=True)
+    frame["event_date"] = _parse_event_calendar_dates(frame["event_date"])
+    if frame["retrieved_at"].map(
+        lambda value: isinstance(value, numbers.Number) or _is_boolean(value)
+    ).any():
+        raise ValueError("Tanggal event dan retrieved_at harus berupa tanggal yang valid.")
     frame["retrieved_at"] = pd.to_datetime(frame["retrieved_at"], errors="coerce", utc=True)
     if frame[["event_date", "retrieved_at"]].isna().any().any():
         raise ValueError("Tanggal event dan retrieved_at harus valid.")
