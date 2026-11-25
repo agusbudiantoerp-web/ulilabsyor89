@@ -152,3 +152,29 @@ def test_portfolio_store_ignores_blank_editor_rows_but_keeps_valid_holdings(tmp_
     assert loaded.to_dict("records") == [
         {"Market": "IDX", "Ticker": "BBCA", "Shares": 100.0, "Average Cost": 9000.0}
     ]
+
+def test_portfolio_replacement_rolls_back_when_position_insert_fails(tmp_path):
+    import sqlite3
+    import pytest
+
+    path = str(tmp_path / "portfolio.sqlite3")
+    original = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100, "Average Cost": 9000},
+    ])
+    replacement = pd.DataFrame([
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 200, "Average Cost": 9500},
+        {"Market": "IDX", "Ticker": "BBRI", "Shares": 50, "Average Cost": 4000},
+    ])
+    save_book("atomic-book", "Original", original, path=path, owner_id="issuer|alice")
+    with sqlite3.connect(path) as db:
+        db.execute("""
+            CREATE TRIGGER reject_bBRI BEFORE INSERT ON portfolio_positions
+            WHEN NEW.ticker='BBRI'
+            BEGIN SELECT RAISE(ABORT, 'injected portfolio position failure'); END;
+        """)
+    with pytest.raises(sqlite3.IntegrityError, match="injected portfolio position failure"):
+        save_book("atomic-book", "Replacement", replacement, path=path, owner_id="issuer|alice")
+    assert list_books(path=path, owner_id="issuer|alice")[0]["name"] == "Original"
+    assert load_book("atomic-book", path=path, owner_id="issuer|alice").to_dict("records") == [
+        {"Market": "IDX", "Ticker": "BBCA", "Shares": 100.0, "Average Cost": 9000.0}
+    ]
