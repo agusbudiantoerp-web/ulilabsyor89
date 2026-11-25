@@ -78,3 +78,34 @@ def test_market_regime_sorts_valid_unsorted_close_dates_before_calculation():
     result = classify_market_regime(frame)
     assert result["regime"] == "BULLISH"
     assert result["bar_date"] == "2024-11-29"
+
+
+
+@pytest.mark.parametrize("age", [True, False, -1, 366, 1.5, "5", None])
+def test_price_history_audit_rejects_invalid_staleness_threshold(age):
+    with pytest.raises(ValueError, match="max_age_calendar_days"):
+        audit_price_history(bars(np.linspace(100, 150, 220)), max_age_calendar_days=age)
+
+
+def test_price_history_audit_fails_on_invalid_date_index():
+    frame = bars(np.linspace(100, 150, 220))
+    frame.index = list(frame.index[:-1]) + ["invalid-date"]
+    result = audit_price_history(frame)
+    assert result["status"] == "FAIL"
+    assert any("tanggal tidak valid" in item["message"] for item in result["checks"])
+
+
+def test_price_history_audit_flags_duplicate_dates():
+    frame = bars(np.linspace(100, 150, 220))
+    frame.index = list(frame.index[:-1]) + [frame.index[-2]]
+    result = audit_price_history(frame)
+    assert result["status"] == "WARNING"
+    assert any("tanggal duplikat" in item["message"] for item in result["checks"])
+
+
+def test_price_history_audit_accepts_timezone_aware_dates():
+    frame = bars(np.linspace(100, 150, 220))
+    frame.index = frame.index.tz_localize("Asia/Jakarta")
+    result = audit_price_history(frame)
+    assert result["status"] in {"PASS", "WARNING"}
+    assert result["last_bar"] == "2024-11-01"
