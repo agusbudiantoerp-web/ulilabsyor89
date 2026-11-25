@@ -4,7 +4,8 @@ import pytest
 
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
-    run_factor_stress_scenario, run_regime_switching_monte_carlo,\n    run_block_bootstrap_monte_carlo,
+    run_factor_stress_scenario, run_regime_switching_monte_carlo,
+    run_block_bootstrap_monte_carlo,
 )
 
 
