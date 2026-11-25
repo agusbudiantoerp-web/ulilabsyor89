@@ -69,7 +69,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 
 - Event types: deposits, withdrawals, dividends, buys, sells, fees, taxes and stock splits.
 - Event validation checks dates, event types, non-negative absolute amounts, ticker requirements and quantity/price requirements.
-- The ledger separates external investor flows, dividend income and transaction costs.
+- The ledger separates external investor flows, dividend income and transaction costs, and reconstructs cash/share balances from deposits, withdrawals, buys, partial sells, fees, taxes and split ratios.
 - TWR geometrically links sub-period returns after adding/subtracting external flows from opening capital at risk.
 - XIRR solves dated investor cash flows with an ACT/365 bisection solver and optional terminal portfolio value.
 - Transaction events are persisted per authenticated owner in SQLite/PostgreSQL and can be exported to CSV. The TWR valuation grid remains session-scoped; broker reconciliation and automatic position/cash balance reconciliation are not yet implemented.
