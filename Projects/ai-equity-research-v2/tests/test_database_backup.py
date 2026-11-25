@@ -198,3 +198,22 @@ def test_sqlite_restore_cli_requires_target_and_restores(tmp_path, monkeypatch, 
     assert "PRAGMA integrity_check: ok" in output
     with sqlite3.connect(target) as db:
         assert db.execute("SELECT value FROM sample").fetchone()[0] == "cli-restore"
+
+
+def test_sqlite_restore_refuses_target_with_wal_or_shm_sidecars(tmp_path):
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+        db.execute("INSERT INTO sample VALUES('backup-value')")
+    backup = backup_sqlite(source, tmp_path / "backups")
+    target = tmp_path / "restore.sqlite3"
+    with sqlite3.connect(target) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+        db.execute("INSERT INTO sample VALUES('existing-value')")
+
+    Path(f"{target}-wal").write_bytes(b"stale-wal-marker")
+    with pytest.raises(RuntimeError, match="WAL/SHM"):
+        restore_sqlite_backup(backup["manifest"], target, overwrite=True)
+
+    with sqlite3.connect(target) as db:
+        assert db.execute("SELECT value FROM sample").fetchone()[0] == "existing-value"
