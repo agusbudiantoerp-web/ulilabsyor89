@@ -444,6 +444,15 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
         extra_sheets["Fundamental Data Quality"] = pd.DataFrame(
             market_result.get("fundamental_quality", {}).get("checks", [])
         )
+        provenance = market_result.get("data_provenance", {})
+        if provenance:
+            extra_sheets["Market Data Provenance"] = pd.DataFrame([{
+                key: value for key, value in provenance.items()
+                if key != "quality_checks"
+            }])
+            extra_sheets["Market Data Provenance Checks"] = pd.DataFrame(
+                provenance.get("quality_checks", [])
+            )
         metrics.update({
             "Market regime": regime.get("regime"),
             "Market index date": regime.get("bar_date"),
