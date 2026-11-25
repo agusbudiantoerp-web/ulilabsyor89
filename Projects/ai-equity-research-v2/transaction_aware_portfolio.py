@@ -94,9 +94,23 @@ def run_transaction_aware_portfolio(
 
     if not isinstance(price_closes, Mapping) or not price_closes:
         raise ValueError("Minimal satu seri harga aset diperlukan.")
-    symbols = list(price_closes)
-    if set(symbols) != set(asset_currencies):
-        raise ValueError("Ticker harga dan asset currencies harus sama.")
+    if not isinstance(asset_currencies, Mapping):
+        raise ValueError("Asset currencies harus berupa mapping ticker ke mata uang.")
+    raw_price_symbols = [str(value).strip().upper() for value in price_closes]
+    raw_currency_symbols = [str(value).strip().upper() for value in asset_currencies]
+    if any(not value for value in raw_price_symbols + raw_currency_symbols):
+        raise ValueError("Ticker aset tidak boleh kosong.")
+    if len(set(raw_price_symbols)) != len(raw_price_symbols):
+        raise ValueError("Ticker harga duplikat setelah normalisasi.")
+    if len(set(raw_currency_symbols)) != len(raw_currency_symbols):
+        raise ValueError("Ticker asset currencies duplikat setelah normalisasi.")
+    if set(raw_price_symbols) != set(raw_currency_symbols):
+        raise ValueError("Ticker harga dan asset currencies harus sama setelah normalisasi.")
+    symbols = raw_price_symbols
+    raw_price_by_symbol = dict(zip(raw_price_symbols, price_closes.values()))
+    raw_currency_by_symbol = {
+        str(key).strip().upper(): value for key, value in asset_currencies.items()
+    }
     base = str(base_currency).upper().strip()
     if base not in {"IDR", "USD"}:
         raise ValueError("Base currency hanya mendukung IDR atau USD.")
@@ -118,21 +132,32 @@ def run_transaction_aware_portfolio(
     cash = float(initial_cash)
     if not math.isfinite(cash) or cash < 0:
         raise ValueError("Initial cash harus finite dan tidak negatif.")
+    if initial_positions is not None and not isinstance(initial_positions, Mapping):
+        raise ValueError("Initial positions harus berupa mapping ticker ke jumlah saham.")
     positions = {}
     for ticker, shares in (initial_positions or {}).items():
+        normalized_ticker = str(ticker).strip().upper()
+        if not normalized_ticker:
+            raise ValueError("Ticker initial positions tidak boleh kosong.")
+        if normalized_ticker in positions:
+            raise ValueError("Ticker initial positions duplikat setelah normalisasi.")
         if isinstance(shares, bool) or type(shares).__name__ == "bool_":
             raise ValueError("Initial positions harus berupa angka, bukan boolean.")
-        positions[str(ticker).upper()] = float(shares)
+        try:
+            positions[normalized_ticker] = float(shares)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError("Initial positions harus berupa angka finite dan tidak negatif.") from None
     if set(positions) - set(symbols):
         raise ValueError("Initial position memiliki ticker tanpa data harga.")
     if any(not math.isfinite(v) or v < 0 for v in positions.values()):
         raise ValueError("Initial positions harus finite dan tidak negatif.")
-    currencies = {str(k).upper(): str(v).upper().strip() for k, v in asset_currencies.items()}
+    currencies = {key: str(value).upper().strip() for key, value in raw_currency_by_symbol.items()}
     if any(value not in {"IDR", "USD"} for value in currencies.values()):
         raise ValueError("Mata uang aset hanya mendukung IDR atau USD.")
-    prices = {str(k).upper(): _clean_series(v, f"close {k}") for k, v in price_closes.items()}
-    if len(prices) != len(symbols):
-        raise ValueError("Ticker harga duplikat setelah normalisasi.")
+    prices = {
+        symbol: _clean_series(raw_price_by_symbol[symbol], f"close {symbol}")
+        for symbol in symbols
+    }
     fx = _clean_series(usd_idr_close, "USD/IDR") if usd_idr_close is not None else None
     raw_events = events.copy() if isinstance(events, pd.DataFrame) else list(events or [])
     if isinstance(raw_events, pd.DataFrame) and raw_events.empty:
