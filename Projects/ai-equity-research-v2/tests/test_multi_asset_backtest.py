@@ -29,3 +29,66 @@ def test_multi_asset_backtest_returns_metrics_and_lagged_curve():
 def test_multi_asset_backtest_rejects_empty_universe():
     with pytest.raises(ValueError, match="minimal satu"):
         run_multi_asset_backtest({})
+
+
+@pytest.mark.parametrize("bad_close", [float("nan"), float("inf"), 0.0, -1.0, "bad"])
+def test_multi_asset_rejects_invalid_close_values(bad_close):
+    bars = sample_bars()
+    bars.iloc[10, bars.columns.get_loc("Close")] = bad_close
+    with pytest.raises(ValueError, match="Close"):
+        run_multi_asset_backtest({"AAA": bars})
+
+
+def test_multi_asset_rejects_duplicate_dates_instead_of_silently_sorting():
+    bars = sample_bars()
+    bars.index = list(bars.index[:-1]) + [bars.index[-2]]
+    with pytest.raises(ValueError, match="duplikat"):
+        run_multi_asset_backtest({"AAA": bars})
+
+
+def test_multi_asset_rejects_unsorted_dates():
+    bars = sample_bars()
+    bars = bars.iloc[::-1]
+    with pytest.raises(ValueError, match="berurutan"):
+        run_multi_asset_backtest({"AAA": bars})
+
+
+def test_multi_asset_rejects_duplicate_sessions_after_timezone_normalization():
+    bars = sample_bars()
+    dates = pd.date_range("2024-11-03 00:30", periods=len(bars), freq="h", tz="America/New_York")
+    dates = dates.tz_convert("UTC")
+    # Two different instants map to the same local wall-clock session after tz removal.
+    dates = dates[:]
+    dates = dates.tz_convert("America/New_York")
+    dates = dates.tz_localize(None).tz_localize("America/New_York", ambiguous="infer")
+    bars.index = dates
+    with pytest.raises(ValueError, match="duplikat"):
+        run_multi_asset_backtest({"AAA": bars})
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"initial_capital": True},
+    {"initial_capital": float("inf")},
+    {"fee_bps": float("nan")},
+    {"slippage_bps": -1},
+    {"max_positions": True},
+    {"min_history": 1.5},
+    {"max_weight_pct": 101},
+])
+def test_multi_asset_rejects_invalid_parameters(kwargs):
+    with pytest.raises(ValueError):
+        run_multi_asset_backtest({"AAA": sample_bars()}, **kwargs)
+
+
+def test_multi_asset_rejects_invalid_benchmark_close():
+    benchmark = sample_bars()
+    benchmark.iloc[0, benchmark.columns.get_loc("Close")] = float("inf")
+    with pytest.raises(ValueError, match="Benchmark.*Close"):
+        run_multi_asset_backtest({"AAA": sample_bars()}, benchmark_bars=benchmark)
+
+
+def test_multi_asset_rejects_non_datetime_index():
+    bars = sample_bars()
+    bars.index = range(len(bars))
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        run_multi_asset_backtest({"AAA": bars})
