@@ -213,8 +213,9 @@ def render_cross_market_simulation() -> None:
         )
         st.caption(
             "CSV columns: date,event_type,amount,ticker,quantity,price,amount_currency,settlement_date,notes. "
-            "Deposit/withdrawal use base currency. BUY/SELL/dividend default to asset currency; "
-            "FEE/TAX default to base currency. Set amount_currency explicitly when different. settlement_date optional; blank means same-day settlement."
+            f"All amount values must use base currency ({result['base_currency']}); for foreign-asset trades/dividends, explicitly convert cash amounts before entry. "
+            "The price field remains in the asset's local quote currency; amount_currency, if supplied, must equal base currency. "
+            "settlement_date is optional; blank means same-day settlement."
         )
         template = pd.DataFrame(columns=[
             "date", "event_type", "amount", "ticker", "quantity", "price",
