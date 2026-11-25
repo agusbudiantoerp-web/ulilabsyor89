@@ -71,9 +71,10 @@ def run_transaction_aware_portfolio(
 ) -> dict:
     """Replay dated cash/trade events and calculate base-currency equity/TWR.
 
-    DEPOSIT/WITHDRAWAL and FEE/TAX amounts use base currency. BUY/SELL amounts
-    and DIVIDEND amounts use the relevant asset's local currency. FEE/TAX may
-    optionally specify amount_currency (IDR or USD) on the event.
+    DEPOSIT/WITHDRAWAL amounts use base currency. BUY/SELL/DIVIDEND amounts
+    default to the relevant asset's local currency but may specify
+    amount_currency (IDR or USD). FEE/TAX amounts default to base currency and
+    may also specify amount_currency.
     """
     if not isinstance(price_closes, Mapping) or not price_closes:
         raise ValueError("Minimal satu seri harga aset diperlukan.")
@@ -142,7 +143,10 @@ def run_transaction_aware_portfolio(
             elif kind in {"BUY", "SELL"}:
                 if ticker not in prices:
                     raise ValueError(f"Ticker {ticker} tidak memiliki seri harga.")
-                factor = _fx_factor(currencies[ticker], base, when, fx, max_fx_gap_days)
+                event_currency = str(row.get("amount_currency") or currencies[ticker]).upper()
+                if event_currency not in {"IDR", "USD"}:
+                    raise ValueError("amount_currency untuk BUY/SELL harus IDR atau USD.")
+                factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
                 amount_base = amount * factor
                 if kind == "BUY":
                     cash -= amount_base
@@ -155,7 +159,10 @@ def run_transaction_aware_portfolio(
                     cash += amount_base
                     positions[ticker] = max(0.0, positions.get(ticker, 0.0) - quantity)
             elif kind == "DIVIDEND":
-                factor = _fx_factor(currencies[ticker], base, when, fx, max_fx_gap_days)
+                event_currency = str(row.get("amount_currency") or currencies[ticker]).upper()
+                if event_currency not in {"IDR", "USD"}:
+                    raise ValueError("amount_currency untuk DIVIDEND harus IDR atau USD.")
+                factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
                 cash += amount * factor
             elif kind in {"FEE", "TAX"}:
                 event_currency = str(row.get("amount_currency") or base).upper()
