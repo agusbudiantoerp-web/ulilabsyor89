@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 
@@ -165,6 +166,8 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
 
 
 def _finite_negative(value: Any) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return False
     try:
         number = float(value)
         return math.isfinite(number) and number < 0
@@ -174,6 +177,8 @@ def _finite_negative(value: Any) -> bool:
 
 def audit_fundamental_record(record: dict[str, Any]) -> dict[str, Any]:
     """Flag missing and implausible fundamentals while retaining original source values."""
+    if not isinstance(record, dict):
+        raise ValueError("record fundamental harus berupa dictionary.")
     numeric_fields = ("trailingPE", "forwardPE", "priceToBook", "returnOnEquity",
                       "returnOnAssets", "debtToEquity", "revenueGrowth", "earningsGrowth", "marketCap")
     missing = [key for key in numeric_fields if record.get(key) is None]
@@ -181,6 +186,9 @@ def audit_fundamental_record(record: dict[str, Any]) -> dict[str, Any]:
     for key in numeric_fields:
         value = record.get(key)
         if value is None:
+            continue
+        if isinstance(value, (bool, np.bool_)):
+            invalid.append(key)
             continue
         try:
             number = float(value)
