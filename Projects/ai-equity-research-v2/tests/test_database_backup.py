@@ -2,7 +2,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from database_backup import LOCAL_DATABASES, _postgres_environment, backup_sqlite
+from database_backup import (LOCAL_DATABASES, _postgres_environment, backup_sqlite, verify_backup_manifest)
 
 
 def test_sqlite_backup_is_integrity_checked_and_has_sha256_manifest(tmp_path):
@@ -68,3 +68,52 @@ def test_local_backup_inventory_includes_new_owner_scoped_stores():
     assert "corporate_events" in LOCAL_DATABASES
     assert "portfolio_cashflow_events" in LOCAL_DATABASES
     assert "portfolio_valuations" in LOCAL_DATABASES
+
+
+
+def test_backup_manifest_verifier_checks_artifact_hash_and_size(tmp_path):
+    import pytest
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+        db.execute("INSERT INTO sample VALUES('verified')")
+    result = backup_sqlite(source, tmp_path / "backups")
+    verified = verify_backup_manifest(result["manifest"])
+    assert verified["validation"] == "manifest integrity: ok"
+    assert verified["backend"] == "SQLite"
+
+    backup_path = Path(result["backup"])
+    backup_path.write_bytes(backup_path.read_bytes() + b"tampered")
+    with pytest.raises(ValueError, match="Ukuran file backup"):
+        verify_backup_manifest(result["manifest"])
+
+
+def test_backup_manifest_verifier_rejects_path_traversal(tmp_path):
+    import json
+    import pytest
+
+    manifest = tmp_path / "backup.manifest.json"
+    manifest.write_text(json.dumps({
+        "backup_file": "../outside.dump",
+        "size_bytes": 0,
+        "sha256": "0" * 64,
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="Nama file backup"):
+        verify_backup_manifest(manifest)
+
+
+def test_backup_manifest_verifier_rejects_hash_mismatch(tmp_path):
+    import json
+    import pytest
+
+    backup = tmp_path / "artifact.dump"
+    backup.write_bytes(b"safe backup")
+    manifest = tmp_path / "artifact.dump.manifest.json"
+    manifest.write_text(json.dumps({
+        "backup_file": backup.name,
+        "size_bytes": backup.stat().st_size,
+        "sha256": "0" * 64,
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="SHA-256"):
+        verify_backup_manifest(manifest)
