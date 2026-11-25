@@ -89,13 +89,14 @@ def test_backup_manifest_verifier_checks_artifact_hash_and_size(tmp_path):
         verify_backup_manifest(result["manifest"])
 
 
-def test_backup_manifest_verifier_rejects_path_traversal(tmp_path):
+@pytest.mark.parametrize("unsafe_name", ["../outside.dump", "..\\\\outside.dump"])
+def test_backup_manifest_verifier_rejects_path_traversal(tmp_path, unsafe_name):
     import json
     import pytest
 
     manifest = tmp_path / "backup.manifest.json"
     manifest.write_text(json.dumps({
-        "backup_file": "../outside.dump",
+        "backup_file": unsafe_name,
         "size_bytes": 0,
         "sha256": "0" * 64,
     }), encoding="utf-8")
