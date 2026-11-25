@@ -23,7 +23,8 @@ def _unique_excel_sheet_name(workbook, proposed: str) -> str:
     """Return a valid, case-insensitively unique Excel worksheet title."""
     import re
 
-    cleaned = re.sub(r"[\\[\\]:*?/\\\\\\x00-\\x1f]", "_", str(proposed))
+    cleaned = re.sub(r"[\\[\\]:*?/\\\\]", "_", str(proposed))
+    cleaned = re.sub(r"[\\x00-\\x1f]", "", cleaned)
     cleaned = cleaned.strip().strip("'") or "Scenario"
     base = cleaned[:31]
     existing = {name.casefold() for name in workbook.sheetnames}
