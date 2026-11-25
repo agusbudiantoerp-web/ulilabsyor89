@@ -145,14 +145,11 @@ def test_walk_forward_rejects_unsorted_history_instead_of_sorting_silently():
 
 def test_walk_forward_rejects_duplicate_dates_after_timezone_normalization():
     bars = sample_bars()
-    dates = bars.index.tz_localize("Asia/Jakarta")
-    dates = dates.tz_convert("UTC")
-    # Two distinct instants that normalize to the same local-naive session date/time.
-    dates = dates.tz_localize(None)
-    bars.index = dates
-    bars.index = pd.DatetimeIndex([
-        pd.Timestamp("2024-01-01 09:00", tz="Asia/Jakarta"),
-        *[pd.Timestamp(x, tz="Asia/Jakarta") for x in bars.index[1:]]
-    ])
-    with pytest.raises(ValueError, match="duplikat"):
+    duplicated_local_time = pd.to_datetime(
+        ["2024-11-03T01:30:00-04:00", "2024-11-03T01:30:00-05:00"],
+        utc=True,
+    ).tz_convert("America/New_York")
+    remaining = pd.date_range("2024-11-04", periods=len(bars) - 2, freq="B", tz="America/New_York")
+    bars.index = duplicated_local_time.append(remaining)
+    with pytest.raises(ValueError, match="normalisasi timezone"):
         walk_forward_backtest(bars)
