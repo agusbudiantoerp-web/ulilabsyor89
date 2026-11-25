@@ -1,5 +1,7 @@
 # AI Equity Research V2 — Extended Feature Roadmap
 
+See [RELEASE_READINESS_STATUS.md](./RELEASE_READINESS_STATUS.md) for current implementation boundaries, external dependencies and mandatory release gates.
+
 This roadmap extends the current feature-complete baseline on `feature/advanced-equity-intelligence`. It is a development backlog, not a deployment checklist. No item authorizes a merge to `main`, Preview deployment, or production release.
 
 ## Existing baseline (do not rebuild)
