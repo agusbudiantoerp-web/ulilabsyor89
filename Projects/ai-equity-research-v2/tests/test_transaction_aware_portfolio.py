@@ -47,7 +47,7 @@ def test_transaction_replay_converts_usd_asset_and_cash_flows_to_idr():
         {"US": "USD"},
         [
             {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 15000},
-            {"date": "2026-01-01", "event_type": "BUY", "amount": 1, "ticker": "US", "quantity": 1, "price": 1, "amount_currency": float("nan")},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 15000, "ticker": "US", "quantity": 1, "price": 1, "amount_currency": float("nan")},
         ],
         base_currency="IDR",
         usd_idr_close=pd.Series([15000.0, 16500.0], index=dates),
@@ -155,3 +155,19 @@ def test_transaction_replay_keeps_settlement_pending_after_market_data_ends():
     assert result["ending_unsettled_payables"] == pytest.approx(1000)
     assert result["ending_available_cash"] == pytest.approx(0)
     assert len(result["pending_settlements"]) == 1
+
+
+
+def test_transaction_replay_rejects_implicit_foreign_currency_cash_conversion():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="konversi kas lintas mata uang tidak dilakukan otomatis"):
+        run_transaction_aware_portfolio(
+            {"US": pd.Series([1.0, 1.0], index=dates)},
+            {"US": "USD"},
+            [
+                {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 15000},
+                {"date": "2026-01-01", "event_type": "BUY", "amount": 1, "ticker": "US", "quantity": 1, "price": 1, "amount_currency": "USD"},
+            ],
+            base_currency="IDR",
+            usd_idr_close=pd.Series([15000.0, 15000.0], index=dates),
+        )
