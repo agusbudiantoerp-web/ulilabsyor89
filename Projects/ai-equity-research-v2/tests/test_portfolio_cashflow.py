@@ -122,3 +122,30 @@ def test_portfolio_reconciliation_flags_transaction_amount_mismatch():
     ], initial_cash=2000)
     assert result["cash_balance"] == pytest.approx(800)
     assert len(result["warnings"]) == 1
+
+
+def test_portfolio_reconciliation_rejects_temporary_cash_deficit_even_if_later_deposit_exists():
+    events = [
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100},
+        {"date": "2026-01-02", "event_type": "DEPOSIT", "amount": 100},
+    ]
+    with pytest.raises(ValueError, match="Cash tidak cukup untuk BUY"):
+        reconcile_portfolio_ledger(events)
+
+
+def test_portfolio_reconciliation_rejects_zero_trade_quantity_or_price():
+    with pytest.raises(ValueError, match="Quantity BUY/SELL"):
+        normalize_events([
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 0, "price": 100}
+        ])
+    with pytest.raises(ValueError, match="Price BUY/SELL"):
+        normalize_events([
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 0}
+        ])
+
+
+def test_portfolio_reconciliation_rejects_zero_split_ratio():
+    with pytest.raises(ValueError, match="Rasio split"):
+        normalize_events([
+            {"date": "2026-01-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 0}
+        ])
