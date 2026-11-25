@@ -77,4 +77,4 @@ def test_market_regime_sorts_valid_unsorted_close_dates_before_calculation():
     frame = bars(np.linspace(100, 220, 240)).iloc[::-1]
     result = classify_market_regime(frame)
     assert result["regime"] == "BULLISH"
-    assert result["bar_date"] == "2024-12-02"
+    assert result["bar_date"] == "2024-11-29"
