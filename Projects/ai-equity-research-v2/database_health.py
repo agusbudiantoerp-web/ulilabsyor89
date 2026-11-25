@@ -16,6 +16,7 @@ REQUIRED_TABLES = {
     "research_theses": ("SELECT", "INSERT", "UPDATE", "DELETE"),
     "research_thesis_versions": ("SELECT", "INSERT"),
     "corporate_events": ("SELECT", "INSERT", "DELETE"),
+    "portfolio_cashflow_events": ("SELECT", "INSERT", "DELETE"),
     "audit_events": ("SELECT", "INSERT"),
     "audit_chain_lock": ("SELECT", "INSERT", "UPDATE"),
 }
@@ -142,6 +143,7 @@ def initialize_required_postgres_schema(
     from research_run_store import initialize as initialize_research_runs
     from thesis_store import initialize as initialize_theses
     from corporate_event_store import initialize as initialize_corporate_events
+    from portfolio_event_store import initialize as initialize_portfolio_events
     from security_controls import record_audit_event
 
     initialize_daily_signals()
@@ -149,6 +151,7 @@ def initialize_required_postgres_schema(
     initialize_research_runs()
     initialize_theses()
     initialize_corporate_events()
+    initialize_portfolio_events()
     record_audit_event(
         actor_id,
         actor_role,
