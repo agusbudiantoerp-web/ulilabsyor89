@@ -6,12 +6,13 @@ Last updated: 2026-11-25
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest development commit at this update: `09a64fbe1b552d3c65890818ed45def0e47f9040`.
+- Latest code commit verified by full CI: `3169b14ec6a6c54fe537d0fd875f3204d8bb46e5`.
 - Production branch `main` remains unchanged.
-- Latest completed full CI run: **445 passed, 0 failed, 0 skipped**. Python compilation and PostgreSQL 16 integration service both passed on the latest development commit. [GitHub Actions latest development run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45579629778).
+- Latest completed full CI run: **458 passed, 0 failed, 0 skipped**. Python compilation and PostgreSQL 16 integration service both passed on the verified code commit. [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45587431676).
 - CI provisions an isolated PostgreSQL 16 service for the complete automated and PostgreSQL integration test suite. Database credentials are ephemeral test-only values, not production secrets.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
-- Backup manifests can now be independently verified against artifact size and SHA-256, with POSIX/Windows path-traversal checks and a `database_backup.py verify --manifest ...` CLI mode.
+- Backup manifests can be independently verified against artifact size and SHA-256, with POSIX/Windows path-traversal checks. SQLite restore now verifies the manifest and database integrity before and after copying, publishes atomically, and refuses to overwrite an existing target unless `--overwrite` is explicitly supplied. PostgreSQL restore is not automated; its custom-format dump is structurally checked with `pg_restore --list`.
+- Excel/CSV exports neutralize formula-like text after whitespace and Unicode BOM prefixes; scenario worksheet names are sanitized and de-duplicated.
 - No production deployment, secret rotation, production database mutation or live broker connection was performed.
 
 ## Implemented in the development branch
