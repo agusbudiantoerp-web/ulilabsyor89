@@ -10,7 +10,7 @@ The current workspace already includes DCF and Multi-Stage DCF, scenario analysi
 
 - E7: canonical market-data provenance/freshness contract is integrated into daily history, screener and Market Intelligence. Yahoo provider adapter, bounded retries, explicit rate-limit handling, TTL cache and cache-age metadata are implemented. An additional licensed provider adapter and end-to-end alternate-provider parity remain.
 - E1: event ledger, dividend/cost classification, TWR and XIRR engines, Streamlit page, owner-scoped SQLite/PostgreSQL transaction-event storage and persisted valuation snapshots are implemented. Cash sequencing, positive trade quantity/price, split-ratio validation and opening-position reconciliation are enforced. FIFO and weighted-average tax lots, realized P&L, opening-lot entry and split-adjusted cost basis are now implemented with a dedicated UI. Unsettled trades and broker-statement reconciliation remain.
-- E2: FX-aware IDR/USD daily return conversion, FX attribution, strict stale-FX tolerance and cross-market UI are implemented. This is not yet a full cash/transaction-aware portfolio backtest.
+- E2: FX-aware IDR/USD daily return conversion, FX attribution, strict stale-FX tolerance and cross-market UI are implemented. A transaction-aware replay engine and CSV UI now replay dated BUY/SELL/dividend/fee/tax/deposit/withdrawal/split events, mark holdings to historical closes, convert currencies with explicit FX/staleness limits, and calculate daily TWR excluding external flows. Broker settlement, intraday fills, multi-currency cash sub-ledgers and broker statement reconciliation remain.
 - E3: industry/currency-filtered peer metrics, coverage, medians, IQR outlier flags and company-vs-peer comparison are implemented with Yahoo Finance UI. Metric period basis is now explicit (TTM, point-in-time, provider-defined YoY/trailing), and fiscal year-end differences greater than 90 days from the peer median are flagged in results/UI; no unsupported period normalization is fabricated. Independent filing verification remains.
 - E4: bounded reverse DCF solver, explicit quote/model currency FX bridge, enterprise-to-equity bridge, WACC/terminal-growth sensitivity and UI are implemented. Independent reconciliation against the existing multi-stage DCF and scenario sensitivity integration remain.
 - E5: source-attributed event calendar, individual entry and atomic validated CSV import, stale/duplicate/estimated flags and owner-scoped SQLite/PostgreSQL persistence are implemented. Automated exchange/issuer feed and adjusted-price corporate-action reconciliation remain.
@@ -32,11 +32,12 @@ Acceptance: deterministic tests for deposits, withdrawals, dividends, partial se
 
 ### E2 — Cross-market portfolio and FX-aware backtest
 - Support a combined IDX and US universe with an explicit base currency (IDR or USD).
+- Replay explicit transaction events against historical close series, with dated fill prices/amounts, holdings/cash reconstruction, external-flow-adjusted TWR and CSV import.
 - Convert daily US asset returns using a supplied or downloaded USD/IDR series aligned by available dates; expose FX contribution separately from local asset return.
 - Reject missing FX coverage rather than silently forward-filling long gaps.
 - Keep market calendars and non-overlapping sessions explicit; no cross-market same-day look-ahead.
 
-Acceptance: synthetic tests for asset-only return, FX-only return, combined return, missing FX, calendar alignment and currency translation.
+Acceptance: synthetic tests for asset-only return, FX-only return, combined return, missing FX, calendar alignment, currency translation, event replay, deposits/withdrawals, partial sales, insufficient cash, stale marks and no-lookahead. Settlement-cycle and broker integration remain out of scope.
 
 ### E3 — Relative valuation and peer comparison
 - Compare companies only within a selected peer group/industry and display source, currency, fiscal period and field coverage.
