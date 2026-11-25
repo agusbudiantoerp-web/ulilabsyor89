@@ -62,14 +62,17 @@ def render_thesis_reviews() -> None:
     if submitted:
         try:
             outcome = decide_review(reviewer, review_id, decision, comments)
-            record_audit_event(
-                reviewer, role, "THESIS_REVIEW_DECISION", "research_thesis_review",
-                review_id, details={
-                    "thesis_id": review["thesis_id"], "version": review["version"],
-                    "decision": outcome,
-                },
-            )
             st.success("Keputusan review berhasil disimpan.")
+            try:
+                record_audit_event(
+                    reviewer, role, "THESIS_REVIEW_DECISION", "research_thesis_review",
+                    review_id, details={
+                        "thesis_id": review["thesis_id"], "version": review["version"],
+                        "decision": outcome,
+                    },
+                )
+            except Exception as audit_exc:
+                st.warning(f"Keputusan tersimpan, tetapi audit event gagal dicatat ({type(audit_exc).__name__}).")
             st.rerun()
         except Exception as exc:
             st.error(f"Keputusan review gagal disimpan ({type(exc).__name__}).")
