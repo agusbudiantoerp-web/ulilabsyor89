@@ -100,7 +100,12 @@ def run_transaction_aware_portfolio(
     if len(prices) != len(symbols):
         raise ValueError("Ticker harga duplikat setelah normalisasi.")
     fx = _clean_series(usd_idr_close, "USD/IDR") if usd_idr_close is not None else None
-    frame = normalize_events(events)
+    raw_events = events.copy() if isinstance(events, pd.DataFrame) else list(events or [])
+    if isinstance(raw_events, pd.DataFrame) and raw_events.empty:
+        raw_events = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
+    elif isinstance(raw_events, list) and not raw_events:
+        raw_events = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
+    frame = normalize_events(raw_events)
     unknown = sorted(set(frame.loc[frame["ticker"].ne(""), "ticker"]) - set(prices))
     if unknown:
         raise ValueError("Ticker event tidak memiliki data harga: " + ", ".join(unknown))
