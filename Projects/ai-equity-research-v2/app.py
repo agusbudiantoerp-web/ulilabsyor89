@@ -2,6 +2,7 @@ import streamlit as st
 
 from portfolio_cashflow_page import render_portfolio_cashflow
 from valuation_intelligence_page import render_valuation_intelligence
+from cross_market_simulation_page import render_cross_market_simulation
 
 from auth import audit_login_once, get_claim, logout, oidc_is_configured, oidc_provider_name, resolve_streamlit_identity
 from equity_research_page import render_equity_research
@@ -79,6 +80,7 @@ PAGES = {
     "3. Portfolio & Risk Management": (render_portfolio_risk, "manage_portfolio"),
     "3b. Cash Flow & Return Ledger": (render_portfolio_cashflow, "manage_portfolio"),
     "3c. Valuation Intelligence": (render_valuation_intelligence, "run_analysis"),
+    "3d. Cross-Market & Monte Carlo": (render_cross_market_simulation, "manage_portfolio"),
     "4. Backtesting": (render_backtesting, "run_analysis"),
     "5. Performance Dashboard": (render_performance_dashboard, "view_dashboard"),
     "6. Security & Audit (Admin)": (lambda: render_security_audit(identity, st.secrets), "view_audit"),
