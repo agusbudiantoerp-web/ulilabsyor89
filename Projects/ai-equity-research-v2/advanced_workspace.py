@@ -15,6 +15,7 @@ from portfolio_store import delete_book, list_books, load_book, save_book
 from research_reporting import build_excel_report, build_pdf_report
 from security_controls import has_permission, require_permission, record_audit_event
 from research_run_store import delete_run, get_run, list_runs, save_run
+from thesis_store import get_thesis, list_reviews_for_thesis, list_theses
 
 
 def _audit_event_safely(
@@ -498,6 +499,36 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
         } for item in saved_runs])
     except Exception as exc:
         st.warning(f"Riwayat backtest tidak ditambahkan ke Excel: {type(exc).__name__}: {exc}")
+    try:
+        thesis_rows = list_theses(owner_id)
+        if thesis_rows:
+            thesis_exports = []
+            review_exports = []
+            for thesis in thesis_rows:
+                saved_thesis = get_thesis(owner_id, thesis["id"])
+                thesis_content = saved_thesis.get("content", {})
+                thesis_exports.append({
+                    "Ticker": thesis["ticker"], "Market": thesis["market"],
+                    "Title": thesis["title"], "Status": thesis["status"],
+                    "Current Version": thesis["current_version"],
+                    "Review Date": thesis["review_date"],
+                    "Target Price": thesis_content.get("target_price"),
+                    "Target Currency": thesis_content.get("currency"),
+                    "Linked Research Run": thesis_content.get("linked_research_run_id"),
+                })
+                for review in list_reviews_for_thesis(owner_id, thesis["id"]):
+                    review_exports.append({
+                        "Ticker": thesis["ticker"], "Thesis Title": thesis["title"],
+                        "Review ID": review["id"], "Reviewer": review["reviewer_id"],
+                        "Version": review["version"], "Status": review["status"],
+                        "Comments": review["comments"], "Requested At": review["created_at"],
+                        "Updated At": review["updated_at"],
+                    })
+            extra_sheets["Investment Theses"] = pd.DataFrame(thesis_exports)
+            extra_sheets["Thesis Review History"] = pd.DataFrame(review_exports)
+    except Exception as exc:
+        st.warning(f"Investment thesis tidak ditambahkan ke Research Pack: {type(exc).__name__}.")
+
     if has_permission(st.session_state.get("_auth_role"), "export_reports"):
         c1, c2 = st.columns(2)
         c1.download_button("Unduh Research Pack Excel", build_excel_report(
