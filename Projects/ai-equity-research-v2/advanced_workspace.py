@@ -1,6 +1,8 @@
 """Streamlit UI extensions kept inside the existing five-menu workspace."""
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 import streamlit as st
 
@@ -458,6 +460,49 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "Transaction replay TWR %": transaction_replay.get("total_twr_pct"),
             "Transaction replay event count": transaction_replay.get("event_count"),
         })
+
+    if owner_id:
+        try:
+            thesis_summaries, thesis_versions, thesis_reviews = [], [], []
+            for thesis_row in list_theses(owner_id):
+                thesis = get_thesis(owner_id, thesis_row["id"])
+                content = thesis.get("content") or {}
+                thesis_summaries.append({
+                    **thesis_row,
+                    "bull_case": content.get("bull_case", ""),
+                    "base_case": content.get("base_case", ""),
+                    "bear_case": content.get("bear_case", ""),
+                    "catalysts": "; ".join(content.get("catalysts", [])),
+                    "risks": "; ".join(content.get("risks", [])),
+                    "invalidation": content.get("invalidation", ""),
+                    "target_price": content.get("target_price"),
+                    "currency": content.get("currency", ""),
+                    "linked_research_run_id": content.get("linked_research_run_id", ""),
+                })
+                for version in thesis.get("versions", []):
+                    thesis_versions.append({
+                        "thesis_id": thesis["id"], "ticker": thesis["ticker"],
+                        "title": thesis["title"], "version": version["version"],
+                        "actor_id": version["actor_id"], "created_at": version["created_at"],
+                        "content_json": json.dumps(version["content"], ensure_ascii=False, default=str),
+                    })
+                for review in list_reviews_for_thesis(owner_id, thesis["id"]):
+                    thesis_reviews.append({
+                        "thesis_id": thesis["id"], "ticker": thesis["ticker"],
+                        "title": thesis["title"], **review,
+                    })
+            if thesis_summaries:
+                extra_sheets["Investment Theses"] = pd.DataFrame(thesis_summaries)
+                metrics["Investment thesis count"] = len(thesis_summaries)
+                metrics["Investment thesis active"] = sum(row["status"] == "ACTIVE" for row in thesis_summaries)
+            if thesis_versions:
+                extra_sheets["Thesis Version History"] = pd.DataFrame(thesis_versions)
+            if thesis_reviews:
+                extra_sheets["Thesis Review History"] = pd.DataFrame(thesis_reviews)
+                metrics["Thesis review count"] = len(thesis_reviews)
+                metrics["Pending thesis reviews"] = sum(row["status"] == "PENDING" for row in thesis_reviews)
+        except Exception as exc:
+            st.warning(f"Riwayat tesis tidak dapat ditambahkan ke Research Pack ({type(exc).__name__}).")
 
     optimization_metrics = st.session_state.get("portfolio_optimization_metrics") or {}
     if optimization_metrics:
