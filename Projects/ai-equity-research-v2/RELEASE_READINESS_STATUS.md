@@ -6,8 +6,10 @@ Last updated: 2026-11-25
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
+- Latest development commit: `73bcf1de5524177eb35f5c0c01ecbeca132c6e40`.
 - Production branch `main` remains unchanged.
-- Latest observed development CI: **324 passed, 5 skipped** on commit `779712bfe85fc9cd869c74d570b457c0789d1c8a`.
+- Latest PR CI run: **332 passed, 0 failed, 0 skipped**; Python compilation passed and PostgreSQL 16 service initialized successfully. Run: [GitHub Actions #857](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45552889590).
+- CI now provisions an isolated PostgreSQL 16 service for the complete automated and PostgreSQL integration test suite; database credentials are ephemeral test-only values, not production secrets.
 - No production deployment, secret rotation, production database mutation or live broker connection was performed.
 
 ## Implemented in the development branch
@@ -46,4 +48,4 @@ Last updated: 2026-11-25
 
 ## Release decision
 
-**Not production-ready yet.** The development branch has substantial feature coverage and a passing automated suite, but the external integrations and mandatory multi-user/security release gates above remain open. Passing CI is not a substitute for staging validation or user acceptance.
+**Not production-ready yet.** The latest CI is green, including PostgreSQL-backed tests, but passing automated tests does not prove the multi-user deployment, security controls, external data integrations or operational recovery. Complete the staging and acceptance gates above before merging or deploying.
