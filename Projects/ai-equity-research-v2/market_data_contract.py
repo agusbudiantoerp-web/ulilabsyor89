@@ -27,7 +27,7 @@ def build_market_data_metadata(
         raise ValueError("Data harga kosong; provenance tidak dapat dibuat.")
     meta = dict(source_meta or {})
     retrieved = retrieved_at or datetime.now(timezone.utc)
-    reference = as_of or retrieved
+    reference = as_of or datetime.now(timezone.utc)
     if retrieved.tzinfo is None:
         retrieved = retrieved.replace(tzinfo=timezone.utc)
     if reference.tzinfo is None:
@@ -98,6 +98,8 @@ def build_market_data_metadata(
         "bar_date": last_bar,
         "bar_count": int(len(bars)),
         "age_calendar_days": age_days,
+        "cache_hit": bool(meta.get("cache_hit", False)),
+        "cache_age_seconds": float(meta.get("cache_age_seconds", 0.0)),
         "quality_status": status,
         "quality_checks": checks,
         "corporate_action_note": (
