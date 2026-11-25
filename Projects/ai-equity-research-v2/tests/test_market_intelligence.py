@@ -70,3 +70,11 @@ def test_market_regime_rejects_invalid_close_history(mutate, message):
         frame.index = list(frame.index[:-1]) + ["not-a-date"]
     with pytest.raises(ValueError, match=message):
         classify_market_regime(frame)
+
+
+
+def test_market_regime_sorts_valid_unsorted_close_dates_before_calculation():
+    frame = bars(np.linspace(100, 220, 240)).iloc[::-1]
+    result = classify_market_regime(frame)
+    assert result["regime"] == "BULLISH"
+    assert result["bar_date"] == "2024-12-02"
