@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import numbers
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -264,7 +265,9 @@ def verify_audit_chain(path: str | None = None) -> dict:
 
 
 def list_audit_events(limit: int = 100, path: str | None = None) -> list[dict]:
-    bounded = max(1, min(int(limit), 1000))
+    if isinstance(limit, bool) or not isinstance(limit, numbers.Integral) or int(limit) < 1:
+        raise ValueError("Limit harus berupa bilangan bulat positif.")
+    bounded = min(int(limit), 1000)
     query = (
         "SELECT id, occurred_at, actor_id, actor_role, action, resource_type, "
         "resource_id, details_json, previous_hash, event_hash "
