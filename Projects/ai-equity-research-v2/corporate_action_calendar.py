@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import math
+import numbers
 import pandas as pd
 
 EVENT_TYPES = {"EARNINGS", "DIVIDEND_DECLARATION", "EX_DIVIDEND", "PAY_DATE", "STOCK_SPLIT", "RIGHTS_ISSUE", "OTHER"}
@@ -32,6 +33,12 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     unknown_status = sorted(set(frame["status"]) - EVENT_STATUSES)
     if unknown_types or unknown_status:
         raise ValueError("Event type/status tidak dikenal.")
+    def _is_boolean(value):
+        return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+    for column in ("event_date", "retrieved_at"):
+        if frame[column].map(lambda value: isinstance(value, numbers.Number) or _is_boolean(value)).any():
+            raise ValueError("Tanggal event dan retrieved_at harus berupa tanggal yang valid.")
     frame["event_date"] = pd.to_datetime(frame["event_date"], errors="coerce", utc=True)
     frame["retrieved_at"] = pd.to_datetime(frame["retrieved_at"], errors="coerce", utc=True)
     if frame[["event_date", "retrieved_at"]].isna().any().any():
@@ -54,6 +61,8 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         frame["split_ratio"] = None
     for column in ("amount", "split_ratio"):
         raw_values = frame[column]
+        if raw_values.map(_is_boolean).any():
+            raise ValueError(f"{column} harus berupa angka, bukan boolean.")
         converted = pd.to_numeric(raw_values, errors="coerce")
         supplied_invalid = raw_values.notna() & raw_values.astype(str).str.strip().ne("") & converted.isna()
         if supplied_invalid.any():
