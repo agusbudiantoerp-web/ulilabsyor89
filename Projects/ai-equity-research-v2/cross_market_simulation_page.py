@@ -212,13 +212,13 @@ def render_cross_market_simulation() -> None:
             "This uses explicit fill data; it does not place orders or infer broker fills."
         )
         st.caption(
-            "CSV columns: date,event_type,amount,ticker,quantity,price,amount_currency,notes. "
+            "CSV columns: date,event_type,amount,ticker,quantity,price,amount_currency,settlement_date,notes. "
             "Deposit/withdrawal use base currency. BUY/SELL/dividend default to asset currency; "
             "FEE/TAX default to base currency. Set amount_currency explicitly when different."
         )
         template = pd.DataFrame(columns=[
             "date", "event_type", "amount", "ticker", "quantity", "price",
-            "amount_currency", "notes",
+            "amount_currency", "settlement_date", "notes",
         ])
         st.download_button(
             "Unduh template transaction ledger CSV",
@@ -268,10 +268,11 @@ def render_cross_market_simulation() -> None:
                 st.error(f"Transaction-aware replay gagal: {type(exc).__name__}: {exc}")
         replay = st.session_state.get("cross_market_transaction_replay_result")
         if replay:
-            r1, r2, r3 = st.columns(3)
+            r1, r2, r3, r4 = st.columns(4)
             r1.metric("Ending portfolio value", f"{replay['ending_portfolio_value']:,.2f} {replay['base_currency']}")
             r2.metric("Total TWR", f"{replay['total_twr_pct']:.2f}%")
-            r3.metric("Event count", replay["event_count"])
+            r3.metric("Available cash", f"{replay['ending_available_cash']:,.2f}")
+            r4.metric("Pending settlements", len(replay["pending_settlements"]))
             st.line_chart(replay["curve"]["twr_equity_index"])
             st.dataframe(replay["curve"].drop(columns=["position_values"]).tail(20), use_container_width=True)
             st.download_button(
@@ -280,6 +281,13 @@ def render_cross_market_simulation() -> None:
                 file_name="transaction_aware_equity_curve.csv", mime="text/csv",
                 key="transaction_aware_curve_download",
             )
+            st.caption(
+                f"Settled cash: {replay['ending_cash']:,.2f} · "
+                f"Unsettled receivables: {replay['ending_unsettled_receivables']:,.2f} · "
+                f"Unsettled payables: {replay['ending_unsettled_payables']:,.2f}"
+            )
+            if not replay["pending_settlements"].empty:
+                st.dataframe(replay["pending_settlements"], use_container_width=True, hide_index=True)
             st.caption(replay["method"])
             st.caption(replay["limitations"])
 
