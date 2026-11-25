@@ -7,6 +7,7 @@ import streamlit as st
 
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_tax_lots import calculate_tax_lots
+from portfolio_reconciliation import reconcile_broker_statement
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
 from security_controls import record_audit_event
@@ -102,6 +103,54 @@ def render_portfolio_cashflow() -> None:
             st.error(f"Ledger tidak dapat dihitung: {type(exc).__name__}: {exc}")
     else:
         st.caption("Belum ada event yang dicatat.")
+
+    with st.expander("Rekonsiliasi event dengan broker statement CSV", expanded=False):
+        st.caption(
+            "Unggah statement broker dengan kolom date,event_type,amount,ticker,quantity,price. "
+            "Pastikan semua nominal menggunakan mata uang dasar yang sama dengan internal ledger. "
+            "Hasil hanya menandai selisih; tidak mengubah event tersimpan."
+        )
+        broker_file = st.file_uploader(
+            "Broker statement CSV", type=["csv"], key="portfolio_broker_statement_upload",
+        )
+        date_tolerance = st.number_input(
+            "Toleransi perbedaan tanggal (hari)", min_value=0, max_value=30,
+            value=1, key="portfolio_broker_date_tolerance",
+        )
+        if st.button("Bandingkan dengan internal ledger", key="portfolio_broker_reconcile"):
+            try:
+                if broker_file is None:
+                    raise ValueError("Unggah broker statement CSV terlebih dahulu.")
+                broker_frame = pd.read_csv(broker_file)
+                broker_result = reconcile_broker_statement(
+                    events, broker_frame, date_tolerance_days=int(date_tolerance),
+                )
+                st.session_state["portfolio_broker_reconciliation_details"] = broker_result["details"].copy()
+                st.session_state["portfolio_broker_reconciliation_metrics"] = {
+                    key: broker_result[key] for key in (
+                        "internal_event_count", "broker_event_count", "matched_count",
+                        "mismatch_count", "missing_in_broker_count",
+                        "unexpected_in_broker_count", "status_counts",
+                    )
+                }
+            except Exception as exc:
+                st.error(f"Rekonsiliasi broker gagal: {type(exc).__name__}: {exc}")
+        broker_details = st.session_state.get("portfolio_broker_reconciliation_details")
+        broker_metrics = st.session_state.get("portfolio_broker_reconciliation_metrics") or {}
+        if broker_metrics:
+            b1, b2, b3, b4 = st.columns(4)
+            b1.metric("Matched", broker_metrics["matched_count"])
+            b2.metric("Mismatches", broker_metrics["mismatch_count"])
+            b3.metric("Missing in broker", broker_metrics["missing_in_broker_count"])
+            b4.metric("Unexpected in broker", broker_metrics["unexpected_in_broker_count"])
+            if isinstance(broker_details, pd.DataFrame):
+                st.dataframe(broker_details, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "Unduh broker reconciliation CSV",
+                    safe_csv_bytes(broker_details),
+                    file_name="broker_statement_reconciliation.csv", mime="text/csv",
+                    key="portfolio_broker_reconciliation_download",
+                )
 
     if not events.empty:
         st.markdown("**Rekonsiliasi saldo kas & saham**")
