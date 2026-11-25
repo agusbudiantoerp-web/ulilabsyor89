@@ -7,15 +7,13 @@ import streamlit as st
 from market_engine import resolve_market_ticker
 from peer_valuation import build_peer_comparison, compare_company_to_peers
 from reverse_dcf import reverse_dcf_implied_growth
+from market_data_provider import YahooFinanceProvider
 
 
 def _peer_record(symbol: str, market: str) -> dict:
-    import yfinance as yf
     resolved = resolve_market_ticker(symbol, market)
     ticker = resolved["ticker"]
-    info = yf.Ticker(ticker).get_info()
-    if not isinstance(info, dict) or not info:
-        raise ValueError(f"Fundamental {symbol} tidak tersedia.")
+    info = YahooFinanceProvider().fetch_info(ticker)
     return {
         "ticker": symbol.upper(),
         "provider_ticker": ticker,
