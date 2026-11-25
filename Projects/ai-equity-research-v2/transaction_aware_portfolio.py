@@ -83,6 +83,7 @@ def run_transaction_aware_portfolio(
     initial_positions: Mapping[str, float] | None = None,
     max_price_gap_days: int = 7,
     max_fx_gap_days: int = 3,
+    price_adjustment_policy: str = "RAW_UNADJUSTED",
 ) -> dict:
     """Replay dated cash/trade events and calculate base-currency equity/TWR.
 
@@ -92,6 +93,12 @@ def run_transaction_aware_portfolio(
     cash. The price field remains in the asset's local quote currency.
     BUY/SELL may specify settlement_date; positions change on trade date while
     base-currency cash settles on the supplied date.
+
+    price_adjustment_policy is RAW_UNADJUSTED when supplied Close history is
+    already in the historical trading units. Use PROVIDER_SPLIT_ADJUSTED when
+    the provider has back-adjusted pre-split Close prices: the engine reverses
+    those historical price adjustments using the ledger split ratios before
+    replaying share quantities. Dividend-adjusted Adj Close is not supported.
     """
 
     if not isinstance(price_closes, Mapping) or not price_closes:
@@ -116,6 +123,11 @@ def run_transaction_aware_portfolio(
     base = str(base_currency).upper().strip()
     if base not in {"IDR", "USD"}:
         raise ValueError("Base currency hanya mendukung IDR atau USD.")
+    adjustment_policy = str(price_adjustment_policy).strip().upper()
+    if adjustment_policy not in {"RAW_UNADJUSTED", "PROVIDER_SPLIT_ADJUSTED"}:
+        raise ValueError(
+            "price_adjustment_policy harus RAW_UNADJUSTED atau PROVIDER_SPLIT_ADJUSTED."
+        )
     gap_limits = {}
     for name, value in (("max_price_gap_days", max_price_gap_days), ("max_fx_gap_days", max_fx_gap_days)):
         if isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
@@ -167,6 +179,21 @@ def run_transaction_aware_portfolio(
     elif isinstance(raw_events, list) and not raw_events:
         raw_events = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
     frame = normalize_events(raw_events)
+    # Corporate actions become effective before regular-session trades on the
+    # same exchange date, independent of ledger row entry order.
+    frame["_event_priority"] = frame["event_type"].map({"SPLIT": 0}).fillna(1)
+    frame = frame.sort_values(["date", "_event_priority"], kind="stable").drop(
+        columns=["_event_priority"]
+    ).reset_index(drop=True)
+    if adjustment_policy == "PROVIDER_SPLIT_ADJUSTED":
+        # Providers commonly back-adjust historical Close prices for splits.
+        # Restore pre-split prices to their historical trading units so the
+        # chronological share-quantity split below does not double count.
+        for split in frame.loc[frame["event_type"].eq("SPLIT")].to_dict("records"):
+            ticker = str(split["ticker"]).upper()
+            effective_date = pd.Timestamp(split["date"])
+            ratio = float(split["quantity"])
+            prices[ticker].loc[prices[ticker].index < effective_date] *= ratio
     unknown = sorted(set(frame.loc[frame["ticker"].ne(""), "ticker"]) - set(prices))
     if unknown:
         raise ValueError("Ticker event tidak memiliki data harga: " + ", ".join(unknown))
@@ -351,14 +378,16 @@ def run_transaction_aware_portfolio(
         "ending_positions": dict(positions),
         "total_twr_pct": total_twr,
         "event_count": int(len(frame)),
+        "price_adjustment_policy": adjustment_policy,
         "method": (
             "Event replay at supplied fill dates/prices; daily mark-to-market uses backward as-of closes "
             "and explicit stale-price/FX limits. Deposits/withdrawals are external flows removed from daily TWR. "
-            "Internal trades, dividends, fees and taxes remain in portfolio performance. Supplied settlement dates separate trade-date holdings from settlement-date cash."
+            "Internal trades, dividends, fees and taxes remain in portfolio performance. Supplied settlement dates separate trade-date holdings from settlement-date cash. Same-day split events are applied before trades; provider split-adjusted Close prices are reversed to historical units only when PROVIDER_SPLIT_ADJUSTED is selected."
         ),
         "limitations": (
             "No intraday execution, broker fills, inferred settlement calendars, tax-lot realization, market impact, "
-            "dividend entitlement inference or automatic currency cash sub-ledgers. Fees/taxes default to base currency "
-            "unless amount_currency is supplied."
+            "dividend entitlement inference or automatic currency cash sub-ledgers. PROVIDER_SPLIT_ADJUSTED expects "
+            "split-adjusted Close (not dividend-adjusted Adj Close) and complete split events; missing corporate actions "
+            "can distort historical valuations. Fees/taxes default to base currency unless amount_currency is supplied."
         ),
     }
