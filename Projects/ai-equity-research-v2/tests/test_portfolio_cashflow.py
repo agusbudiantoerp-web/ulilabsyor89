@@ -298,3 +298,13 @@ def test_normalize_events_preserves_local_calendar_day_for_timezone_aware_dates(
     assert normalized.iloc[0]["settlement_date"] == pd.Timestamp("2026-01-03")
     assert normalized.iloc[0]["date"].tzinfo is None
     assert normalized.iloc[0]["settlement_date"].tzinfo is None
+
+
+@pytest.mark.parametrize("field", ["amount", "quantity", "price"])
+def test_normalize_events_rejects_numpy_boolean_numeric_fields(field):
+    import numpy as np
+    event = {"date": "2026-01-01", "event_type": "BUY", "amount": 100,
+             "ticker": "BBCA", "quantity": 1, "price": 100}
+    event[field] = np.bool_(True)
+    with pytest.raises(ValueError, match="boolean"):
+        normalize_events([event])
