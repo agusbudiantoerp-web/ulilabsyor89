@@ -79,6 +79,7 @@ def screen_symbol(symbol: str, market: str, period: str = "1y") -> dict[str, Any
         "atr_pct": atr / close * 100 if atr and close else None,
         "breakout_20d": bool(close > float(row["HIGH20"])) if pd.notna(row.get("HIGH20")) else False,
         "source": "Yahoo Finance",
+        "data_provenance": meta.get("data_provenance", {}),
     }
     result.update(score_stock(result))
     return result
