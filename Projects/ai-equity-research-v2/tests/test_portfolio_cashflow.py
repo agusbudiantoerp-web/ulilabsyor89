@@ -69,3 +69,23 @@ def test_xirr_includes_ending_portfolio_valuation():
 def test_xirr_rejects_flows_without_both_signs():
     with pytest.raises(ValueError, match="arus negatif"):
         calculate_xirr([{"date": "2025-01-01", "amount": 100}])
+
+
+def test_twr_rejects_duplicate_valuation_dates():
+    frame = pd.DataFrame([
+        {"date": "2026-01-01", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-01-01", "portfolio_value": 101, "external_flow": 0},
+    ])
+    with pytest.raises(ValueError, match="harus unik"):
+        calculate_twr(frame)
+
+
+def test_xirr_rejects_ambiguous_multiple_sign_changes():
+    flows = [
+        {"date": "2025-01-01", "amount": -1000},
+        {"date": "2025-06-01", "amount": 1200},
+        {"date": "2025-09-01", "amount": -300},
+        {"date": "2026-01-01", "amount": 200},
+    ]
+    with pytest.raises(ValueError, match="lebih dari satu akar"):
+        calculate_xirr(flows)
