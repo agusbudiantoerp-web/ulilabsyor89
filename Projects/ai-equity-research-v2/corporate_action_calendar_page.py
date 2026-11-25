@@ -7,6 +7,7 @@ import streamlit as st
 from corporate_action_calendar import normalize_corporate_events
 from corporate_event_store import create_event, create_events, delete_event, list_events
 from security_controls import record_audit_event
+from report_export_utils import safe_csv_bytes
 
 
 def _audit_corporate_event(owner, role, action, event_id, details):
@@ -93,7 +94,7 @@ def render_corporate_action_calendar() -> None:
         st.caption(result["coverage_note"])
         st.download_button(
             "Unduh corporate actions CSV",
-            result["events"].to_csv(index=False).encode("utf-8-sig"),
+            safe_csv_bytes(result["events"]),
             file_name="corporate_action_calendar.csv", mime="text/csv",
         )
         choices = {
