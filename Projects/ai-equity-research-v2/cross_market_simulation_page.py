@@ -39,6 +39,14 @@ def render_cross_market_simulation() -> None:
         max_gap = st.number_input("Maksimum umur data FX (hari kalender)", 0, 7, 3)
         max_price_gap = st.number_input("Maksimum umur harga penutupan (hari kalender)", 0, 14, 7)
         if st.button("Bangun cross-market portfolio", type="primary", key="fx_run"):
+            for stale_key in (
+                "cross_market_fx_result", "cross_market_price_closes",
+                "cross_market_asset_currencies", "cross_market_usdidr_close",
+                "cross_market_monte_carlo_result", "cross_market_regime_monte_carlo_result",
+                "cross_market_transaction_replay_result", "cross_market_stress_result",
+                "cross_market_factor_stress_result",
+            ):
+                st.session_state.pop(stale_key, None)
             idx_symbols = list(dict.fromkeys(x.strip().upper() for x in idx_raw.split(",") if x.strip()))
             us_symbols = list(dict.fromkeys(x.strip().upper() for x in us_raw.split(",") if x.strip()))
             overlap = set(idx_symbols) & set(us_symbols)
