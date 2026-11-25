@@ -120,3 +120,19 @@ def test_backup_manifest_verifier_rejects_hash_mismatch(tmp_path):
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="SHA-256"):
         verify_backup_manifest(manifest)
+
+
+
+def test_backup_cli_can_verify_manifest_without_database_credentials(tmp_path, monkeypatch, capsys):
+    import sys
+    from database_backup import main
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as db:
+        db.execute("CREATE TABLE sample(value TEXT)")
+    result = backup_sqlite(source, tmp_path / "backups")
+    monkeypatch.setattr(sys, "argv", ["database_backup.py", "verify", "--manifest", result["manifest"]])
+    assert main() == 0
+    output = capsys.readouterr().out
+    assert "manifest integrity: ok" in output
+    assert "SHA-256:" in output
