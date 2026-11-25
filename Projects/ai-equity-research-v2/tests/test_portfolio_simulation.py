@@ -212,3 +212,49 @@ def test_detect_portfolio_structural_break_validates_history_and_thresholds():
         detect_portfolio_structural_break(pd.Series([0.01] * 39), window=20)
     with pytest.raises(ValueError, match="Volatility ratio threshold"):
         detect_portfolio_structural_break(pd.Series([0.01] * 80), window=40, volatility_ratio_threshold=1.0)
+
+@pytest.mark.parametrize("runner,extra", [
+    (run_portfolio_monte_carlo, {}),
+    (run_regime_switching_monte_carlo, {
+        "regime_labels": pd.Series(["calm"] * 40 + ["stress"] * 40),
+        "transition_matrix": [[0.9, 0.1], [0.2, 0.8]],
+    }),
+    (run_block_bootstrap_monte_carlo, {}),
+])
+@pytest.mark.parametrize("parameter,value", [
+    ("confidence", float("nan")),
+    ("confidence", float("inf")),
+    ("confidence", "invalid"),
+    ("simulations", True),
+    ("horizon_days", 1.5),
+    ("seed", -1),
+    ("seed", True),
+])
+def test_simulation_runners_reject_invalid_controls(runner, extra, parameter, value):
+    frame = returns_frame()
+    if runner is run_regime_switching_monte_carlo:
+        kwargs = {
+            "historical_returns": frame,
+            "weights": {"A": 0.6, "B": 0.4},
+            **extra,
+            "simulations": 100,
+            "horizon_days": 10,
+        }
+    else:
+        kwargs = {
+            "historical_returns": frame,
+            "weights": {"A": 0.6, "B": 0.4},
+            "simulations": 100,
+            "horizon_days": 10,
+        }
+    kwargs[parameter] = value
+    with pytest.raises(ValueError):
+        runner(**kwargs)
+
+
+def test_block_bootstrap_rejects_boolean_block_size():
+    with pytest.raises(ValueError, match="Block size"):
+        run_block_bootstrap_monte_carlo(
+            returns_frame(), {"A": 0.5, "B": 0.5},
+            block_size=True, simulations=100, horizon_days=10,
+        )
