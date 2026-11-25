@@ -83,3 +83,9 @@ def test_calendar_rejects_malformed_numeric_fields_instead_of_silently_dropping_
         normalize_corporate_events([
             base_event(event_type="STOCK_SPLIT", split_ratio="two-for-one")
         ])
+
+
+def test_calendar_rejects_numpy_boolean_amount():
+    import numpy as np
+    with pytest.raises(ValueError, match="amount"):
+        normalize_corporate_events([base_event(amount=np.bool_(True))])
