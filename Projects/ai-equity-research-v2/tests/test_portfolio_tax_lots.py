@@ -73,3 +73,36 @@ def test_opening_tax_lots_work_without_any_ledger_events():
     assert result["realized_pnl"] == pytest.approx(0)
     assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(100)
     assert result["open_cost_basis"] == pytest.approx(850000)
+
+
+def test_fifo_orders_opening_and_ledger_lots_by_acquisition_date():
+    result = calculate_tax_lots(
+        [
+            {"date": "2026-02-01", "event_type": "BUY", "amount": 1200, "ticker": "BBCA", "quantity": 10, "price": 120},
+            {"date": "2026-04-01", "event_type": "SELL", "amount": 700, "ticker": "BBCA", "quantity": 5, "price": 140},
+        ],
+        opening_lots=[
+            {"ticker": "BBCA", "quantity": 10, "unit_cost": 90, "acquisition_date": "2026-03-01"},
+        ],
+    )
+    # The February ledger purchase predates the March opening lot and is consumed first.
+    assert result["realized_cost_basis"] == pytest.approx(600)
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(15)
+    assert result["open_cost_basis"] == pytest.approx(1500)
+
+
+def test_fifo_cannot_sell_an_opening_lot_before_its_acquisition_date():
+    with pytest.raises(ValueError, match="tax lot tersedia pada 2026-02-01"):
+        calculate_tax_lots(
+            [{"date": "2026-02-01", "event_type": "SELL", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100}],
+            opening_lots=[
+                {"ticker": "BBCA", "quantity": 5, "unit_cost": 80, "acquisition_date": "2026-03-01"},
+            ],
+        )
+
+
+def test_opening_lot_rejects_invalid_acquisition_date():
+    with pytest.raises(ValueError, match="acquisition_date"):
+        calculate_tax_lots([], opening_lots=[
+            {"ticker": "BBCA", "quantity": 5, "unit_cost": 80, "acquisition_date": "not-a-date"},
+        ])
