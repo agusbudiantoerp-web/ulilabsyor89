@@ -25,6 +25,8 @@ def run_portfolio_monte_carlo(
     values = frame.to_numpy(dtype=float)
     if not np.isfinite(values).all():
         raise ValueError("Historical returns harus finite.")
+    if (values <= -1.0).any():
+        raise ValueError("Daily returns tidak boleh -100% atau lebih rendah.")
     weight = np.asarray([float(weights[column]) for column in frame.columns], dtype=float)
     if not np.isfinite(weight).all() or (weight < 0).any() or weight.sum() <= 0:
         raise ValueError("Bobot harus finite, non-negatif dan memiliki total positif.")
@@ -330,6 +332,8 @@ def run_regime_switching_monte_carlo(
         raise ValueError("Seed harus integer antara 0 dan 2^32-1.")
     if len(frame) < 40 or not np.isfinite(frame.to_numpy(dtype=float)).all():
         raise ValueError("Minimal 40 observasi return finite diperlukan.")
+    if (frame.to_numpy(dtype=float) <= -1.0).any():
+        raise ValueError("Daily returns tidak boleh -100% atau lebih rendah.")
     stats = {}
     for regime in regimes:
         subset = frame.loc[labels.astype(str).eq(regime)]
@@ -425,6 +429,8 @@ def run_block_bootstrap_monte_carlo(
     frame = historical_returns.apply(pd.to_numeric, errors="coerce").dropna(how="any")
     if len(frame) < 20 or not np.isfinite(frame.to_numpy(dtype=float)).all():
         raise ValueError("Minimal 20 observasi return finite diperlukan.")
+    if (frame.to_numpy(dtype=float) <= -1.0).any():
+        raise ValueError("Daily returns tidak boleh -100% atau lebih rendah.")
     if isinstance(block_size, bool) or not isinstance(block_size, (int, np.integer)) or not 1 <= block_size <= min(60, len(frame)):
         raise ValueError("Block size harus integer 1–60 dan tidak melebihi histori.")
     if isinstance(simulations, bool) or not isinstance(simulations, (int, np.integer)) or not 100 <= simulations <= 100000:
