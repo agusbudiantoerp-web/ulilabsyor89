@@ -34,6 +34,22 @@ def _parse_date_series(series: pd.Series, label: str) -> pd.Series:
     return parsed.dt.tz_localize(None)
 
 
+def _parse_event_calendar_dates(series: pd.Series, label: str) -> pd.Series:
+    """Preserve the supplied local calendar day for exchange event dates."""
+    parsed = []
+    for value in series:
+        if isinstance(value, numbers.Number) or isinstance(value, bool) or type(value).__name__ == "bool_":
+            raise ValueError(f"{label} tidak valid.")
+        try:
+            timestamp = pd.Timestamp(value)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError(f"{label} tidak valid.") from None
+        if pd.isna(timestamp):
+            raise ValueError(f"{label} tidak valid.")
+        parsed.append(pd.Timestamp(timestamp.date()))
+    return pd.Series(parsed, index=series.index, dtype="datetime64[ns]")
+
+
 def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
     frame = events.copy() if isinstance(events, pd.DataFrame) else pd.DataFrame(list(events))
     required = {"date", "event_type", "amount"}
@@ -49,9 +65,7 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
     # the Unix epoch when a human-readable event date is required.
     if frame["date"].map(lambda value: isinstance(value, numbers.Number) or _is_boolean(value)).any():
         raise ValueError("Tanggal event tidak valid.")
-    frame["date"] = pd.to_datetime(frame["date"], errors="coerce", utc=True).dt.tz_localize(None)
-    if frame["date"].isna().any():
-        raise ValueError("Tanggal event tidak valid.")
+    frame["date"] = _parse_event_calendar_dates(frame["date"], "Tanggal event")
     frame["event_type"] = frame["event_type"].astype(str).str.upper().str.strip()
     unknown = sorted(set(frame["event_type"]) - EVENT_TYPES)
     if unknown:
@@ -88,10 +102,8 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
             lambda value: isinstance(value, numbers.Number) or _is_boolean(value)
         ).any():
             raise ValueError("Settlement date transaksi tidak valid.")
-        parsed = pd.to_datetime(settlement_values, errors="coerce", utc=True).dt.tz_localize(None)
+        parsed = _parse_event_calendar_dates(settlement_values, "Settlement date transaksi")
         trade_dates = frame.loc[validate_rows, "date"]
-        if parsed.isna().any():
-            raise ValueError("Settlement date transaksi tidak valid.")
         try:
             earlier = parsed.reset_index(drop=True) < trade_dates.reset_index(drop=True)
         except TypeError as exc:
