@@ -234,3 +234,26 @@ def test_average_cost_supports_multiple_sales_from_remaining_pooled_lot():
     assert result["realized_pnl"] == pytest.approx(140)
     assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(3)
     assert result["open_cost_basis"] == pytest.approx(300)
+
+
+def test_same_day_split_is_applied_before_sell_even_if_ledger_rows_are_reversed():
+    result = calculate_tax_lots([
+        {"date": "2026-02-01", "event_type": "SELL", "amount": 500, "ticker": "BBCA", "quantity": 10, "price": 50},
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 2},
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 1000, "ticker": "BBCA", "quantity": 10, "price": 100},
+    ])
+    assert result["realized_cost_basis"] == pytest.approx(500)
+    assert result["realized_pnl"] == pytest.approx(0)
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(10)
+    assert result["open_cost_basis"] == pytest.approx(500)
+
+
+def test_multiple_splits_preserve_total_cost_basis():
+    result = calculate_tax_lots([
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 1200, "ticker": "BBCA", "quantity": 12, "price": 100},
+        {"date": "2026-02-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 2},
+        {"date": "2026-03-01", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 3},
+    ])
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(72)
+    assert result["open_cost_basis"] == pytest.approx(1200)
+    assert result["open_lots"].iloc[0]["unit_cost"] == pytest.approx(1200 / 72)
