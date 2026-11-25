@@ -90,3 +90,52 @@ def test_transaction_replay_rejects_insufficient_cash_and_future_lookahead():
             [{"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 0}],
             initial_positions={"AAA": 1},
         )
+
+
+
+def test_transaction_replay_separates_trade_date_positions_from_settlement_cash():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"])
+    result = run_transaction_aware_portfolio(
+        {"AAA": pd.Series([100.0, 110.0, 120.0, 130.0], index=dates)},
+        {"AAA": "IDR"},
+        [
+            {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 1000, "ticker": "AAA", "quantity": 10, "price": 100, "settlement_date": "2026-01-03"},
+            {"date": "2026-01-03", "event_type": "SELL", "amount": 600, "ticker": "AAA", "quantity": 5, "price": 120, "settlement_date": "2026-01-04"},
+        ],
+    )
+    assert result["curve"].loc[pd.Timestamp("2026-01-02"), "cash_balance"] == pytest.approx(1000)
+    assert result["curve"].loc[pd.Timestamp("2026-01-02"), "available_cash"] == pytest.approx(0)
+    assert result["curve"].loc[pd.Timestamp("2026-01-02"), "unsettled_payables"] == pytest.approx(1000)
+    assert result["curve"].loc[pd.Timestamp("2026-01-03"), "unsettled_payables"] == pytest.approx(0)
+    assert result["curve"].loc[pd.Timestamp("2026-01-03"), "unsettled_receivables"] == pytest.approx(600)
+    assert result["ending_cash"] == pytest.approx(600)
+    assert result["ending_available_cash"] == pytest.approx(600)
+    assert result["ending_unsettled_receivables"] == pytest.approx(0)
+    assert result["pending_settlements"].empty
+    assert result["ending_portfolio_value"] == pytest.approx(1250)
+
+
+def test_transaction_replay_reserves_cash_for_unsettled_buy_payables():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="Cash tersedia tidak cukup"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 100.0], index=dates)},
+            {"AAA": "IDR"},
+            [
+                {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000},
+                {"date": "2026-01-01", "event_type": "BUY", "amount": 800, "ticker": "AAA", "quantity": 8, "price": 100, "settlement_date": "2026-01-02"},
+                {"date": "2026-01-02", "event_type": "BUY", "amount": 300, "ticker": "AAA", "quantity": 3, "price": 100},
+            ],
+        )
+
+
+def test_transaction_replay_rejects_settlement_before_trade_date():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="tidak boleh lebih awal"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 100.0], index=dates)},
+            {"AAA": "IDR"},
+            [{"date": "2026-01-02", "event_type": "BUY", "amount": 100, "ticker": "AAA", "quantity": 1, "price": 100, "settlement_date": "2026-01-01"}],
+            initial_cash=100,
+        )
