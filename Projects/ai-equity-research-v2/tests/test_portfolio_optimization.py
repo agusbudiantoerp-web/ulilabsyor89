@@ -88,3 +88,10 @@ def test_optimizer_rejects_invalid_numeric_controls(parameter, value):
     positions, returns = fixtures()
     with pytest.raises(ValueError):
         optimize_portfolio(positions, returns, **{parameter: value})
+
+
+@pytest.mark.parametrize("parameter", ["max_weight", "risk_free_rate", "min_observations", "simulations", "seed"])
+def test_optimizer_rejects_numpy_boolean_controls(parameter):
+    positions, returns = fixtures()
+    with pytest.raises(ValueError, match="boolean|angka|integer"):
+        optimize_portfolio(positions, returns, **{parameter: np.bool_(True)})
