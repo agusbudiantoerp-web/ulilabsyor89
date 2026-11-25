@@ -225,6 +225,16 @@ def project_multistage_dcf(
 
         present_value = fcff / ((1 + wacc) ** year)
         pv_fcff += present_value
+        calculated_values = (
+            revenue, ebitda, depreciation, ebit, tax, capex,
+            change_nwc, fcff, present_value, pv_fcff,
+        )
+        if not all(math.isfinite(value) for value in calculated_values):
+            return {
+                "available": False,
+                "reason": f"Numerical overflow detected in forecast year {year}; review financial scale and assumptions.",
+                "forecast": forecast,
+            }
 
         forecast.append({
             "Year": year,
@@ -259,6 +269,18 @@ def project_multistage_dcf(
         terminal_revenue - last_revenue
     ) * nwc_pct
 
+    terminal_inputs = (
+        terminal_revenue, terminal_ebitda, terminal_da, terminal_ebit,
+        terminal_tax, terminal_capex, terminal_change_nwc,
+    )
+    if not all(math.isfinite(value) for value in terminal_inputs):
+        return {
+            "available": False,
+            "reason": "Numerical overflow detected in terminal operating assumptions.",
+            "forecast": forecast,
+            "pv_fcff": pv_fcff,
+        }
+
     terminal_fcff = (
         terminal_ebit
         - terminal_tax
@@ -284,6 +306,16 @@ def project_multistage_dcf(
 
     enterprise_value = pv_fcff + pv_terminal
     equity_value = enterprise_value - net_debt
+    if not all(math.isfinite(value) for value in (
+        terminal_fcff, terminal_value, pv_terminal,
+        enterprise_value, equity_value,
+    )):
+        return {
+            "available": False,
+            "reason": "Numerical overflow detected in terminal or equity valuation.",
+            "forecast": forecast,
+            "pv_fcff": pv_fcff,
+        }
 
     if equity_value <= 0:
         return {
