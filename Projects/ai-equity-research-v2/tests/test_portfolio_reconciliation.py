@@ -81,3 +81,22 @@ def test_broker_reconciliation_rejects_invalid_numeric_tolerances(parameter, val
 def test_broker_reconciliation_requires_integer_date_tolerance(value):
     with pytest.raises(ValueError, match="date_tolerance_days"):
         reconcile_broker_statement([], [], date_tolerance_days=value)
+
+
+@pytest.mark.parametrize("value", [pd.NA, 1.0, float("inf"), "1"])
+def test_broker_reconciliation_rejects_non_integral_date_tolerance(value):
+    with pytest.raises(ValueError, match="date_tolerance_days"):
+        reconcile_broker_statement([], [], date_tolerance_days=value)
+
+
+@pytest.mark.parametrize("parameter", ["amount_tolerance_pct", "price_tolerance_pct", "quantity_tolerance"])
+def test_broker_reconciliation_rejects_numpy_boolean_tolerances(parameter):
+    import numpy as np
+    with pytest.raises(ValueError, match=parameter):
+        reconcile_broker_statement([], [], **{parameter: np.bool_(True)})
+
+
+def test_broker_reconciliation_accepts_numpy_integer_date_tolerance():
+    import numpy as np
+    result = reconcile_broker_statement([], [], date_tolerance_days=np.int64(1))
+    assert result["internal_event_count"] == 0
