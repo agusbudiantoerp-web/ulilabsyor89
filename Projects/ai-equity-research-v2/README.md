@@ -11,7 +11,13 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 3. **Portfolio & Risk Management** — position weights, sector/market/currency exposure, correlations, volatility, historical VaR, drawdown, price/FX scenarios and indicative candidate allocation.
 4. **Backtesting** — fee/slippage-aware single-ticker backtest, chronological walk-forward evaluation, multi-asset simulation and owner-scoped saved run history.
 5. **Performance & Learning** — owner-scoped PostgreSQL cloud persistence and observed 1/3/5/10/20-session forward outcomes grouped by signal and ruleset.
-6. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export, on-demand hash-chain integrity verification and read-only PostgreSQL connectivity/schema/privilege diagnostics.
+6. **Cash Flow & Return Ledger** — owner-scoped dividend/transaction events, cash/share reconciliation, TWR and XIRR.
+7. **Valuation Intelligence** — peer-relative multiples, currency/fiscal provenance, outlier flags and reverse DCF sensitivity.
+8. **Cross-Market & Monte Carlo** — IDR/USD FX-adjusted portfolio returns, Monte Carlo, historical and factor stress.
+9. **Corporate Actions Calendar** — source-attributed earnings/dividend/split events with status and stale/duplicate checks.
+10. **Investment Thesis** — owner-scoped, versioned bull/base/bear research theses linked to saved runs.
+11. **Thesis Review Inbox** — assigned version-specific reviewer decisions for portfolio managers/admins.
+12. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export, on-demand hash-chain integrity verification and read-only PostgreSQL connectivity/schema/privilege diagnostics.
 
 ## Advanced screener and scoring
 
@@ -27,12 +33,17 @@ See [ADVANCED_EQUITY_INTELLIGENCE.md](ADVANCED_EQUITY_INTELLIGENCE.md) for metho
 
 ## Additional intelligence tools
 
-The existing five menus also include these extensions:
+The original research, signal, portfolio and backtest menus also include these extensions:
 
 - **Daily Stock Signal:** market-regime classification for the IDX Composite (^JKSE) or SPY, relative strength of a selected stock versus its market benchmark over matched sessions, and OHLCV/fundamental data-quality checks. Negative valuation multiples are flagged for interpretation rather than automatically treated as invalid; quote/reporting-currency mismatches are surfaced.
 - **Portfolio & Risk Management:** named portfolio books can be saved, loaded and deleted with owner-scoped PostgreSQL storage when `DATABASE_URL` is configured; local SQLite is the fallback. Duplicate ticker rows are consolidated using share-weighted average cost. Legacy local books are quarantined as `legacy-unassigned` and are not automatically uploaded to PostgreSQL.
 - **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps. Single-ticker, walk-forward and multi-asset runs can be saved, reloaded and deleted within the authenticated owner account.
 - **Performance & Learning:** export a research pack to Excel and a concise PDF summary.
+- **Data provenance:** provider/source ticker, currency, adjustment basis, retrieval/cache age, latest bar and OHLCV quality checks. Yahoo Finance requests use bounded retries, TTL caching and immediate rate-limit handling.
+- **Cash-flow ledger:** persistent owner-scoped deposits, withdrawals, dividends, buys/sells, fees, taxes and split ratios; TWR valuation snapshots can be saved by portfolio ID.
+- **Cross-market portfolio:** explicit IDR/USD base currency and FX alignment with stale-FX rejection. Daily close model only; no intraday synchronization.
+- **Valuation tools:** peer median/coverage and reverse DCF implied FCF growth with sensitivity.
+- **Research governance:** owner-scoped thesis version history, assigned PM/admin review, and thesis/review data included in research exports.
 
 The multi-asset backtest is a separate fixed-rule trend simulation, not a broker execution model. Missing price bars are not forward-filled; uninvested cash earns zero. Benchmark comparisons are price-only and do not include dividends. Local SQLite files may be ephemeral on hosted instances; PostgreSQL is preferred for persistent cloud storage.
 
@@ -70,13 +81,13 @@ A GitHub Actions workflow also runs compile checks and the complete test suite o
 
 ## Authentication and access control
 
-The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. The admin-only Security & Audit console provides role-map visibility and audit-chain review. The audit hash chain is stored in PostgreSQL when configured, but it is not WORM/immutable. Report exports and administrator audit-log CSV downloads are audit-logged; Excel and CSV exports escape formula-like untrusted text. Remaining private data sources, managed database operations, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
+The workspace entry point is protected by Streamlit-native OIDC login. It requires exactly one OIDC provider configuration and a server-side `[auth_roles]` mapping from immutable provider `sub` values to `viewer`, `analyst`, `portfolio_manager`, or `admin`. Analysts/portfolio managers/admins can manage their own thesis; only portfolio managers/admins can decide explicitly assigned thesis reviews. Missing login or role mapping is denied by default. Page access and portfolio/learning databases are owner-scoped and permission-gated. The admin-only Security & Audit console provides role-map visibility and audit-chain review. The audit hash chain is stored in PostgreSQL when configured, but it is not WORM/immutable. Report exports and administrator audit-log CSV downloads are audit-logged; Excel and CSV exports escape formula-like untrusted text. Remaining private data sources, managed database operations, operation-level reviews, and deployment configuration must still pass the release gates before production multi-user use.
 
 See [OIDC_SETUP.md](OIDC_SETUP.md) for Google and Microsoft Entra ID configuration. The final two-user, PostgreSQL, audit, backtest, backup/restore and Preview-login validation sequence is documented in [MULTI_USER_RELEASE_TEST_PLAN.md](MULTI_USER_RELEASE_TEST_PLAN.md). Keep provider client secrets and the cookie secret only in Streamlit Secrets.
 
 ## Cloud performance database
 
-Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates owner-scoped scan, signal, outcome, portfolio, research-run and audit tables. Legacy learning/portfolio records are quarantined as `legacy-unassigned`; local SQLite books are not automatically uploaded. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
+Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App settings → Secrets. The app creates/migrates owner-scoped scan, signal, outcome, portfolio, cash-flow event, valuation snapshot, corporate event, research-run, thesis/version/review and audit tables. Legacy learning/portfolio records are quarantined as `legacy-unassigned`; local SQLite books are not automatically uploaded. Never commit database URLs, passwords, Telegram tokens, chat IDs or local database files.
 
 See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
