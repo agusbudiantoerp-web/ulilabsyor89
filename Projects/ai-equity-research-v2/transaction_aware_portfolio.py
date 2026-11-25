@@ -220,7 +220,7 @@ def run_transaction_aware_portfolio(
                     else:
                         cash += amount_base
             elif kind == "DIVIDEND":
-                event_currency = str(row.get("amount_currency") or currencies[ticker]).upper()
+                event_currency = _event_currency(row, currencies[ticker])
                 if event_currency not in {"IDR", "USD"}:
                     raise ValueError("amount_currency untuk DIVIDEND harus IDR atau USD.")
                 factor = _fx_factor(event_currency, base, when, fx, max_fx_gap_days)
