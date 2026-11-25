@@ -72,3 +72,10 @@ def test_corporate_event_store_normalizes_optional_fields(tmp_path):
     assert stored["event_type"] == "EX_DIVIDEND"
     assert stored["amount"] is None
     assert stored["split_ratio"] is None
+
+
+@pytest.mark.parametrize("limit", [0, -1, 1.5, True, "10", None])
+def test_corporate_event_store_requires_positive_integer_limit(tmp_path, limit):
+    db = str(tmp_path / "events.sqlite")
+    with pytest.raises(ValueError, match="Limit"):
+        list_events("owner", path=db, limit=limit)
