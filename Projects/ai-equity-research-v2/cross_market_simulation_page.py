@@ -11,6 +11,7 @@ from portfolio_simulation import (
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
 )
 from market_data_provider import YahooFinanceProvider
+from transaction_aware_portfolio import run_transaction_aware_portfolio
 
 
 def _download_usdidr(period: str) -> pd.Series:
@@ -73,8 +74,11 @@ def render_cross_market_simulation() -> None:
                             max_fx_gap_days=int(max_gap),
                         )
                         st.session_state["cross_market_fx_result"] = result
+                        st.session_state["cross_market_price_closes"] = closes
+                        st.session_state["cross_market_asset_currencies"] = currencies
+                        st.session_state["cross_market_usdidr_close"] = fx
                         st.session_state["cross_market_fx_errors"] = errors
-                        for result_key in ("cross_market_monte_carlo_result", "cross_market_regime_monte_carlo_result", "cross_market_stress_result", "cross_market_factor_stress_result"):
+                        for result_key in ("cross_market_monte_carlo_result", "cross_market_regime_monte_carlo_result", "cross_market_transaction_replay_result", "cross_market_stress_result", "cross_market_factor_stress_result"):
                             st.session_state.pop(result_key, None)
                     except Exception as exc:
                         st.error(f"Cross-market conversion gagal: {type(exc).__name__}: {exc}")
@@ -190,6 +194,82 @@ def render_cross_market_simulation() -> None:
             r4.metric("Probability of loss", f"{regime_result['probability_of_loss_pct']:.1f}%")
             st.write("Final regime counts:", regime_result["final_regime_counts"])
             st.caption(regime_result["assumptions"])
+
+    with st.expander("Transaction-aware portfolio replay (CSV event ledger)", expanded=False):
+        st.caption(
+            "Replay BUY/SELL/dividend/fee/tax/deposit/withdrawal events against downloaded daily prices. "
+            "This uses explicit fill data; it does not place orders or infer broker fills."
+        )
+        st.caption(
+            "CSV columns: date,event_type,amount,ticker,quantity,price,amount_currency,notes. "
+            "Deposit/withdrawal use base currency. BUY/SELL/dividend default to asset currency; "
+            "FEE/TAX default to base currency. Set amount_currency explicitly when different."
+        )
+        template = pd.DataFrame(columns=[
+            "date", "event_type", "amount", "ticker", "quantity", "price",
+            "amount_currency", "notes",
+        ])
+        st.download_button(
+            "Unduh template transaction ledger CSV",
+            template.to_csv(index=False).encode("utf-8-sig"),
+            file_name="transaction_aware_ledger_template.csv", mime="text/csv",
+            key="transaction_ledger_template_download",
+        )
+        uploaded_ledger = st.file_uploader(
+            "Unggah event ledger CSV", type=["csv"], key="transaction_aware_ledger_upload",
+        )
+        initial_cash = st.number_input(
+            f"Saldo kas awal ({result['base_currency']})", min_value=0.0,
+            value=0.0, key="transaction_aware_initial_cash",
+        )
+        initial_positions_raw = st.text_input(
+            "Posisi saham awal (TICKER:jumlah, pisahkan koma)",
+            value="", key="transaction_aware_initial_positions",
+        )
+        if st.button("Jalankan transaction-aware replay", key="transaction_aware_replay_run"):
+            try:
+                if uploaded_ledger is None:
+                    raise ValueError("Unggah CSV event ledger terlebih dahulu.")
+                event_frame = pd.read_csv(uploaded_ledger)
+                opening_positions = {}
+                if initial_positions_raw.strip():
+                    for item in initial_positions_raw.split(","):
+                        parts = item.strip().split(":")
+                        if len(parts) != 2 or not parts[0].strip():
+                            raise ValueError("Format posisi awal harus TICKER:jumlah.")
+                        ticker, shares = parts[0].strip().upper(), float(parts[1].strip())
+                        if ticker in opening_positions or not math.isfinite(shares) or shares <= 0:
+                            raise ValueError("Posisi awal harus unik dan jumlahnya positif.")
+                        opening_positions[ticker] = shares
+                replay = run_transaction_aware_portfolio(
+                    st.session_state.get("cross_market_price_closes") or {},
+                    st.session_state.get("cross_market_asset_currencies") or {},
+                    event_frame,
+                    base_currency=result["base_currency"],
+                    usd_idr_close=st.session_state.get("cross_market_usdidr_close"),
+                    initial_cash=float(initial_cash),
+                    initial_positions=opening_positions,
+                    max_fx_gap_days=int(max_gap),
+                )
+                st.session_state["cross_market_transaction_replay_result"] = replay
+            except Exception as exc:
+                st.error(f"Transaction-aware replay gagal: {type(exc).__name__}: {exc}")
+        replay = st.session_state.get("cross_market_transaction_replay_result")
+        if replay:
+            r1, r2, r3 = st.columns(3)
+            r1.metric("Ending portfolio value", f"{replay['ending_portfolio_value']:,.2f} {replay['base_currency']}")
+            r2.metric("Total TWR", f"{replay['total_twr_pct']:.2f}%")
+            r3.metric("Event count", replay["event_count"])
+            st.line_chart(replay["curve"]["twr_equity_index"])
+            st.dataframe(replay["curve"].drop(columns=["position_values"]).tail(20), use_container_width=True)
+            st.download_button(
+                "Unduh transaction-aware equity curve CSV",
+                replay["curve"].drop(columns=["position_values"]).to_csv().encode("utf-8-sig"),
+                file_name="transaction_aware_equity_curve.csv", mime="text/csv",
+                key="transaction_aware_curve_download",
+            )
+            st.caption(replay["method"])
+            st.caption(replay["limitations"])
 
     st.markdown("**User-defined stress scenario**")
     with st.form("cross_market_stress_form"):
