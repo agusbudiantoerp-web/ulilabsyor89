@@ -185,6 +185,9 @@ def run_transaction_aware_portfolio(
     frame = frame.sort_values(["date", "_event_priority"], kind="stable").drop(
         columns=["_event_priority"]
     ).reset_index(drop=True)
+    unknown = sorted(set(frame.loc[frame["ticker"].ne(""), "ticker"]) - set(prices))
+    if unknown:
+        raise ValueError("Ticker event tidak memiliki data harga: " + ", ".join(unknown))
     if adjustment_policy == "PROVIDER_SPLIT_ADJUSTED":
         # Providers commonly back-adjust historical Close prices for splits.
         # Restore pre-split prices to their historical trading units so the
@@ -194,9 +197,6 @@ def run_transaction_aware_portfolio(
             effective_date = pd.Timestamp(split["date"])
             ratio = float(split["quantity"])
             prices[ticker].loc[prices[ticker].index < effective_date] *= ratio
-    unknown = sorted(set(frame.loc[frame["ticker"].ne(""), "ticker"]) - set(prices))
-    if unknown:
-        raise ValueError("Ticker event tidak memiliki data harga: " + ", ".join(unknown))
     dates = set()
     for series in prices.values():
         dates.update(series.index)
