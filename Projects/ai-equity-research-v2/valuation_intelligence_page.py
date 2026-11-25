@@ -4,6 +4,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from security_controls import require_permission
+
 from market_engine import resolve_market_ticker
 from peer_valuation import build_peer_comparison, compare_company_to_peers
 from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
@@ -47,6 +49,7 @@ def _peer_record(symbol: str, market: str) -> dict:
 
 
 def render_valuation_intelligence() -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
     st.subheader("Relative Valuation & Reverse DCF")
     st.caption("Peer multiples dan market-implied FCF growth. Periksa mata uang, periode fiskal, dan definisi metrik sebelum membandingkan.")
     with st.expander("Peer valuation comparison", expanded=True):
