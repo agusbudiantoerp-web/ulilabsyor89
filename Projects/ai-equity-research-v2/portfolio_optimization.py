@@ -56,14 +56,24 @@ def optimize_portfolio(
     currencies = frame["Currency"].unique().tolist()
     if len(currencies) != 1:
         raise ValueError("Optimizer hanya mendukung satu mata uang per perhitungan. Konversi return dengan FX terlebih dahulu.")
-    if not 0 < float(max_weight) <= 1 or not math.isfinite(float(max_weight)):
-        raise ValueError("max_weight harus lebih besar dari 0 dan maksimal 1.")
-    if not math.isfinite(float(risk_free_rate)) or risk_free_rate < -1 or risk_free_rate > 1:
-        raise ValueError("risk_free_rate harus berupa angka antara -1 dan 1.")
-    if not isinstance(min_observations, int) or min_observations < 20:
-        raise ValueError("min_observations minimal 20.")
-    if not isinstance(simulations, int) or not 1000 <= simulations <= 200000:
-        raise ValueError("simulations harus antara 1.000 dan 200.000.")
+    try:
+        max_weight = float(max_weight)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("max_weight harus angka finite lebih besar dari 0 dan maksimal 1.") from exc
+    if not math.isfinite(max_weight) or not 0 < max_weight <= 1:
+        raise ValueError("max_weight harus angka finite lebih besar dari 0 dan maksimal 1.")
+    try:
+        risk_free_rate = float(risk_free_rate)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("risk_free_rate harus angka finite antara -1 dan 1.") from exc
+    if not math.isfinite(risk_free_rate) or not -1 <= risk_free_rate <= 1:
+        raise ValueError("risk_free_rate harus angka finite antara -1 dan 1.")
+    if isinstance(min_observations, bool) or not isinstance(min_observations, (int, np.integer)) or min_observations < 20:
+        raise ValueError("min_observations harus integer minimal 20.")
+    if isinstance(simulations, bool) or not isinstance(simulations, (int, np.integer)) or not 1000 <= simulations <= 200000:
+        raise ValueError("simulations harus integer antara 1.000 dan 200.000.")
+    if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or not 0 <= seed <= 2**32 - 1:
+        raise ValueError("seed harus integer antara 0 dan 2^32-1.")
 
     values = frame.groupby("Ticker")["Market Value"].sum()
     if not np.isfinite(values.to_numpy(dtype=float)).all() or not math.isfinite(float(values.sum())):
