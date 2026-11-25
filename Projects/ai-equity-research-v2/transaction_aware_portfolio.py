@@ -122,6 +122,7 @@ def run_transaction_aware_portfolio(
     dates = set()
     for series in prices.values():
         dates.update(series.index)
+    market_end = max(series.index.max() for series in prices.values())
     dates.update(pd.Timestamp(value) for value in frame["date"])
     for row in frame.to_dict("records"):
         if row["event_type"] in {"BUY", "SELL"}:
@@ -132,7 +133,8 @@ def run_transaction_aware_portfolio(
                     raise ValueError("Settlement date transaksi tidak valid.")
                 if settlement < pd.Timestamp(row["date"]):
                     raise ValueError("Settlement date tidak boleh lebih awal dari trade date.")
-                dates.add(pd.Timestamp(settlement))
+                if pd.Timestamp(settlement) <= market_end:
+                    dates.add(pd.Timestamp(settlement))
     timeline = pd.DatetimeIndex(sorted(dates), name="date")
     if len(timeline) < 2:
         raise ValueError("Minimal dua tanggal valuasi diperlukan.")
