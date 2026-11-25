@@ -11,7 +11,7 @@ from fx_portfolio_engine import combine_mixed_currency_returns
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
-    run_block_bootstrap_monte_carlo,
+    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,
 )
 from market_data_provider import YahooFinanceProvider
 from transaction_aware_portfolio import run_transaction_aware_portfolio
@@ -218,7 +218,8 @@ def render_cross_market_simulation() -> None:
             value=True, key="fx_regime_empirical_transitions",
             help="Estimasi frekuensi transisi dari label historis yang terlihat. Ini deskriptif/in-sample, bukan probabilitas prediksi.",
         )
-        if use_empirical_transitions:
+        empirical_transition = None
+        if use_empirical_transitions and len(regime_labels) >= 2:
             empirical_transition = estimate_regime_transition_matrix(regime_labels)
             transition_matrix = empirical_transition["transition_matrix"]
             st.write("Transisi historis (baris = regime saat ini, kolom = regime berikutnya):")
@@ -227,6 +228,8 @@ def render_cross_market_simulation() -> None:
             ), use_container_width=True)
             st.caption(empirical_transition["method"])
         else:
+            if use_empirical_transitions:
+                st.info("Label historis belum cukup untuk estimasi transisi; gunakan probabilitas manual sementara.")
             transition_matrix = [
                 [1.0 - calm_to_stress, calm_to_stress],
                 [stress_to_calm, 1.0 - stress_to_calm],
@@ -243,7 +246,8 @@ def render_cross_market_simulation() -> None:
                     simulations=int(simulations), horizon_days=int(horizon), seed=int(seed),
                 )
                 regime_result["transition_estimation"] = (
-                    empirical_transition["method"] if use_empirical_transitions else "User-supplied transition probabilities."
+                    empirical_transition["method"] if empirical_transition
+                    else "User-supplied transition probabilities; insufficient labels for empirical estimation."
                 )
                 regime_result["volatility_threshold_pct"] = vol_threshold * 100.0
                 st.session_state["cross_market_regime_monte_carlo_result"] = regime_result
