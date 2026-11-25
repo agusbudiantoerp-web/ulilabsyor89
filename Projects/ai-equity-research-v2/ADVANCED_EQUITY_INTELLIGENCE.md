@@ -103,7 +103,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - Reproducible multivariate-normal daily return simulations with a user-selectable seed, horizon and simulation count.
 - Reports return percentiles, probability of loss, VaR, CVaR and median maximum drawdown.
 - Covariance eigenvalues are clipped at zero when numerical estimation yields a non-positive-semidefinite covariance matrix.
-- User-defined instantaneous price shocks calculate weighted asset contributions and unallocated cash.
+- User-defined instantaneous price shocks calculate weighted asset contributions and unallocated cash. Factor stress combines FX, interest-rate and sector shocks using explicit user-supplied betas; FX beta is initialized from the asset/base currency relationship.
 - Simulations assume IID multivariate-normal returns and exclude regime changes, parameter uncertainty, taxes, liquidity, FX shocks unless already embedded in returns, and corporate actions. They are scenarios, not forecasts.
 
 ## 16. Corporate Actions & Event Calendar
