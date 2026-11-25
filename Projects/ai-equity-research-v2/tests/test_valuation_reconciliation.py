@@ -44,6 +44,48 @@ def test_reconcile_dcf_models_rejects_currency_mismatch():
         reconcile_dcf_models(multistage_result(), reverse)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("enterprise_value", True),
+        ("equity_value", False),
+        ("net_debt", True),
+        ("intrinsic_value_per_share", True),
+    ],
+)
+def test_reconcile_dcf_models_rejects_boolean_multistage_values(field, value):
+    multistage = multistage_result()
+    multistage[field] = value
+    with pytest.raises(ValueError, match="tidak valid"):
+        reconcile_dcf_models(multistage, reverse_result())
+
+
+@pytest.mark.parametrize("field", ["target_enterprise_value", "target_equity_value", "net_debt", "market_price"])
+def test_reconcile_dcf_models_rejects_boolean_reverse_values(field):
+    reverse = reverse_result()
+    reverse[field] = True
+    with pytest.raises(ValueError, match="tidak valid"):
+        reconcile_dcf_models(multistage_result(), reverse)
+
+
+def test_reconcile_dcf_models_rejects_non_positive_market_or_intrinsic_price():
+    reverse = reverse_result()
+    reverse["market_price"] = 0
+    with pytest.raises(ValueError, match="lebih besar dari 0"):
+        reconcile_dcf_models(multistage_result(), reverse)
+    multistage = multistage_result()
+    multistage["intrinsic_value_per_share"] = -1
+    with pytest.raises(ValueError, match="lebih besar dari 0"):
+        reconcile_dcf_models(multistage, reverse_result())
+
+
+def test_reconcile_dcf_models_rejects_boolean_assumptions():
+    multistage = multistage_result()
+    multistage["assumptions"]["wacc"] = True
+    with pytest.raises(ValueError, match="WACC/terminal growth"):
+        reconcile_dcf_models(multistage, reverse_result())
+
+
 def test_reconcile_dcf_models_requires_both_models_available():
     with pytest.raises(ValueError, match="Multi-Stage DCF harus tersedia"):
         reconcile_dcf_models({"available": False}, reverse_result())
