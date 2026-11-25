@@ -104,6 +104,21 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - User-defined instantaneous price shocks calculate weighted asset contributions and unallocated cash.
 - Simulations assume IID multivariate-normal returns and exclude regime changes, parameter uncertainty, taxes, liquidity, FX shocks unless already embedded in returns, and corporate actions. They are scenarios, not forecasts.
 
+## 16. Corporate Actions & Event Calendar
+
+- Tracks earnings, dividend declarations, ex-dates, pay dates, stock splits and rights issues.
+- Every record carries source, source URL, retrieval date, timezone, and CONFIRMED / ESTIMATED / CANCELLED status.
+- Duplicate records and stale source metadata are flagged; estimated dates are never presented as confirmed.
+- The current calendar is manually curated and session-scoped; it is not a comprehensive automated BEI/issuer event feed.
+
+## 17. Versioned Investment Thesis Workflow
+
+- Analysts, portfolio managers and administrators can create owner-scoped thesis records for IDX and US securities.
+- Each thesis captures bull/base/bear cases, catalysts, risks, invalidation criteria, target price, currency, status and review date.
+- Every edit creates a new version with actor and timestamp; prior versions remain reviewable.
+- SQLite is used for explicit local paths and PostgreSQL for configured cloud deployments. PostgreSQL schema and least-privilege grants include thesis and version tables.
+- Thesis data is isolated by immutable authenticated owner principal. Cloud database connectivity and two-user isolation still require staging validation.
+
 ## Data and safety notes
 
 - Price/fundamental data is retrieved from Yahoo Finance via yfinance and may be delayed, incomplete, revised or rate-limited.
