@@ -33,10 +33,13 @@ def reconcile_dcf_models(multistage: dict, reverse_dcf: dict) -> dict:
         if value is None or not math.isfinite(float(value)):
             raise ValueError(f"Nilai {name} tidak valid.")
     ms_assumptions = multistage.get("assumptions") or {}
-    reverse_wacc = float(reverse_dcf.get("wacc"))
-    reverse_terminal = float(reverse_dcf.get("terminal_growth"))
-    ms_wacc = float(ms_assumptions.get("wacc"))
-    ms_terminal = float(ms_assumptions.get("terminal_growth"))
+    try:
+        reverse_wacc = float(reverse_dcf.get("wacc"))
+        reverse_terminal = float(reverse_dcf.get("terminal_growth"))
+        ms_wacc = float(ms_assumptions.get("wacc"))
+        ms_terminal = float(ms_assumptions.get("terminal_growth"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("WACC/terminal growth kedua model wajib tersedia.") from exc
     if not all(math.isfinite(value) for value in (ms_wacc, ms_terminal, reverse_wacc, reverse_terminal)):
         raise ValueError("WACC/terminal growth kedua model tidak valid.")
     ms_ev = float(multistage["enterprise_value"])
