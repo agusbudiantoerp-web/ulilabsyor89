@@ -77,7 +77,11 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
         "peer_count": int(len(selected)),
         "tickers": selected["ticker"].astype(str).tolist(),
         "metrics": summaries,
-        "records": selected[["ticker", "industry", "currency", *METADATA_FIELDS, "currency_mismatch", *METRICS]].to_dict("records"),
+        "records": selected[[
+            "ticker", "industry", "currency", *METADATA_FIELDS,
+            "currency_mismatch", "fiscal_period_gap_days",
+            "fiscal_period_warning", "metric_periods", *METRICS,
+        ]].to_dict("records"),
         "fiscal_period_warning_tickers": selected.loc[selected["fiscal_period_warning"], "ticker"].astype(str).tolist(),
         "limitations": (
             "Peer set harus ditinjau manual. Fiscal year end yang berbeda lebih dari 90 hari "
