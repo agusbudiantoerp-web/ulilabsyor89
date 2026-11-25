@@ -34,6 +34,7 @@ def test_multi_asset_backtest_rejects_empty_universe():
 @pytest.mark.parametrize("bad_close", [float("nan"), float("inf"), 0.0, -1.0, "bad"])
 def test_multi_asset_rejects_invalid_close_values(bad_close):
     bars = sample_bars()
+    bars["Close"] = bars["Close"].astype(object)
     bars.iloc[10, bars.columns.get_loc("Close")] = bad_close
     with pytest.raises(ValueError, match="Close"):
         run_multi_asset_backtest({"AAA": bars})
@@ -55,10 +56,10 @@ def test_multi_asset_rejects_unsorted_dates():
 
 def test_multi_asset_rejects_duplicate_sessions_after_timezone_normalization():
     bars = sample_bars()
-    duplicate_instants = pd.DatetimeIndex([
+    duplicate_instants = pd.to_datetime([
         "2024-11-03T01:30:00-04:00",
         "2024-11-03T01:30:00-05:00",
-    ]).tz_convert("America/New_York")
+    ], utc=True).tz_convert("America/New_York")
     remaining = pd.date_range(
         "2024-11-04", periods=len(bars) - 2, freq="B", tz="America/New_York"
     )
@@ -122,5 +123,5 @@ def test_multi_asset_keeps_last_known_signal_across_other_market_holiday():
     holiday_turnover = {
         row["date"]: row["turnover"] for row in holiday["curve"]
     }
-    key = missing_date.date().isoformat()
-    assert holiday_turnover[key] == pytest.approx(complete_turnover[key])
+    assert missing_date in holiday_turnover
+    assert holiday_turnover[missing_date] == pytest.approx(complete_turnover[missing_date])
