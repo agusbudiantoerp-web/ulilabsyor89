@@ -9,7 +9,7 @@ The current workspace already includes DCF and Multi-Stage DCF, scenario analysi
 ## Implementation status (2026-11-25)
 
 - E7: canonical market-data provenance/freshness contract is implemented and integrated into daily history, screener and Market Intelligence. Alternate provider adapter, cache-age service and rate-limit policy remain.
-- E1: event ledger, dividend/cost classification, TWR and XIRR engines, Streamlit page and owner-scoped SQLite/PostgreSQL transaction-event storage are implemented. The TWR valuation grid remains session-scoped; tax-lot/realized-P&L accounting, unsettled trades and broker-statement reconciliation remain.
+- E1: event ledger, dividend/cost classification, TWR and XIRR engines, Streamlit page and owner-scoped SQLite/PostgreSQL transaction-event storage are implemented. Owner-scoped transaction events and valuation snapshots are persisted; tax-lot/realized-P&L accounting, unsettled trades and broker-statement reconciliation remain.
 - E2: FX-aware IDR/USD daily return conversion, FX attribution, strict stale-FX tolerance and cross-market UI are implemented. This is not yet a full cash/transaction-aware portfolio backtest.
 - E3: industry/currency-filtered peer metrics, coverage, medians and company-vs-peer comparison are implemented with Yahoo Finance UI. Fiscal-period normalization, outlier treatment and independent filing verification remain.
 - E4: bounded reverse DCF solver, enterprise-to-equity bridge and UI are implemented. Independent reconciliation against the existing multi-stage DCF and scenario sensitivity integration remain.
