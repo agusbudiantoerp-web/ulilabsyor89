@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 st.title("AI Equity Research Workspace")
-st.caption("Integrated research, daily signals, market regime, relative strength, portfolio risk, multi-asset backtesting, and performance reporting.")
+st.caption("Integrated equity research, peer valuation, reverse DCF, IDX/US FX portfolios, cash-flow ledger, Monte Carlo, corporate actions, investment thesis and multi-user governance.")
 st.warning("Platform riset dan pengambilan keputusan. Bukan nasihat investasi atau sistem eksekusi order.")
 
 if not oidc_is_configured(st.secrets):
