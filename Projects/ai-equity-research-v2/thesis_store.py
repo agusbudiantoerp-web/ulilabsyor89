@@ -89,6 +89,14 @@ def initialize(path=None):
                     actor_id TEXT NOT NULL, content_json JSONB NOT NULL, created_at TEXT NOT NULL,
                     PRIMARY KEY(owner_id,thesis_id,version),
                     FOREIGN KEY(thesis_id) REFERENCES research_theses(id) ON DELETE CASCADE)""")
+                cur.execute("""CREATE TABLE IF NOT EXISTS research_thesis_reviews(
+                    id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, thesis_id TEXT NOT NULL,
+                    reviewer_id TEXT NOT NULL, requested_by TEXT NOT NULL, version INTEGER NOT NULL,
+                    status TEXT NOT NULL, comments TEXT NOT NULL, created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(thesis_id) REFERENCES research_theses(id) ON DELETE CASCADE)""")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_reviewer ON research_thesis_reviews(reviewer_id,status,created_at DESC)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_owner ON research_thesis_reviews(owner_id,thesis_id,created_at DESC)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_theses_owner_updated ON research_theses(owner_id,updated_at DESC)")
         return
     with _connect(path) as db:
@@ -102,6 +110,14 @@ def initialize(path=None):
             actor_id TEXT NOT NULL, content_json TEXT NOT NULL, created_at TEXT NOT NULL,
             PRIMARY KEY(owner_id,thesis_id,version),
             FOREIGN KEY(thesis_id) REFERENCES research_theses(id) ON DELETE CASCADE)""")
+        db.execute("""CREATE TABLE IF NOT EXISTS research_thesis_reviews(
+            id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, thesis_id TEXT NOT NULL,
+            reviewer_id TEXT NOT NULL, requested_by TEXT NOT NULL, version INTEGER NOT NULL,
+            status TEXT NOT NULL, comments TEXT NOT NULL, created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(thesis_id) REFERENCES research_theses(id) ON DELETE CASCADE)""")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_reviewer ON research_thesis_reviews(reviewer_id,status,created_at DESC)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_thesis_reviews_owner ON research_thesis_reviews(owner_id,thesis_id,created_at DESC)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_theses_owner_updated ON research_theses(owner_id,updated_at DESC)")
 
 
@@ -241,3 +257,136 @@ def delete_thesis(owner_id, thesis_id, *, path=None):
             return False
         db.execute("DELETE FROM research_thesis_versions WHERE thesis_id=? AND owner_id=?", (thesis_id,owner))
         return db.execute("DELETE FROM research_theses WHERE id=? AND owner_id=?", (thesis_id,owner)).rowcount > 0
+
+
+def request_review(owner_id, thesis_id, reviewer_id, *, actor_id="", path=None):
+    owner = str(owner_id or "").strip()
+    reviewer = str(reviewer_id or "").strip()
+    actor = str(actor_id or owner).strip()
+    if not owner or not reviewer:
+        raise ValueError("Owner dan reviewer wajib diisi.")
+    if reviewer == owner:
+        raise ValueError("Pemilik tesis tidak dapat menjadi reviewer untuk tesisnya sendiri.")
+    initialize(path)
+    review_id = uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    if path is None and _database_url():
+        with _pg() as db:
+            with db.cursor() as cur:
+                cur.execute("SELECT current_version FROM research_theses WHERE id=%s AND owner_id=%s", (thesis_id, owner))
+                thesis = cur.fetchone()
+                if not thesis:
+                    raise KeyError("Investment thesis tidak ditemukan untuk pengguna ini.")
+                version = int(thesis["current_version"])
+                cur.execute("""SELECT id FROM research_thesis_reviews
+                    WHERE thesis_id=%s AND owner_id=%s AND reviewer_id=%s AND version=%s AND status='PENDING'""",
+                    (thesis_id, owner, reviewer, version))
+                if cur.fetchone():
+                    raise ValueError("Review untuk versi tesis ini masih menunggu reviewer.")
+                cur.execute("""INSERT INTO research_thesis_reviews
+                    (id,owner_id,thesis_id,reviewer_id,requested_by,version,status,comments,created_at,updated_at)
+                    VALUES(%s,%s,%s,%s,%s,%s,'PENDING','',%s,%s)""",
+                    (review_id, owner, thesis_id, reviewer, actor, version, now, now))
+    else:
+        with _connect(path) as db:
+            db.execute("BEGIN IMMEDIATE")
+            thesis = db.execute("SELECT current_version FROM research_theses WHERE id=? AND owner_id=?", (thesis_id, owner)).fetchone()
+            if not thesis:
+                raise KeyError("Investment thesis tidak ditemukan untuk pengguna ini.")
+            version = int(thesis["current_version"])
+            pending = db.execute("""SELECT id FROM research_thesis_reviews
+                WHERE thesis_id=? AND owner_id=? AND reviewer_id=? AND version=? AND status='PENDING'""",
+                (thesis_id, owner, reviewer, version)).fetchone()
+            if pending:
+                raise ValueError("Review untuk versi tesis ini masih menunggu reviewer.")
+            db.execute("""INSERT INTO research_thesis_reviews
+                (id,owner_id,thesis_id,reviewer_id,requested_by,version,status,comments,created_at,updated_at)
+                VALUES(?,?,?,?,?,?,'PENDING','',?,?)""",
+                (review_id, owner, thesis_id, reviewer, actor, version, now, now))
+    return review_id
+
+
+def list_reviews_for_thesis(owner_id, thesis_id, *, path=None):
+    owner = str(owner_id or "").strip()
+    if not owner:
+        raise ValueError("Owner identity wajib diisi.")
+    initialize(path)
+    query = """SELECT id,reviewer_id,requested_by,version,status,comments,created_at,updated_at
+        FROM research_thesis_reviews WHERE owner_id={owner} AND thesis_id={thesis} ORDER BY created_at DESC"""
+    if path is None and _database_url():
+        with _pg() as db:
+            rows = db.execute(query.format(owner="%s", thesis="%s"), (owner, thesis_id)).fetchall()
+    else:
+        with _connect(path) as db:
+            rows = db.execute(query.format(owner="?", thesis="?"), (owner, thesis_id)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_reviews_for_reviewer(reviewer_id, *, path=None):
+    reviewer = str(reviewer_id or "").strip()
+    if not reviewer:
+        raise ValueError("Reviewer identity wajib diisi.")
+    initialize(path)
+    query = """SELECT r.id,r.owner_id,r.thesis_id,r.version,r.status,r.comments,r.created_at,
+        t.ticker,t.market,t.title FROM research_thesis_reviews r
+        JOIN research_theses t ON t.id=r.thesis_id AND t.owner_id=r.owner_id
+        WHERE r.reviewer_id={reviewer} ORDER BY r.created_at DESC"""
+    if path is None and _database_url():
+        with _pg() as db:
+            rows = db.execute(query.format(reviewer="%s"), (reviewer,)).fetchall()
+    else:
+        with _connect(path) as db:
+            rows = db.execute(query.format(reviewer="?"), (reviewer,)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_review_for_reviewer(reviewer_id, review_id, *, path=None):
+    reviewer = str(reviewer_id or "").strip()
+    if not reviewer:
+        raise ValueError("Reviewer identity wajib diisi.")
+    initialize(path)
+    query = """SELECT r.*,t.ticker,t.market,t.title,v.content_json
+        FROM research_thesis_reviews r
+        JOIN research_theses t ON t.id=r.thesis_id AND t.owner_id=r.owner_id
+        JOIN research_thesis_versions v ON v.owner_id=r.owner_id AND v.thesis_id=r.thesis_id AND v.version=r.version
+        WHERE r.id={id} AND r.reviewer_id={reviewer}"""
+    if path is None and _database_url():
+        with _pg() as db:
+            row = db.execute(query.format(id="%s", reviewer="%s"), (review_id, reviewer)).fetchone()
+    else:
+        with _connect(path) as db:
+            row = db.execute(query.format(id="?", reviewer="?"), (review_id, reviewer)).fetchone()
+    if not row:
+        raise KeyError("Review tidak ditemukan untuk reviewer ini.")
+    result = dict(row)
+    result["content"] = result.pop("content_json")
+    if isinstance(result["content"], str):
+        result["content"] = json.loads(result["content"])
+    return result
+
+
+def decide_review(reviewer_id, review_id, decision, comments="", *, path=None):
+    reviewer = str(reviewer_id or "").strip()
+    outcome = str(decision or "").strip().upper()
+    if not reviewer:
+        raise ValueError("Reviewer identity wajib diisi.")
+    if outcome not in {"APPROVED", "REJECTED", "CHANGES_REQUESTED"}:
+        raise ValueError("Keputusan review tidak dikenal.")
+    now = datetime.now(timezone.utc).isoformat()
+    initialize(path)
+    if path is None and _database_url():
+        with _pg() as db:
+            with db.cursor() as cur:
+                cur.execute("""UPDATE research_thesis_reviews SET status=%s,comments=%s,updated_at=%s
+                    WHERE id=%s AND reviewer_id=%s AND status='PENDING' RETURNING id""",
+                    (outcome, str(comments or ""), now, review_id, reviewer))
+                if not cur.fetchone():
+                    raise KeyError("Review tidak ditemukan, bukan milik reviewer ini, atau sudah diputuskan.")
+    else:
+        with _connect(path) as db:
+            cur = db.execute("""UPDATE research_thesis_reviews SET status=?,comments=?,updated_at=?
+                WHERE id=? AND reviewer_id=? AND status='PENDING'""",
+                (outcome, str(comments or ""), now, review_id, reviewer))
+            if cur.rowcount == 0:
+                raise KeyError("Review tidak ditemukan, bukan milik reviewer ini, atau sudah diputuskan.")
+    return outcome
