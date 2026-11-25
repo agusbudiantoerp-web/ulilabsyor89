@@ -1,0 +1,94 @@
+import pandas as pd
+import pytest
+
+from transaction_aware_portfolio import run_transaction_aware_portfolio
+
+
+def test_transaction_replay_marks_partial_sell_and_dividend_into_portfolio_value():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"])
+    result = run_transaction_aware_portfolio(
+        {"AAA": pd.Series([100.0, 110.0, 120.0], index=dates)},
+        {"AAA": "IDR"},
+        [
+            {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 1000, "ticker": "AAA", "quantity": 10, "price": 100},
+            {"date": "2026-01-03", "event_type": "SELL", "amount": 600, "ticker": "AAA", "quantity": 5, "price": 120},
+            {"date": "2026-01-03", "event_type": "DIVIDEND", "amount": 10, "ticker": "AAA"},
+        ],
+        base_currency="IDR",
+    )
+    assert result["ending_cash"] == pytest.approx(610)
+    assert result["ending_market_value"] == pytest.approx(600)
+    assert result["ending_portfolio_value"] == pytest.approx(1210)
+    assert result["ending_positions"]["AAA"] == pytest.approx(5)
+    assert result["curve"]["daily_twr_return"].iloc[1] == pytest.approx(0.10)
+    assert result["total_twr_pct"] == pytest.approx(21.0)
+
+
+def test_transaction_replay_removes_external_deposits_from_twr():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    result = run_transaction_aware_portfolio(
+        {"AAA": pd.Series([100.0, 100.0], index=dates)},
+        {"AAA": "IDR"},
+        [
+            {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 1000, "ticker": "AAA", "quantity": 10, "price": 100},
+            {"date": "2026-01-02", "event_type": "DEPOSIT", "amount": 1000},
+        ],
+    )
+    assert result["ending_portfolio_value"] == pytest.approx(2000)
+    assert result["total_twr_pct"] == pytest.approx(0.0)
+
+
+def test_transaction_replay_converts_usd_asset_and_cash_flows_to_idr():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    result = run_transaction_aware_portfolio(
+        {"US": pd.Series([1.0, 1.0], index=dates)},
+        {"US": "USD"},
+        [
+            {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 15000},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 1, "ticker": "US", "quantity": 1, "price": 1},
+        ],
+        base_currency="IDR",
+        usd_idr_close=pd.Series([15000.0, 16500.0], index=dates),
+    )
+    assert result["ending_portfolio_value"] == pytest.approx(16500)
+    assert result["total_twr_pct"] == pytest.approx(10.0)
+
+
+def test_transaction_replay_rejects_stale_fx_and_short_sale():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-10"])
+    prices = {"US": pd.Series([1.0, 1.0], index=dates)}
+    fx = pd.Series([15000.0], index=dates[:1])
+    events = [
+        {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 15000},
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 1, "ticker": "US", "quantity": 1, "price": 1},
+    ]
+    with pytest.raises(ValueError, match="stale"):
+        run_transaction_aware_portfolio(prices, {"US": "USD"}, events,
+                                        usd_idr_close=fx, max_fx_gap_days=3)
+    with pytest.raises(ValueError, match="melebihi"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 100.0], index=dates)},
+            {"AAA": "IDR"},
+            [{"date": "2026-01-01", "event_type": "SELL", "amount": 100, "ticker": "AAA", "quantity": 1, "price": 100}],
+        )
+
+
+def test_transaction_replay_rejects_insufficient_cash_and_future_lookahead():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    prices = {"AAA": pd.Series([100.0, 100.0], index=dates)}
+    with pytest.raises(ValueError, match="Cash tidak cukup"):
+        run_transaction_aware_portfolio(
+            prices, {"AAA": "IDR"},
+            [{"date": "2026-01-01", "event_type": "BUY", "amount": 100, "ticker": "AAA", "quantity": 1, "price": 100}],
+        )
+    with pytest.raises(ValueError, match="look-ahead dilarang"):
+        run_transaction_aware_portfolio(
+            prices, {"AAA": "IDR"}, [],
+            initial_positions={"AAA": 1},
+            initial_cash=0,
+        ) if False else run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0], index=pd.to_datetime(["2026-01-02"]))},
+            {"AAA": "IDR"}, [], initial_positions={"AAA": 1},
+        )
