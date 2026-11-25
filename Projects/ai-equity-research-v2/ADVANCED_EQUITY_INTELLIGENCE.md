@@ -79,7 +79,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 
 - Combines IDX (IDR) and US (USD) daily close returns in an explicit IDR or USD base currency.
 - USD/IDR is aligned backward as-of to each asset trading date with an explicit maximum calendar-day tolerance; missing FX coverage fails closed.
-- Local asset return and FX contribution are reported separately; inverse USD/IDR conversion is used for IDR assets in a USD base portfolio.
+- Local asset return and FX contribution are reported separately per asset; inverse USD/IDR conversion is used for IDR assets in a USD base portfolio.
 - Static target weights are preserved across market holidays; a closed market contributes zero daily return rather than being reweighted into another market.
 - This is a daily close valuation model, not an intraday synchronized execution model. FX data provider, timezone, market holidays and stale-data tolerance should be reviewed.
 
