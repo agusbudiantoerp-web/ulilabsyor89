@@ -2,7 +2,7 @@ import pandas as pd
 from openpyxl import load_workbook
 from io import BytesIO
 
-from scenario_engine import project_scenario
+from scenario_engine import project_scenario, operating_scenario_sensitivity
 from reports import make_excel_report, make_pdf_report
 
 
@@ -107,3 +107,37 @@ def test_scenario_dcf_fails_closed_on_forecast_overflow():
     result = project_scenario(financials, assumptions, years=5)
     assert not result["available"]
     assert "overflow" in result["reason"].lower()
+
+
+def test_operating_sensitivity_recalculates_growth_and_margin_grid():
+    result = operating_scenario_sensitivity(
+        _financials(), _assumptions(),
+        revenue_growth_values=[-0.02, 0.0, 0.02],
+        ebitda_margin_values=[0.18, 0.20, 0.22],
+        years=3,
+    )
+    assert result["available"]
+    assert len(result["sensitivity"]) == 3
+    assert all(len(row["values"]) == 3 for row in result["sensitivity"])
+    center = result["sensitivity"][1]["values"][1]
+    baseline = project_scenario(_financials(), _assumptions(), years=3)
+    assert center["available"] is True
+    assert center["value_per_share"] == baseline["intrinsic_value_per_share"]
+    assert result["currency"] == "IDR"
+
+
+def test_operating_sensitivity_rejects_duplicate_axis_and_oversized_grid():
+    import pytest
+
+    with pytest.raises(ValueError, match="duplicate"):
+        operating_scenario_sensitivity(
+            _financials(), _assumptions(),
+            revenue_growth_values=[0.0, 0.0],
+            ebitda_margin_values=[0.2],
+        )
+    with pytest.raises(ValueError, match="safety limit"):
+        operating_scenario_sensitivity(
+            _financials(), _assumptions(),
+            revenue_growth_values=[i / 100 for i in range(11)],
+            ebitda_margin_values=[i / 100 for i in range(10)],
+        )
