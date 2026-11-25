@@ -47,7 +47,7 @@ def test_transaction_replay_converts_usd_asset_and_cash_flows_to_idr():
         {"US": "USD"},
         [
             {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 15000},
-            {"date": "2026-01-01", "event_type": "BUY", "amount": 1, "ticker": "US", "quantity": 1, "price": 1},
+            {"date": "2026-01-01", "event_type": "BUY", "amount": 1, "ticker": "US", "quantity": 1, "price": 1, "amount_currency": float("nan")},
         ],
         base_currency="IDR",
         usd_idr_close=pd.Series([15000.0, 16500.0], index=dates),
