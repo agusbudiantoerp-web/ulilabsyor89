@@ -8,7 +8,8 @@ import pytest
 from daily_signal_storage import record_outcome, save_scan, signal_history
 from portfolio_store import delete_book, list_books, load_book, save_book
 from research_run_store import delete_run, get_run, list_runs, save_run
-from thesis_store import create_thesis, delete_thesis, get_thesis, list_theses
+from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
+                          request_review, list_reviews_for_reviewer, decide_review)
 from corporate_event_store import create_event as create_corporate_event, delete_event as delete_corporate_event, list_events as list_corporate_events
 from portfolio_event_store import create_event as create_cashflow_event, delete_event as delete_cashflow_event, list_events as list_cashflow_events
 
@@ -101,6 +102,8 @@ def test_postgres_thesis_and_event_stores_are_owner_scoped(postgres_test_databas
         alice, "BBCA", "IDX", "Postgres isolation thesis",
         {"bull_case": "growth", "target_price": 12000},
     )
+    reviewer = f"issuer|reviewer-{suffix}"
+    review_id = request_review(alice, thesis_id, reviewer, actor_id=alice)
     corporate_id = create_corporate_event(alice, {
         "ticker": "BBCA", "event_type": "EX_DIVIDEND",
         "event_date": "2027-01-01", "status": "CONFIRMED",
@@ -113,6 +116,9 @@ def test_postgres_thesis_and_event_stores_are_owner_scoped(postgres_test_databas
     try:
         assert any(item["id"] == thesis_id for item in list_theses(alice))
         assert list_theses(bob) == []
+        assert len(list_reviews_for_reviewer(reviewer)) == 1
+        assert list_reviews_for_reviewer(bob) == []
+        assert decide_review(reviewer, review_id, "APPROVED", "PG integration approval") == "APPROVED"
         with pytest.raises(KeyError):
             get_thesis(bob, thesis_id)
         assert any(item["id"] == corporate_id for item in list_corporate_events(alice))
