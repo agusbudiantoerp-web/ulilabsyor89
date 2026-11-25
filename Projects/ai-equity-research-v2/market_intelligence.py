@@ -26,12 +26,25 @@ def _clean_close(frame: pd.DataFrame) -> pd.Series:
         close = data[matches[0]]
     if isinstance(close, pd.DataFrame):
         close = close.iloc[:, 0]
-    close = pd.to_numeric(close, errors="coerce").dropna()
-    close.index = pd.to_datetime(close.index)
-    if getattr(close.index, "tz", None) is not None:
-        close.index = close.index.tz_localize(None)
-    close = close[~close.index.duplicated(keep="last")].sort_index()
-    close = close[close > 0]
+    close = pd.to_numeric(close, errors="coerce")
+    if close.isna().any():
+        raise ValueError("Data Close mengandung nilai kosong atau non-numerik; bersihkan sumber sebelum analisis.")
+    try:
+        parsed_index = pd.DatetimeIndex(pd.to_datetime(close.index, errors="coerce"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Index tanggal harga tidak valid atau timezone tidak konsisten.") from exc
+    if parsed_index.isna().any():
+        raise ValueError("Index tanggal harga mengandung tanggal tidak valid.")
+    if parsed_index.tz is not None:
+        parsed_index = parsed_index.tz_localize(None)
+    if parsed_index.has_duplicates:
+        raise ValueError("Index tanggal harga mengandung tanggal duplikat; agregasikan secara eksplisit.")
+    close.index = parsed_index
+    if not all(math.isfinite(float(value)) for value in close):
+        raise ValueError("Data Close mengandung nilai non-finite.")
+    if (close <= 0).any():
+        raise ValueError("Data Close harus positif.")
+    close = close.sort_index()
     if len(close) < 60:
         raise ValueError("Minimal 60 sesi data penutupan diperlukan.")
     return close.astype(float).rename("Close")
