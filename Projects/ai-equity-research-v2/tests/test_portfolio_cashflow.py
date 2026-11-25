@@ -162,3 +162,30 @@ def test_portfolio_reconciliation_supports_preexisting_opening_positions():
     )
     assert result["cash_balance"] == pytest.approx(1300)
     assert result["positions"]["BBCA"] == pytest.approx(15)
+
+
+
+def test_normalize_events_rejects_non_finite_trade_quantity_and_price():
+    with pytest.raises(ValueError, match="quantity harus berupa angka finite"):
+        normalize_events([{
+            "date": "2026-01-01", "event_type": "BUY", "amount": 100,
+            "ticker": "BBCA", "quantity": float("inf"), "price": 100,
+        }])
+    with pytest.raises(ValueError, match="price harus berupa angka finite"):
+        normalize_events([{
+            "date": "2026-01-01", "event_type": "BUY", "amount": 100,
+            "ticker": "BBCA", "quantity": 1, "price": float("inf"),
+        }])
+
+
+def test_normalize_events_validates_explicit_settlement_date():
+    base = {
+        "date": "2026-01-02", "event_type": "BUY", "amount": 100,
+        "ticker": "BBCA", "quantity": 1, "price": 100,
+    }
+    with pytest.raises(ValueError, match="Settlement date transaksi tidak valid"):
+        normalize_events([{**base, "settlement_date": "not-a-date"}])
+    with pytest.raises(ValueError, match="tidak boleh lebih awal"):
+        normalize_events([{**base, "settlement_date": "2026-01-01"}])
+    normalized = normalize_events([{**base, "settlement_date": "2026-01-03"}])
+    assert pd.Timestamp(normalized.iloc[0]["settlement_date"]) == pd.Timestamp("2026-01-03")
