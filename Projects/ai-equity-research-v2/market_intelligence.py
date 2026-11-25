@@ -147,6 +147,9 @@ def audit_price_history(bars: pd.DataFrame, max_age_calendar_days: int = 5) -> d
     nonpositive = int((numeric[["Open", "High", "Low", "Close"]] <= 0).any(axis=1).sum())
     if nonpositive:
         checks.append({"severity": "ERROR", "message": f"{nonpositive} bar memiliki harga nol/negatif."})
+    infinite_volume = int(numeric["Volume"].isin([float("inf"), -float("inf")]).sum())
+    if infinite_volume:
+        checks.append({"severity": "ERROR", "message": f"{infinite_volume} bar memiliki volume infinite/non-finite."})
     negative_volume = int((numeric["Volume"] < 0).sum())
     if negative_volume:
         checks.append({"severity": "ERROR", "message": f"{negative_volume} bar memiliki volume negatif."})
