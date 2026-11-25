@@ -31,7 +31,7 @@ def _clean_close(series: pd.Series, label: str) -> pd.Series:
 def convert_asset_returns_to_base_currency(
     local_close: pd.Series,
     asset_currency: str,
-    usd_idr_close: pd.Series,
+    usd_idr_close: pd.Series | None = None,
     base_currency: str = "IDR",
     *,
     max_fx_gap_days: int = 3,
@@ -48,26 +48,31 @@ def convert_asset_returns_to_base_currency(
     if max_fx_gap_days < 0:
         raise ValueError("max_fx_gap_days tidak boleh negatif.")
     asset = _clean_close(local_close, "asset")
-    fx = _clean_close(usd_idr_close, "USD/IDR")
     asset_frame = pd.DataFrame({"date": asset.index, "local_close": asset.values})
-    fx_frame = pd.DataFrame({"date": fx.index, "usd_idr": fx.values})
-    merged = pd.merge_asof(
-        asset_frame.sort_values("date"), fx_frame.sort_values("date"),
-        on="date", direction="backward",
-        tolerance=pd.Timedelta(days=int(max_fx_gap_days)),
-    )
-    if merged["usd_idr"].isna().any():
-        missing_dates = merged.loc[merged["usd_idr"].isna(), "date"].dt.date.astype(str).tolist()
-        raise ValueError(
-            "Cakupan FX tidak tersedia dalam toleransi "
-            f"{max_fx_gap_days} hari untuk tanggal: {', '.join(missing_dates[:5])}"
-        )
     if currency == base:
+        merged = asset_frame.copy()
+        merged["usd_idr"] = float("nan")
         fx_factor = pd.Series(1.0, index=merged.index)
-    elif currency == "USD" and base == "IDR":
-        fx_factor = merged["usd_idr"]
     else:
-        fx_factor = 1.0 / merged["usd_idr"]
+        if usd_idr_close is None:
+            raise ValueError("Data USD/IDR wajib untuk konversi lintas mata uang.")
+        fx = _clean_close(usd_idr_close, "USD/IDR")
+        fx_frame = pd.DataFrame({"date": fx.index, "usd_idr": fx.values})
+        merged = pd.merge_asof(
+            asset_frame.sort_values("date"), fx_frame.sort_values("date"),
+            on="date", direction="backward",
+            tolerance=pd.Timedelta(days=int(max_fx_gap_days)),
+        )
+        if merged["usd_idr"].isna().any():
+            missing_dates = merged.loc[merged["usd_idr"].isna(), "date"].dt.date.astype(str).tolist()
+            raise ValueError(
+                "Cakupan FX tidak tersedia dalam toleransi "
+                f"{max_fx_gap_days} hari untuk tanggal: {', '.join(missing_dates[:5])}"
+            )
+        if currency == "USD" and base == "IDR":
+            fx_factor = merged["usd_idr"]
+        else:
+            fx_factor = 1.0 / merged["usd_idr"]
     merged["fx_factor"] = fx_factor
     merged["base_value"] = merged["local_close"] * merged["fx_factor"]
     merged["local_return"] = merged["local_close"].pct_change()
@@ -89,7 +94,7 @@ def combine_mixed_currency_returns(
     asset_closes: Mapping[str, pd.Series],
     asset_currencies: Mapping[str, str],
     weights: Mapping[str, float],
-    usd_idr_close: pd.Series,
+    usd_idr_close: pd.Series | None = None,
     base_currency: str = "IDR",
     *,
     max_fx_gap_days: int = 3,
@@ -106,6 +111,9 @@ def combine_mixed_currency_returns(
     total_weight = sum(clean_weights.values())
     if total_weight <= 0 or total_weight > 1.0000001:
         raise ValueError("Total bobot harus lebih besar dari 0 dan maksimal 100%.")
+    requires_fx = any(str(asset_currencies[symbol]).upper().strip() != str(base_currency).upper().strip() for symbol in symbols)
+    if requires_fx and usd_idr_close is None:
+        raise ValueError("Data USD/IDR wajib untuk portfolio lintas mata uang.")
     converted = {
         symbol: convert_asset_returns_to_base_currency(
             asset_closes[symbol], asset_currencies[symbol], usd_idr_close,
