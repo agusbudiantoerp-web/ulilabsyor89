@@ -7,17 +7,17 @@ Last updated: 2026-11-25
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
 - Production branch `main` remains unchanged.
-- Latest observed development CI: **319 passed, 5 skipped**.
+- Latest observed development CI: **323 passed, 5 skipped** on commit `230b67f21ef4fea0fb71196f0b8aad92c02f6c54`.
 - No production deployment, secret rotation, production database mutation or live broker connection was performed.
 
 ## Implemented in the development branch
 
 - IDX/US research, DCF, Multi-Stage DCF, Reverse DCF and cross-model EV/equity/price bridge checks.
-- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow.
+- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow. Filing validation checks three-letter currency codes, structurally valid HTTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, and distinguishes invalid provider values from genuinely missing data.
 - Portfolio cash-flow ledger, TWR/XIRR, FIFO/weighted-average tax lots, realized P&L, opening lots and split basis adjustments.
 - Manual broker-statement CSV reconciliation with matched/missing/unexpected and amount/quantity/price/date exceptions.
 - Transaction-aware historical portfolio replay with explicit trade fills, optional settlement dates, reserved unsettled buy payables, unsettled sell receivables, stale-price/FX checks and external-flow-adjusted TWR.
-- Cross-market daily return analysis, IID Monte Carlo, two-state Markov regime simulation and moving-block bootstrap.
+- Cross-market daily return analysis, IID Monte Carlo, two-state Markov regime simulation with optional smoothed empirical transitions, moving-block bootstrap, and a two-window structural-break diagnostic warning.
 - Owner-scoped thesis/version/reviewer export and review-aging dashboard.
 - Research Pack exports for applicable portfolio, reconciliation, filing, thesis and simulation outputs.
 
@@ -31,7 +31,7 @@ Last updated: 2026-11-25
 | Valuation | Integrate scenario sensitivity and model-to-model assumption scenario sweeps | Additional UI/model acceptance criteria |
 | Corporate actions | Automated official BEI/issuer event feeds and adjusted-price reconciliation | Confirmed official feed endpoints, schemas and permitted access |
 | Market data | Secondary licensed provider adapter and provider-parity validation | Provider selection, subscription and secrets configured outside chat |
-| Risk simulation | Structural-break handling and out-of-sample regime calibration | Defined validation sample and methodology |
+| Risk simulation | Formal breakpoint tests and out-of-sample regime calibration | Defined validation sample and methodology |
 | Governance | Additional role-specific governance dashboards | Final role/workflow requirements |
 
 ## Mandatory release gates — not yet signed off
