@@ -125,6 +125,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - Each thesis captures bull/base/bear cases, catalysts, risks, invalidation criteria, target price, currency, status and review date.
 - Every edit creates a new version with actor and timestamp; prior versions remain reviewable. Owners can assign a specific portfolio manager/admin from the configured OIDC role map to review a specific thesis version; only the assigned reviewer can read and decide that review. Decisions are APPROVED, REJECTED or CHANGES_REQUESTED and are audited.
 - SQLite is used for explicit local paths and PostgreSQL for configured cloud deployments. PostgreSQL schema and least-privilege grants include thesis and version tables.
+- The thesis page summarizes active/watch theses, overdue/upcoming review dates and pending approval counts. Research Pack exports owner-scoped thesis summaries, version history and reviewer decisions.
 - Thesis data is isolated by immutable authenticated owner principal. Cloud database connectivity and two-user isolation still require staging validation.
 
 ## Data and safety notes
