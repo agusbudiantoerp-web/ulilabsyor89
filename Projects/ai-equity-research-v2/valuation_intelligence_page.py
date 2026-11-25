@@ -118,6 +118,9 @@ def render_valuation_intelligence() -> None:
             wacc_pct = c5.number_input("WACC (%)", min_value=0.1, max_value=50.0, value=12.0)
             terminal_pct = c6.number_input("Terminal growth (%)", min_value=-5.0, max_value=15.0, value=3.0)
             fx_rate = st.number_input("FX rate: quote currency per 1 model currency", min_value=0.000001, value=1.0, help="Contoh: harga pasar dalam IDR, FCF/net debt dalam USD → masukkan jumlah IDR untuk 1 USD. Jika mata uang sama, gunakan 1.")
+            c10, c11 = st.columns(2)
+            model_currency = c10.text_input("Mata uang FCF / net debt", "USD").strip().upper()
+            quote_currency = c11.text_input("Mata uang harga pasar", "IDR").strip().upper()
             c7, c8, c9 = st.columns(3)
             years = c7.number_input("Forecast years", min_value=1, max_value=30, value=5)
             lower_pct = c8.number_input("Batas growth bawah (%)", min_value=-90.0, max_value=99.0, value=-20.0)
@@ -133,7 +136,7 @@ def render_valuation_intelligence() -> None:
                     forecast_years=int(years), lower_growth=lower_pct / 100.0,
                     upper_growth=upper_pct / 100.0,
                 )
-                st.session_state["reverse_dcf_result"] = result
+                st.session_state["reverse_dcf_result"] = {**result, "model_currency": model_currency, "quote_currency": quote_currency}
             except Exception as exc:
                 st.error(f"Reverse DCF tidak dapat dihitung: {type(exc).__name__}: {exc}")
         result = st.session_state.get("reverse_dcf_result")
@@ -173,5 +176,5 @@ def render_valuation_intelligence() -> None:
             )
             st.markdown("**Sensitivitas implied growth: WACC × terminal growth**")
             st.dataframe(pd.DataFrame(sensitivity_rows), use_container_width=True, hide_index=True)
-            st.caption(f"FX bridge: {result['fx_rate_quote_per_model']:,.6f} quote currency per 1 model currency · market price in model currency: {result['market_price_model_currency']:,.4f}")
+            st.caption(f"Model currency: {result.get('model_currency', 'model')} · Quote currency: {result.get('quote_currency', 'quote')} · FX bridge: {result['fx_rate_quote_per_model']:,.6f} quote per model · market price in model currency: {result['market_price_model_currency']:,.4f}")
             st.warning(result["limitations"])
