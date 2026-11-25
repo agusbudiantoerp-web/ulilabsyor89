@@ -15,7 +15,7 @@ The current workspace already includes DCF and Multi-Stage DCF, scenario analysi
 - E4: bounded reverse DCF solver, explicit quote/model currency FX bridge, enterprise-to-equity bridge, WACC/terminal-growth sensitivity and UI are implemented. A currency-gated reconciliation panel now compares Multi-Stage DCF intrinsic EV/equity/price with Reverse DCF market-implied EV/equity/price and exposes WACC, terminal-growth and net-debt assumption gaps for the same ticker. Deeper scenario sensitivity integration remains.
 - E5: source-attributed event calendar, individual entry and atomic validated CSV import, stale/duplicate/estimated flags and owner-scoped SQLite/PostgreSQL persistence are implemented. Automated exchange/issuer feed and adjusted-price corporate-action reconciliation remain.
 - E6: seeded multivariate Monte Carlo, PSD covariance safeguard, VaR/CVaR, drawdown, user-defined price shocks and explicit FX/rate/sector factor stress are implemented. A two-state Markov regime-switching Monte Carlo is available with rolling-volatility historical labels, user-supplied transition probabilities, per-regime return/covariance estimates, and reproducible simulation. A circular moving-block bootstrap Monte Carlo now resamples joint historical return vectors to preserve cross-asset dependence and short serial patterns; both methods are available in the UI and Research Pack. Structural-break handling and calibrated regime validation remain.
-- E8: owner-scoped versioned thesis records, role permission, PostgreSQL schema/health grants, UI, saved-run links and assigned reviewer approval workflow are implemented. Research Pack now exports the authenticated owner's thesis summaries, version history and reviewer decisions, with thesis/review metrics. Richer governance analytics and release-stage multi-user validation remain.
+- E8: owner-scoped versioned thesis records, role permission, PostgreSQL schema/health grants, UI, saved-run links and assigned reviewer approval workflow are implemented. Research Pack now exports the authenticated owner's thesis summaries, version history and reviewer decisions, with thesis/review metrics. The thesis page now surfaces active/watch counts, overdue and upcoming review dates, and pending approvals. Release-stage multi-user validation remains.
 
 These are implementation milestones, not completion claims for the full acceptance criteria below. All remaining items are still part of feature development before deployment.
 
@@ -83,9 +83,10 @@ Acceptance: provider contract tests, stale-cache tests, malformed payload tests 
 ### E8 — Research workflow and governance
 - Add thesis records with bull/base/bear assumptions, catalysts, risks, invalidation levels, owner, status and review date.
 - Link thesis versions to saved research runs and reports; include owner-scoped thesis, version and review history in Research Pack exports.
+- Surface overdue/upcoming review dates and pending approval counts to support thesis governance.
 - Add reviewer approval history and immutable version identifiers; audit hash chaining remains tamper-evident, not WORM.
 
-Acceptance: owner-isolation, version-history, role-permission and audit-event tests, plus owner-scoped thesis/version/review export. Richer governance analytics and release-stage multi-user validation remain.
+Acceptance: owner-isolation, version-history, role-permission and audit-event tests, plus owner-scoped thesis/version/review export. Additional role-specific governance dashboards and release-stage multi-user validation remain.
 
 ## Development order
 
