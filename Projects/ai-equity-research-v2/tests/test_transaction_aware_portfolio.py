@@ -213,3 +213,28 @@ def test_transaction_replay_rejects_boolean_numeric_inputs(kwargs):
             [],
             **kwargs,
         )
+
+
+
+def test_transaction_replay_normalizes_ticker_keys_consistently():
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    result = run_transaction_aware_portfolio(
+        {"aaa": pd.Series([100.0, 110.0], index=dates)},
+        {"AAA": "IDR"},
+        [{"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000}],
+        initial_positions={"aaa": 2},
+    )
+    assert result["ending_positions"] == {"AAA": pytest.approx(2)}
+    assert result["ending_market_value"] == pytest.approx(220)
+
+
+@pytest.mark.parametrize("price_closes, currencies", [
+    ({"aaa": pd.Series([100.0, 101.0], index=pd.to_datetime(["2026-01-01", "2026-01-02"])),
+      "AAA": pd.Series([100.0, 101.0], index=pd.to_datetime(["2026-01-01", "2026-01-02"]))},
+     {"AAA": "IDR"}),
+    ({"AAA": pd.Series([100.0, 101.0], index=pd.to_datetime(["2026-01-01", "2026-01-02"]))},
+     {"aaa": "IDR", "AAA": "USD"}),
+])
+def test_transaction_replay_rejects_ticker_collisions_after_normalization(price_closes, currencies):
+    with pytest.raises(ValueError, match="duplikat setelah normalisasi"):
+        run_transaction_aware_portfolio(price_closes, currencies, [])
