@@ -121,7 +121,7 @@ def verify_backup_manifest(manifest_path: str | Path) -> dict:
         raise ValueError("Struktur manifest backup harus berupa object.")
     backup_name = manifest.get("backup_file")
     if (not isinstance(backup_name, str) or not backup_name
-            or Path(backup_name).name != backup_name or backup_name in {".", ".."}):
+            or Path(backup_name).name != backup_name or "/" in backup_name or "\\" in backup_name\n            or backup_name in {".", ".."}):
         raise ValueError("Nama file backup pada manifest tidak valid.")
     backup_path = manifest_file.parent / backup_name
     if not backup_path.is_file():
