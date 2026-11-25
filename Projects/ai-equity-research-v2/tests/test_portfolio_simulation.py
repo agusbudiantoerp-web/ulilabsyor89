@@ -5,7 +5,8 @@ import pytest
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
-    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,\n    detect_portfolio_structural_break,
+    run_block_bootstrap_monte_carlo, estimate_regime_transition_matrix,
+    detect_portfolio_structural_break,
 )
 
 
