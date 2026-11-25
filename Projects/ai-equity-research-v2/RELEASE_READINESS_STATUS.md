@@ -6,9 +6,9 @@ Last updated: 2026-11-25
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest code commit verified by full CI: `3169b14ec6a6c54fe537d0fd875f3204d8bb46e5`.
+- Latest code commit verified by full CI: `652fa7264778051913481693861fca02c8b5093a`.
 - Production branch `main` remains unchanged.
-- Latest completed full CI run: **458 passed, 0 failed, 0 skipped**. Python compilation and PostgreSQL 16 integration service both passed on the verified code commit. [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45587431676).
+- Latest completed full CI run: **470 passed, 0 failed, 0 skipped**. Python compilation and PostgreSQL 16 integration service both passed on the verified code commit. [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45589467538).
 - CI provisions an isolated PostgreSQL 16 service for the complete automated and PostgreSQL integration test suite. Database credentials are ephemeral test-only values, not production secrets.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
 - Backup manifests can be independently verified against artifact size and SHA-256, with POSIX/Windows path-traversal checks. SQLite restore now verifies the manifest and database integrity before and after copying, publishes atomically, and refuses to overwrite an existing target unless `--overwrite` is explicitly supplied. PostgreSQL restore is not automated; its custom-format dump is structurally checked with `pg_restore --list`.
