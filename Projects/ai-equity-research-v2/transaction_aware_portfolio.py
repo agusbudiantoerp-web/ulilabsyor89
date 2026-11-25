@@ -26,7 +26,9 @@ def _clean_series(series: pd.Series, label: str) -> pd.Series:
     if parsed_index.isna().any():
         raise ValueError(f"Index tanggal {label} mengandung tanggal tidak valid.")
     if parsed_index.tz is not None:
-        parsed_index = parsed_index.tz_convert("UTC").tz_localize(None)
+        # Daily close labels are exchange-session calendar dates, not UTC instants.
+        # Strip the timezone without shifting the represented local session day.
+        parsed_index = parsed_index.tz_localize(None)
     if parsed_index.has_duplicates:
         raise ValueError(f"Index tanggal {label} mengandung tanggal duplikat; agregasikan secara eksplisit.")
     result.index = parsed_index
