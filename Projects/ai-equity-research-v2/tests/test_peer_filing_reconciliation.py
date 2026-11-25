@@ -74,3 +74,27 @@ def test_peer_filing_reconciliation_flags_currency_mismatch_separately():
         [filing_record(currency="USD")],
     )
     assert set(result["details"]["status"]) == {"CURRENCY_MISMATCH"}
+
+
+def test_peer_filing_reconciliation_rejects_invalid_currency_and_source_url():
+    with pytest.raises(ValueError, match="kode tiga huruf"):
+        reconcile_peer_filing_records([provider_record()], [filing_record(currency="ID")])
+    with pytest.raises(ValueError, match="URL http/https yang valid"):
+        reconcile_peer_filing_records([provider_record()], [filing_record(source_url="https://")])
+    with pytest.raises(ValueError, match="URL http/https yang valid"):
+        reconcile_peer_filing_records([provider_record()], [filing_record(source_url="https://bad host/report.pdf")])
+
+
+def test_peer_filing_reconciliation_rejects_duplicate_provider_tickers():
+    with pytest.raises(ValueError, match="ticker duplikat"):
+        reconcile_peer_filing_records(
+            [provider_record(), provider_record()],
+            [filing_record()],
+        )
+
+
+def test_peer_filing_reconciliation_rejects_non_numeric_or_infinite_filing_values():
+    with pytest.raises(ValueError, match="total_revenue harus numerik"):
+        reconcile_peer_filing_records([provider_record()], [filing_record(total_revenue="not-revenue")])
+    with pytest.raises(ValueError, match="ebitda harus finite"):
+        reconcile_peer_filing_records([provider_record()], [filing_record(ebitda=float("inf"))])
