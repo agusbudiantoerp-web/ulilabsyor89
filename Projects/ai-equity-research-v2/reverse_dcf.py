@@ -15,6 +15,7 @@ def reverse_dcf_implied_growth(
     forecast_years: int = 5,
     lower_growth: float = -0.50,
     upper_growth: float = 1.00,
+    fx_rate_quote_per_model: float = 1.0,
     tolerance: float = 1e-8,
 ) -> dict:
     values = {
@@ -22,6 +23,7 @@ def reverse_dcf_implied_growth(
         "diluted_shares": diluted_shares, "net_debt": net_debt,
         "wacc": wacc, "terminal_growth": terminal_growth,
         "lower_growth": lower_growth, "upper_growth": upper_growth,
+        "fx_rate_quote_per_model": fx_rate_quote_per_model,
         "tolerance": tolerance,
     }
     for name, value in values.items():
@@ -29,7 +31,7 @@ def reverse_dcf_implied_growth(
             raise ValueError(f"{name} harus finite.")
     if current_fcf <= 0:
         raise ValueError("Current FCF harus positif untuk reverse DCF ini.")
-    if market_price <= 0 or diluted_shares <= 0:
+    if market_price <= 0 or diluted_shares <= 0 or fx_rate_quote_per_model <= 0:
         raise ValueError("Market price dan diluted shares harus positif.")
     if terminal_growth <= -1 or wacc <= terminal_growth or wacc <= -1:
         raise ValueError("WACC harus lebih besar daripada terminal growth dan di atas -100%.")
@@ -40,7 +42,8 @@ def reverse_dcf_implied_growth(
     if tolerance <= 0:
         raise ValueError("Tolerance harus positif.")
 
-    target_equity = market_price * diluted_shares
+    market_price_model_currency = market_price / fx_rate_quote_per_model
+    target_equity = market_price_model_currency * diluted_shares
     target_enterprise = target_equity + net_debt
 
     def value_at_growth(growth: float) -> dict:
@@ -59,7 +62,7 @@ def reverse_dcf_implied_growth(
         equity = enterprise - net_debt
         return {
             "growth": growth, "enterprise_value": enterprise,
-            "equity_value": equity, "implied_price": equity / diluted_shares,
+            "equity_value": equity, "implied_price": equity / diluted_shares * fx_rate_quote_per_model,
             "pv_explicit_fcf": pv_explicit, "terminal_value": terminal_value,
             "pv_terminal_value": pv_terminal,
         }
@@ -96,6 +99,8 @@ def reverse_dcf_implied_growth(
     return {
         "implied_fcf_growth_pct": solved["growth"] * 100.0,
         "market_price": market_price,
+        "market_price_model_currency": market_price_model_currency,
+        "fx_rate_quote_per_model": fx_rate_quote_per_model,
         "current_fcf": current_fcf,
         "lower_growth": lower_growth,
         "upper_growth": upper_growth,
