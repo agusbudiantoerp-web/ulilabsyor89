@@ -6,7 +6,10 @@ import streamlit as st
 
 from daily_signal_engine import load_daily_history
 from fx_portfolio_engine import combine_mixed_currency_returns
-from portfolio_simulation import (\n    run_historical_stress_scenarios, run_portfolio_monte_carlo,\n    run_factor_stress_scenario, run_regime_switching_monte_carlo,\n)
+from portfolio_simulation import (
+    run_historical_stress_scenarios, run_portfolio_monte_carlo,
+    run_factor_stress_scenario, run_regime_switching_monte_carlo,
+)
 from market_data_provider import YahooFinanceProvider
 
 
