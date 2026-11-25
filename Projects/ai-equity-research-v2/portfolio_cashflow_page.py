@@ -84,8 +84,8 @@ def render_portfolio_cashflow() -> None:
         "dan negatif untuk penarikan yang terjadi tepat sebelum valuasi periode tersebut."
     )
     default_values = pd.DataFrame([
-        {"date": "2026-01-01", "portfolio_value": 100000000, "external_flow": 0},
-        {"date": "2026-02-01", "portfolio_value": 105000000, "external_flow": 0},
+        {"date": pd.Timestamp("2026-01-01"), "portfolio_value": 100000000, "external_flow": 0},
+        {"date": pd.Timestamp("2026-02-01"), "portfolio_value": 105000000, "external_flow": 0},
     ])
     valuation_key = "portfolio_cashflow_valuations"
     if valuation_key not in st.session_state:
