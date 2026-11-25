@@ -79,3 +79,16 @@ def test_corporate_event_store_requires_positive_integer_limit(tmp_path, limit):
     db = str(tmp_path / "events.sqlite")
     with pytest.raises(ValueError, match="Limit"):
         list_events("owner", path=db, limit=limit)
+
+
+@pytest.mark.parametrize("changes", [
+    {"event_date": True},
+    {"retrieved_at": 1767225600000000000},
+    {"amount": True},
+    {"event_type": "STOCK_SPLIT", "split_ratio": False},
+])
+def test_corporate_event_store_rejects_boolean_numeric_values_and_dates(tmp_path, changes):
+    db = str(tmp_path / "events.sqlite")
+    with pytest.raises(ValueError):
+        create_event("owner", {**event(), **changes}, path=db)
+    assert list_events("owner", path=db) == []
