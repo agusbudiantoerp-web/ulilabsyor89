@@ -97,3 +97,29 @@ def test_equity_excel_report_escapes_formula_like_ticker_text():
     workbook = load_workbook(BytesIO(payload), read_only=True, data_only=False)
     assert workbook["Summary"]["A2"].value.startswith("'=")
     workbook.close()
+
+
+def test_excel_scenario_forecast_sheet_names_are_sanitized_and_unique():
+    data = sample_data()
+    scenarios = {
+        "available": True,
+        "results": {
+            "bad/name": {"available": True, "forecast": [{"year": 1, "fcff": 1}]},
+            "bad:name": {"available": True, "forecast": [{"year": 1, "fcff": 2}]},
+        },
+    }
+    payload = make_excel_report(data, scenario_result=scenarios)
+    workbook = load_workbook(BytesIO(payload), read_only=True)
+    forecast_sheets = [name for name in workbook.sheetnames if "Forecast" in name]
+    assert "bad_name Forecast" in forecast_sheets
+    assert "bad_name Forecast (2)" in forecast_sheets
+    assert len(forecast_sheets) == len(set(forecast_sheets))
+    workbook.close()
+
+
+def test_excel_export_neutralizes_formula_after_utf8_bom_prefix():
+    data = sample_data()
+    data["ticker"] = "\\ufeff=HYPERLINK(\"https://evil.example\",\"click\")"
+    workbook = load_workbook(BytesIO(make_excel_report(data)), read_only=True, data_only=False)
+    assert workbook["Summary"]["A2"].value.startswith("'\\ufeff=")
+    workbook.close()
