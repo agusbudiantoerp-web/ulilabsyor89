@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import numbers
 
 import pandas as pd
 
@@ -36,11 +37,11 @@ def reconcile_broker_statement(
             numeric_value = float(value)
         except (TypeError, ValueError, OverflowError) as exc:
             raise ValueError(f"{name} harus berupa angka finite dan tidak negatif.") from exc
-        if isinstance(value, bool) or not math.isfinite(numeric_value) or numeric_value < 0:
+        if isinstance(value, bool) or type(value).__name__ == "bool_" or not math.isfinite(numeric_value) or numeric_value < 0:
             raise ValueError(f"{name} harus finite dan tidak negatif.")
     if (
         isinstance(date_tolerance_days, bool)
-        or not isinstance(date_tolerance_days, int)
+        or not isinstance(date_tolerance_days, numbers.Integral)
         or not 0 <= date_tolerance_days <= 30
     ):
         raise ValueError("date_tolerance_days harus integer 0–30.")
