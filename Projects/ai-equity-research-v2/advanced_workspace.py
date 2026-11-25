@@ -86,7 +86,8 @@ def render_market_intelligence() -> None:
                 st.caption(
                     f"Source: {provenance.get('source')} · ticker: {provenance.get('source_ticker')} · "
                     f"mata uang: {provenance.get('currency')} · basis: {provenance.get('price_basis')} · "
-                    f"bar terakhir: {provenance.get('bar_date')} · kualitas: {provenance.get('quality_status')}"
+                    f"bar terakhir: {provenance.get('bar_date')} · kualitas: {provenance.get('quality_status')} · "
+                    f"cache: {provenance.get('cache_age_seconds', 0):.1f}s"
                 )
                 if provenance.get("quality_status") != "PASS":
                     st.warning("Periksa kualitas/kesegaran data sebelum memakai hasil analisis.")
