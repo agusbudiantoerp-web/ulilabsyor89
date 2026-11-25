@@ -67,3 +67,4 @@ def test_local_backup_inventory_includes_new_owner_scoped_stores():
     assert "research_theses" in LOCAL_DATABASES
     assert "corporate_events" in LOCAL_DATABASES
     assert "portfolio_cashflow_events" in LOCAL_DATABASES
+    assert "portfolio_valuations" in LOCAL_DATABASES
