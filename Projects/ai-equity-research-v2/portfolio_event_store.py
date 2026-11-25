@@ -13,6 +13,15 @@ import pandas as pd
 
 from portfolio_cashflow import normalize_events
 
+def pd_is_missing(value):
+    """Check scalar pandas/NumPy missing values without array ambiguity."""
+    try:
+        missing = pd.isna(value)
+        return bool(missing) if not hasattr(missing, "__len__") else False
+    except (TypeError, ValueError):
+        return False
+
+
 
 def _url():
     value=os.getenv("DATABASE_URL") or os.getenv("CLOUD_DATABASE_URL")
