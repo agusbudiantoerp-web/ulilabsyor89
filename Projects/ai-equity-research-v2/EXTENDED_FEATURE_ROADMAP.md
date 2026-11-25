@@ -9,7 +9,7 @@ The current workspace already includes DCF and Multi-Stage DCF, scenario analysi
 ## Implementation status (2026-11-25)
 
 - E7: canonical market-data provenance/freshness contract is integrated into daily history, screener and Market Intelligence. Yahoo provider adapter, bounded retries, explicit rate-limit handling, TTL cache and cache-age metadata are implemented. An additional licensed provider adapter and end-to-end alternate-provider parity remain.
-- E1: event ledger, dividend/cost classification, TWR and XIRR engines, Streamlit page, owner-scoped SQLite/PostgreSQL transaction-event storage and persisted valuation snapshots are implemented. Cash sequencing, positive trade quantity/price, split-ratio validation and opening-position reconciliation are enforced. Tax-lot/realized-P&L accounting, unsettled trades and broker-statement reconciliation remain.
+- E1: event ledger, dividend/cost classification, TWR and XIRR engines, Streamlit page, owner-scoped SQLite/PostgreSQL transaction-event storage and persisted valuation snapshots are implemented. Cash sequencing, positive trade quantity/price, split-ratio validation and opening-position reconciliation are enforced. FIFO and weighted-average tax lots, realized P&L, opening-lot entry and split-adjusted cost basis are now implemented with a dedicated UI. Unsettled trades and broker-statement reconciliation remain.
 - E2: FX-aware IDR/USD daily return conversion, FX attribution, strict stale-FX tolerance and cross-market UI are implemented. This is not yet a full cash/transaction-aware portfolio backtest.
 - E3: industry/currency-filtered peer metrics, coverage, medians, IQR outlier flags and company-vs-peer comparison are implemented with Yahoo Finance UI. Fiscal-period normalization and independent filing verification remain.
 - E4: bounded reverse DCF solver, explicit quote/model currency FX bridge, enterprise-to-equity bridge, WACC/terminal-growth sensitivity and UI are implemented. Independent reconciliation against the existing multi-stage DCF and scenario sensitivity integration remain.
@@ -25,9 +25,10 @@ These are implementation milestones, not completion claims for the full acceptan
 - Record deposits, withdrawals, buy/sell fills, fees, taxes, cash balances, dividends and corporate-action adjustments as dated events.
 - Calculate time-weighted return (TWR) and money-weighted return (XIRR) separately; never mix them with price-only return.
 - Reconcile event totals to holdings and cash; show missing or unreconciled events as warnings.
+- Calculate FIFO and weighted-average cost basis, realized P&L on partial/full sells, and preserve basis through stock splits; accept opening lots for pre-ledger holdings.
 - Keep manual input supported; do not imply broker synchronization.
 
-Acceptance: deterministic tests for deposits, withdrawals, dividends, partial sells, fees, split adjustments, TWR, XIRR and invalid event sequences.
+Acceptance: deterministic tests for deposits, withdrawals, dividends, partial sells, fees, split adjustments, FIFO/average-cost tax lots, realized P&L, opening lots, TWR, XIRR and invalid event sequences. Unsettled trades and broker-statement reconciliation remain explicitly out of scope until separately implemented.
 
 ### E2 — Cross-market portfolio and FX-aware backtest
 - Support a combined IDX and US universe with an explicit base currency (IDR or USD).
