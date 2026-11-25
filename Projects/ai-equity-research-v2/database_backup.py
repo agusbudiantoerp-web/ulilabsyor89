@@ -170,6 +170,15 @@ def restore_sqlite_backup(
     target = Path(target_path)
     if source.resolve() == target.resolve():
         raise ValueError("Target restore tidak boleh sama dengan file backup sumber.")
+    # A stale WAL/SHM file can be replayed against the restored main database.
+    # Refuse to replace a target with sidecars rather than risk mixing old state
+    # into the newly restored database or deleting files used by a live process.
+    sidecars = [Path(f"{target}-wal"), Path(f"{target}-shm")]
+    if any(sidecar.exists() for sidecar in sidecars):
+        raise RuntimeError(
+            "Target memiliki file SQLite WAL/SHM. Hentikan semua koneksi database "
+            "dan bersihkan sidecar melalui prosedur SQLite sebelum restore."
+        )
     if target.exists() and not overwrite:
         raise FileExistsError(f"Target sudah ada; gunakan overwrite=True secara eksplisit: {target}")
 
