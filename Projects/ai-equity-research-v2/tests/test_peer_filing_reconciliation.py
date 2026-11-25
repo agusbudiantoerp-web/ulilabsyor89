@@ -108,3 +108,12 @@ def test_peer_filing_reconciliation_distinguishes_invalid_provider_value_from_mi
     row = result["details"].loc[result["details"]["metric"].eq("total_revenue")].iloc[0]
     assert row["status"] == "INVALID_VALUE"
     assert pd.isna(row["provider_value"])
+
+
+def test_peer_filing_reconciliation_counts_invalid_values_separately():
+    result = reconcile_peer_filing_records(
+        [{**provider_record(), "totalRevenue": "bad"}],
+        [filing_record()],
+    )
+    assert result["invalid_value_count"] == 1
+    assert result["missing_count"] == 0
