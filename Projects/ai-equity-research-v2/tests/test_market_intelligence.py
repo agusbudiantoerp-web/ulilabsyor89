@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from market_intelligence import (
     audit_fundamental_record, audit_price_history,
@@ -42,3 +43,30 @@ def test_negative_pe_is_warning_not_invalid_fundamental():
     result = audit_fundamental_record({"trailingPE": -4.0, "marketCap": 1000, "currency": "IDR"})
     assert result["status"] == "WARNING"
     assert result["invalid_fields"] == []
+
+
+
+@pytest.mark.parametrize(
+    "mutate, message",
+    [
+        ("missing", "nilai kosong atau non-numerik"),
+        ("infinite", "non-finite"),
+        ("zero", "harus positif"),
+        ("duplicate", "tanggal harga mengandung tanggal duplikat"),
+        ("invalid_date", "tanggal tidak valid"),
+    ],
+)
+def test_market_regime_rejects_invalid_close_history(mutate, message):
+    frame = bars(np.linspace(100, 220, 240))
+    if mutate == "missing":
+        frame.iloc[-1, frame.columns.get_loc("Close")] = np.nan
+    elif mutate == "infinite":
+        frame.iloc[-1, frame.columns.get_loc("Close")] = np.inf
+    elif mutate == "zero":
+        frame.iloc[-1, frame.columns.get_loc("Close")] = 0
+    elif mutate == "duplicate":
+        frame.index = list(frame.index[:-1]) + [frame.index[-2]]
+    elif mutate == "invalid_date":
+        frame.index = list(frame.index[:-1]) + ["not-a-date"]
+    with pytest.raises(ValueError, match=message):
+        classify_market_regime(frame)
