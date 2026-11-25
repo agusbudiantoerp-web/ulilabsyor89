@@ -1,6 +1,7 @@
 """Streamlit interface for portfolio cash-flow and return analysis."""
 from __future__ import annotations
 
+import math
 import pandas as pd
 import streamlit as st
 
@@ -123,7 +124,7 @@ def render_portfolio_cashflow() -> None:
                         symbol, shares = parts[0].strip().upper(), float(parts[1].strip())
                         if symbol in opening_positions:
                             raise ValueError(f"Ticker saldo awal duplikat: {symbol}.")
-                        if not pd.notna(shares) or shares <= 0:
+                        if not math.isfinite(shares) or shares <= 0:
                             raise ValueError(f"Jumlah saham awal {symbol} harus positif.")
                         opening_positions[symbol] = shares
                 reconciliation = reconcile_portfolio_ledger(
