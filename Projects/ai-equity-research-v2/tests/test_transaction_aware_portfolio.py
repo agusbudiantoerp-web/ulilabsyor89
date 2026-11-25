@@ -171,3 +171,28 @@ def test_transaction_replay_rejects_implicit_foreign_currency_cash_conversion():
             base_currency="IDR",
             usd_idr_close=pd.Series([15000.0, 15000.0], index=dates),
         )
+
+
+@pytest.mark.parametrize("index", [
+    pd.to_datetime(["2026-01-01", "not-a-date"]),
+    pd.to_datetime(["2026-01-01", "2026-01-01"]),
+])
+def test_transaction_replay_rejects_invalid_or_duplicate_market_data_dates(index):
+    with pytest.raises(ValueError, match="Index tanggal close AAA"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 101.0], index=index)},
+            {"AAA": "IDR"},
+            [{"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 1000}],
+        )
+
+
+@pytest.mark.parametrize("gap", [-1, 1.5, float("inf"), "invalid"])
+def test_transaction_replay_rejects_invalid_price_gap_configuration(gap):
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="max_price_gap_days"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 101.0], index=dates)},
+            {"AAA": "IDR"},
+            [],
+            max_price_gap_days=gap,
+        )
