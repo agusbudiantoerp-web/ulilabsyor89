@@ -87,14 +87,25 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
                     f"SELL {ticker} melebihi tax lot tersedia pada {event_date} ({available:.8g})."
                 )
             if method == "AVERAGE_COST":
-                total_basis = sum(lot["quantity"] * lot["unit_cost"] for lot in lots[ticker])
+                # Only lots acquired by the sale date are eligible. Keep later
+                # dated lots untouched instead of consuming future holdings.
+                ineligible_lots = [
+                    lot for lot in lots[ticker]
+                    if lot["acquisition_date"] and lot["acquisition_date"] > event_date
+                ]
+                total_basis = sum(
+                    lot["quantity"] * lot["unit_cost"] for lot in eligible_lots
+                )
                 average = total_basis / available if available else 0.0
                 basis = quantity * average
                 remaining_quantity = max(0.0, available - quantity)
-                lots[ticker] = ([{
-                    "ticker": ticker, "acquisition_date": "AVERAGE_COST",
-                    "quantity": remaining_quantity, "unit_cost": average,
-                }] if remaining_quantity > 1e-9 else [])
+                remaining_lots = ([
+                    {
+                        "ticker": ticker, "acquisition_date": "AVERAGE_COST",
+                        "quantity": remaining_quantity, "unit_cost": average,
+                    }
+                ] if remaining_quantity > 1e-9 else [])
+                lots[ticker] = remaining_lots + ineligible_lots
             else:
                 remaining = quantity
                 basis = 0.0
