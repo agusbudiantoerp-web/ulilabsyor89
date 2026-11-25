@@ -30,8 +30,18 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
         unit_cost = float(raw.get("unit_cost", 0))
         if not ticker or not math.isfinite(quantity) or not math.isfinite(unit_cost) or quantity <= 0 or unit_cost < 0:
             raise ValueError("Opening lot harus memiliki ticker, quantity positif dan unit_cost non-negatif.")
+        raw_date = str(raw.get("acquisition_date") or "").strip()
+        if raw_date:
+            parsed_date = pd.to_datetime(raw_date, errors="coerce")
+            if pd.isna(parsed_date):
+                raise ValueError("Tanggal acquisition_date opening lot tidak valid.")
+            acquisition_date = parsed_date.date().isoformat()
+        else:
+            # Legacy opening positions without a known date are treated as the
+            # oldest available lots, and remain explicitly undated in output.
+            acquisition_date = ""
         lots[ticker].append({
-            "ticker": ticker, "acquisition_date": str(raw.get("acquisition_date") or ""),
+            "ticker": ticker, "acquisition_date": acquisition_date,
             "quantity": quantity, "unit_cost": unit_cost,
         })
 
@@ -55,6 +65,10 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
                 "ticker": ticker, "acquisition_date": event_date,
                 "quantity": quantity, "unit_cost": amount / quantity,
             })
+            if method == "FIFO":
+                lots[ticker].sort(
+                    key=lambda lot: (lot["acquisition_date"] or "0000-01-01")
+                )
         elif kind == "SPLIT":
             if ticker not in lots or not lots[ticker]:
                 warnings.append(f"{ticker}: split tanpa tax lot; basis biaya historis belum tersedia.")
@@ -63,9 +77,15 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
                 lot["quantity"] *= quantity
                 lot["unit_cost"] /= quantity
         elif kind == "SELL":
-            available = sum(lot["quantity"] for lot in lots[ticker])
+            eligible_lots = [
+                lot for lot in lots[ticker]
+                if not lot["acquisition_date"] or lot["acquisition_date"] <= event_date
+            ]
+            available = sum(lot["quantity"] for lot in eligible_lots)
             if quantity > available + 1e-9:
-                raise ValueError(f"SELL {ticker} melebihi tax lot tersedia ({available:.8g}).")
+                raise ValueError(
+                    f"SELL {ticker} melebihi tax lot tersedia pada {event_date} ({available:.8g})."
+                )
             if method == "AVERAGE_COST":
                 total_basis = sum(lot["quantity"] * lot["unit_cost"] for lot in lots[ticker])
                 average = total_basis / available if available else 0.0
@@ -78,7 +98,7 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
             else:
                 remaining = quantity
                 basis = 0.0
-                for lot in lots[ticker]:
+                for lot in eligible_lots:
                     take = min(lot["quantity"], remaining)
                     basis += take * lot["unit_cost"]
                     lot["quantity"] -= take
