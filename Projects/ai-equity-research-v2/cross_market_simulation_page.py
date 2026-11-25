@@ -213,6 +213,24 @@ def render_cross_market_simulation() -> None:
             "Stress observations": int(regime_counts["stress"]),
             "Initial regime": str(regime_labels.iloc[-1]) if not regime_labels.empty else "Unavailable",
         })
+        use_empirical_transitions = st.checkbox(
+            "Gunakan probabilitas transisi historis (Laplace smoothing)",
+            value=True, key="fx_regime_empirical_transitions",
+            help="Estimasi frekuensi transisi dari label historis yang terlihat. Ini deskriptif/in-sample, bukan probabilitas prediksi.",
+        )
+        if use_empirical_transitions:
+            empirical_transition = estimate_regime_transition_matrix(regime_labels)
+            transition_matrix = empirical_transition["transition_matrix"]
+            st.write("Transisi historis (baris = regime saat ini, kolom = regime berikutnya):")
+            st.dataframe(pd.DataFrame(
+                transition_matrix, index=["calm", "stress"], columns=["calm", "stress"],
+            ), use_container_width=True)
+            st.caption(empirical_transition["method"])
+        else:
+            transition_matrix = [
+                [1.0 - calm_to_stress, calm_to_stress],
+                [stress_to_calm, 1.0 - stress_to_calm],
+            ]
         if (regime_counts < 20).any():
             st.warning("Setiap regime memerlukan minimal 20 observasi. Ubah ambang volatilitas atau periode historis.")
         if st.button("Jalankan regime-switching Monte Carlo", key="fx_regime_monte_carlo"):
@@ -220,10 +238,12 @@ def render_cross_market_simulation() -> None:
                 aligned_returns = result["asset_returns"].loc[regime_labels.index]
                 regime_result = run_regime_switching_monte_carlo(
                     aligned_returns, result["weights"], regime_labels,
-                    [[1.0 - calm_to_stress, calm_to_stress],
-                     [stress_to_calm, 1.0 - stress_to_calm]],
+                    transition_matrix,
                     initial_regime=str(regime_labels.iloc[-1]),
                     simulations=int(simulations), horizon_days=int(horizon), seed=int(seed),
+                )
+                regime_result["transition_estimation"] = (
+                    empirical_transition["method"] if use_empirical_transitions else "User-supplied transition probabilities."
                 )
                 regime_result["volatility_threshold_pct"] = vol_threshold * 100.0
                 st.session_state["cross_market_regime_monte_carlo_result"] = regime_result
