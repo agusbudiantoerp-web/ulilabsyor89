@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
+from portfolio_tax_lots import calculate_tax_lots
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
 from security_controls import record_audit_event
@@ -139,6 +140,51 @@ def render_portfolio_cashflow() -> None:
                 for warning in reconciliation["warnings"]:
                     st.warning(warning)
                 st.caption(reconciliation["limitations"])
+
+                st.markdown("**Tax lot & realized profit/loss**")
+                tax_method = st.selectbox(
+                    "Metode cost basis", ["FIFO", "AVERAGE_COST"],
+                    key="portfolio_tax_lot_method",
+                    help="FIFO memakai lot pembelian tertua; Average Cost memakai biaya rata-rata tertimbang.",
+                )
+                opening_lots_raw = st.text_input(
+                    "Tax lot awal (format TICKER:jumlah:biaya_per_saham; pisahkan dengan koma)",
+                    value="", key="portfolio_tax_lot_opening",
+                    help="Contoh: BBCA:100:8500, TLKM:50:3000. Isi hanya untuk saham yang dibeli sebelum histori ledger.",
+                )
+                if st.button("Hitung realized P&L & tax lots", key="portfolio_tax_lot_calculate"):
+                    try:
+                        opening_lots = []
+                        if opening_lots_raw.strip():
+                            for item in opening_lots_raw.split(","):
+                                parts = [part.strip() for part in item.split(":")]
+                                if len(parts) != 3 or not parts[0]:
+                                    raise ValueError("Format tax lot awal harus TICKER:jumlah:biaya_per_saham.")
+                                symbol, shares, unit_cost = parts[0].upper(), float(parts[1]), float(parts[2])
+                                opening_lots.append({
+                                    "ticker": symbol, "quantity": shares,
+                                    "unit_cost": unit_cost, "acquisition_date": "opening",
+                                })
+                        tax_result = calculate_tax_lots(
+                            events, method=tax_method, opening_lots=opening_lots,
+                        )
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Realized P&L", f"{tax_result['realized_pnl']:,.2f}")
+                        m2.metric("Cost basis terjual", f"{tax_result['realized_cost_basis']:,.2f}")
+                        m3.metric("Cost basis tersisa", f"{tax_result['open_cost_basis']:,.2f}")
+                        st.caption(
+                            f"Metode {tax_result['method']} · Proceeds penjualan "
+                            f"{tax_result['realized_sale_proceeds']:,.2f}"
+                        )
+                        st.markdown("**Rincian realized trades**")
+                        st.dataframe(tax_result["realized_trades"], use_container_width=True, hide_index=True)
+                        st.markdown("**Tax lots tersisa**")
+                        st.dataframe(tax_result["open_lots"], use_container_width=True, hide_index=True)
+                        for warning in tax_result["warnings"]:
+                            st.warning(warning)
+                        st.caption(tax_result["limitations"])
+                    except Exception as exc:
+                        st.error(f"Tax lot tidak dapat dihitung: {type(exc).__name__}: {exc}")
             except Exception as exc:
                 st.error(f"Rekonsiliasi gagal: {type(exc).__name__}: {exc}")
 
