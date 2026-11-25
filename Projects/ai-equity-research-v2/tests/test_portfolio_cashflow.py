@@ -25,7 +25,7 @@ def test_normalize_events_rejects_missing_ticker_for_dividend():
 def test_normalize_events_rejects_unknown_event_and_negative_amount():
     with pytest.raises(ValueError, match="tidak dikenal"):
         normalize_events([{"date": "2026-01-01", "event_type": "MAGIC", "amount": 1}])
-    with pytest.raises(ValueError, match="tidak boleh negatif"):
+    with pytest.raises(ValueError, match="nilai absolut positif"):
         normalize_events([{"date": "2026-01-01", "event_type": "DEPOSIT", "amount": -1}])
 
 
