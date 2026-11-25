@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from portfolio_simulation import (\n    run_historical_stress_scenarios, run_portfolio_monte_carlo,\n    run_factor_stress_scenario, run_regime_switching_monte_carlo,\n)
+from portfolio_simulation import (
+    run_historical_stress_scenarios, run_portfolio_monte_carlo,
+    run_factor_stress_scenario, run_regime_switching_monte_carlo,
+)
 
 
 def returns_frame():
