@@ -360,6 +360,11 @@ def reconcile_portfolio_ledger(
             if ticker not in positions:
                 warnings.append(f"{ticker}: split tercatat tanpa posisi awal; periksa histori transaksi.")
             positions[ticker] = positions.get(ticker, 0.0) * quantity
+            if abs(positions[ticker] - round(positions[ticker])) > 1e-9:
+                warnings.append(
+                    f"{ticker}: split menghasilkan fractional entitlement; cash-in-lieu "
+                    "belum dihitung dan perlu rekonsiliasi broker."
+                )
     if cash < -1e-8:
         raise ValueError("Cash balance negatif; periksa urutan dan nominal transaksi.")
     if any(value < -1e-8 for value in positions.values()):
@@ -372,8 +377,10 @@ def reconcile_portfolio_ledger(
         "currency_note": "Rekonsiliasi hanya valid jika seluruh nominal event menggunakan mata uang dasar yang sama.",
         "limitations": (
             "Rekonsiliasi ini menghitung saldo kas dan jumlah saham berdasarkan trade date; "
-            "settlement cash tertunda dihitung oleh transaction-aware replay. FIFO/average-cost "
-            "tax lots dan realized P&L tersedia pada modul tax-lot terpisah. Pajak legal, bunga, "
-            "FX conversion dan validasi broker tidak dihitung oleh fungsi ini."
+            "settlement cash tertunda dihitung oleh transaction-aware replay. SPLIT mengubah "
+            "jumlah saham tetapi tidak menambah/mengurangi nilai ekonomi posisi; fractional "
+            "entitlement dan cash-in-lieu harus direkonsiliasi manual. FIFO/average-cost tax lots "
+            "dan realized P&L tersedia pada modul terpisah. Pajak legal, bunga, FX conversion "
+            "dan validasi broker tidak dihitung oleh fungsi ini."
         ),
     }
