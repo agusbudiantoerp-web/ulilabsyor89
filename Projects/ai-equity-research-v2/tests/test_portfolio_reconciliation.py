@@ -67,3 +67,17 @@ def test_broker_reconciliation_validates_tolerances_and_supports_empty_ledgers()
     assert result["internal_event_count"] == 0
     assert result["broker_event_count"] == 0
     assert result["details"].empty
+
+@pytest.mark.parametrize("parameter", [
+    "amount_tolerance_pct", "price_tolerance_pct", "quantity_tolerance",
+])
+@pytest.mark.parametrize("value", [-1, float("nan"), float("inf"), "not-a-number", True])
+def test_broker_reconciliation_rejects_invalid_numeric_tolerances(parameter, value):
+    with pytest.raises(ValueError, match=parameter):
+        reconcile_broker_statement([], [], **{parameter: value})
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5, 31, "1"])
+def test_broker_reconciliation_requires_integer_date_tolerance(value):
+    with pytest.raises(ValueError, match="date_tolerance_days"):
+        reconcile_broker_statement([], [], date_tolerance_days=value)
