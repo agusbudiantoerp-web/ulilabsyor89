@@ -5,23 +5,20 @@ import pandas as pd
 import streamlit as st
 
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger
+from portfolio_event_store import create_event, delete_event, list_events
 
 
 def render_portfolio_cashflow() -> None:
+    owner = str(st.session_state.get("_auth_subject_id") or "").strip()
+    if not owner:
+        st.error("Identitas pengguna terverifikasi tidak tersedia.")
+        return
     st.subheader("Portfolio Cash Flow, Dividend Ledger & Returns")
     st.caption(
         "Catat arus kas investor dan aktivitas investasi. Perhitungan TWR mengeluarkan "
         "setoran/penarikan eksternal; XIRR mengukur return berbobot arus kas."
     )
-    st.info(
-        "Ledger ini saat ini disimpan dalam sesi dashboard aktif. Unduh CSV untuk arsip; "
-        "penyimpanan permanen multi-user belum diaktifkan pada halaman ini."
-    )
-    state_key = "portfolio_cashflow_events"
-    if state_key not in st.session_state:
-        st.session_state[state_key] = pd.DataFrame(columns=[
-            "date", "event_type", "amount", "ticker", "quantity", "price", "notes"
-        ])
+    st.caption("Event transaksi disimpan permanen dan dibatasi berdasarkan identitas pengguna. Valuasi TWR masih dimasukkan pada sesi aktif.")
     with st.form("portfolio_cashflow_add_event", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
         event_date = c1.date_input("Tanggal event")
@@ -46,14 +43,19 @@ def render_portfolio_cashflow() -> None:
             "price": price if price > 0 else None, "notes": notes,
         }
         try:
-            candidate = pd.concat([st.session_state[state_key], pd.DataFrame([row])], ignore_index=True)
-            ledger = cash_flow_ledger(candidate)
-            st.session_state[state_key] = ledger["events"]
-            st.success("Event berhasil ditambahkan.")
+            cash_flow_ledger([row])
+            event_id = create_event(owner, row)
+            st.success(f"Event tersimpan permanen. ID: {event_id[:8]}")
+            st.rerun()
         except Exception as exc:
             st.error(f"Event tidak valid: {type(exc).__name__}: {exc}")
 
-    events = st.session_state[state_key]
+    try:
+        stored_events = list_events(owner)
+        events = pd.DataFrame(stored_events)
+    except Exception as exc:
+        st.error(f"Portfolio event store tidak dapat dibaca ({type(exc).__name__}).")
+        return
     st.markdown("**Event ledger**")
     if not events.empty:
         st.dataframe(events, use_container_width=True, hide_index=True)
@@ -61,9 +63,18 @@ def render_portfolio_cashflow() -> None:
             "Unduh event ledger CSV", events.to_csv(index=False).encode("utf-8-sig"),
             file_name="portfolio_cashflow_ledger.csv", mime="text/csv",
         )
-        if st.button("Hapus seluruh ledger sesi", type="secondary"):
-            st.session_state[state_key] = pd.DataFrame(columns=events.columns)
-            st.rerun()
+        delete_options = {
+            f"{row['date']} · {row['event_type']} · {row.get('ticker') or 'CASH'} · {row['id'][:8]}": row["id"]
+            for row in stored_events
+        }
+        selected_event = st.selectbox("Pilih event untuk dihapus", list(delete_options), key="cashflow_delete_select")
+        if st.button("Hapus event terpilih", type="secondary"):
+            try:
+                if delete_event(owner, delete_options[selected_event]):
+                    st.success("Event dihapus.")
+                    st.rerun()
+            except Exception as exc:
+                st.error(f"Event tidak dapat dihapus ({type(exc).__name__}).")
         try:
             summary = cash_flow_ledger(events)
             c1, c2, c3, c4 = st.columns(4)
