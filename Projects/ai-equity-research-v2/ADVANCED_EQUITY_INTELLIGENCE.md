@@ -72,7 +72,7 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - The ledger separates external investor flows, dividend income and transaction costs.
 - TWR geometrically links sub-period returns after adding/subtracting external flows from opening capital at risk.
 - XIRR solves dated investor cash flows with an ACT/365 bisection solver and optional terminal portfolio value.
-- The current Streamlit ledger is session-scoped and can be exported to CSV; permanent owner-scoped event storage and broker reconciliation are not yet implemented.
+- Transaction events are persisted per authenticated owner in SQLite/PostgreSQL and can be exported to CSV. The TWR valuation grid remains session-scoped; broker reconciliation and automatic position/cash balance reconciliation are not yet implemented.
 - All amounts must use one base currency. Split events record ratio metadata; they do not independently rewrite historical prices or existing saved positions.
 
 ## 12. Cross-Market FX-Aware Portfolio Returns
