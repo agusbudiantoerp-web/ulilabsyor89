@@ -71,7 +71,7 @@ def render_cross_market_simulation() -> None:
                         )
                         st.session_state["cross_market_fx_result"] = result
                         st.session_state["cross_market_fx_errors"] = errors
-                        for result_key in ("cross_market_monte_carlo_result", "cross_market_stress_result", "cross_market_factor_stress_result"):
+                        for result_key in ("cross_market_monte_carlo_result", "cross_market_regime_monte_carlo_result", "cross_market_stress_result", "cross_market_factor_stress_result"):
                             st.session_state.pop(result_key, None)
                     except Exception as exc:
                         st.error(f"Cross-market conversion gagal: {type(exc).__name__}: {exc}")
