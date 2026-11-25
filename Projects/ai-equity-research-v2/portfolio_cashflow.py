@@ -1,6 +1,6 @@
 """Portfolio cash-flow ledger and return metrics (TWR / XIRR).
 
-External contributions/withdrawals are separated from investment P&L.
+External contributions/withdrawals are separated from investment P&L. Positive TWR flows are deposits; negative flows are withdrawals.
 This module does not infer broker fills or corporate actions.
 """
 from __future__ import annotations
@@ -111,7 +111,10 @@ def calculate_twr(valuations: pd.DataFrame) -> dict:
     returns = []
     for index in range(1, len(frame)):
         denominator = values[index - 1]
-        period_return = (values[index] - flows[index]) / denominator - 1.0
+        capital_at_risk = denominator + flows[index]
+        if capital_at_risk <= 0:
+            raise ValueError("Modal awal sub-periode setelah external flow harus positif.")
+        period_return = values[index] / capital_at_risk - 1.0
         if period_return <= -1:
             raise ValueError("Return sub-periode tidak boleh -100% atau lebih rendah.")
         returns.append(period_return)
@@ -120,7 +123,7 @@ def calculate_twr(valuations: pd.DataFrame) -> dict:
         "twr_pct": linked * 100.0,
         "period_returns_pct": [value * 100.0 for value in returns],
         "period_count": len(returns),
-        "method": "Geometrically linked sub-period returns; external flows removed at period end.",
+        "method": "Geometrically linked sub-period returns; external flows are added to opening capital at the start of each sub-period.",
     }
 
 
