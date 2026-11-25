@@ -230,6 +230,15 @@ def main() -> int:
     parser.add_argument("--output-dir", default="backups")
     args = parser.parse_args()
 
+    if args.backend == "verify":
+        if not args.manifest:
+            parser.error("--manifest is required when backend=verify")
+        result = verify_backup_manifest(args.manifest)
+        print(f"Backup: {result['backup']}")
+        print(f"Backend: {result['backend']}")
+        print(f"SHA-256: {result['sha256']}")
+        print(f"Validation: {result['validation']}")
+        return 0
     if args.backend == "sqlite":
         if not args.source:
             parser.error("--source is required when backend=sqlite")
