@@ -102,6 +102,8 @@ def run_transaction_aware_portfolio(
         raise ValueError("Base currency hanya mendukung IDR atau USD.")
     gap_limits = {}
     for name, value in (("max_price_gap_days", max_price_gap_days), ("max_fx_gap_days", max_fx_gap_days)):
+        if isinstance(value, bool) or type(value).__name__ == "bool_":
+            raise ValueError(f"{name} harus berupa bilangan bulat non-negatif.")
         try:
             numeric = float(value)
         except (TypeError, ValueError):
@@ -111,10 +113,16 @@ def run_transaction_aware_portfolio(
         gap_limits[name] = int(numeric)
     max_price_gap_days = gap_limits["max_price_gap_days"]
     max_fx_gap_days = gap_limits["max_fx_gap_days"]
+    if isinstance(initial_cash, bool) or type(initial_cash).__name__ == "bool_":
+        raise ValueError("Initial cash harus berupa angka, bukan boolean.")
     cash = float(initial_cash)
     if not math.isfinite(cash) or cash < 0:
         raise ValueError("Initial cash harus finite dan tidak negatif.")
-    positions = {str(k).upper(): float(v) for k, v in (initial_positions or {}).items()}
+    positions = {}
+    for ticker, shares in (initial_positions or {}).items():
+        if isinstance(shares, bool) or type(shares).__name__ == "bool_":
+            raise ValueError("Initial positions harus berupa angka, bukan boolean.")
+        positions[str(ticker).upper()] = float(shares)
     if set(positions) - set(symbols):
         raise ValueError("Initial position memiliki ticker tanpa data harga.")
     if any(not math.isfinite(v) or v < 0 for v in positions.values()):
