@@ -34,7 +34,7 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     if unknown_types or unknown_status:
         raise ValueError("Event type/status tidak dikenal.")
     def _is_boolean(value):
-        return isinstance(value, bool) or type(value).__name__ == "bool_"
+        return isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}
 
     for column in ("event_date", "retrieved_at"):
         if frame[column].map(lambda value: isinstance(value, numbers.Number) or _is_boolean(value)).any():
