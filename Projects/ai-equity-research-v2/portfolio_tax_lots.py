@@ -75,10 +75,16 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
                     key=lambda lot: (lot["acquisition_date"] or "0000-01-01")
                 )
         elif kind == "SPLIT":
-            if ticker not in lots or not lots[ticker]:
-                warnings.append(f"{ticker}: split tanpa tax lot; basis biaya historis belum tersedia.")
+            eligible_lots = [
+                lot for lot in lots[ticker]
+                if not lot["acquisition_date"] or lot["acquisition_date"] <= event_date
+            ]
+            if not eligible_lots:
+                warnings.append(f"{ticker}: split tanpa tax lot yang eligible; basis biaya historis belum tersedia.")
                 continue
-            for lot in lots[ticker]:
+            # A split changes only shares already held on its effective date.
+            # Future-dated opening lots must retain their original quantity/basis.
+            for lot in eligible_lots:
                 lot["quantity"] *= quantity
                 lot["unit_cost"] /= quantity
         elif kind == "SELL":
