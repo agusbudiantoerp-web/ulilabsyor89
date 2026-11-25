@@ -155,3 +155,11 @@ def test_market_regime_as_of_result_is_unchanged_by_unobserved_future_prices():
 
     assert result_with_future_a == observed_result
     assert result_with_future_b == observed_result
+
+
+def test_price_history_audit_fails_on_infinite_volume():
+    frame = bars(np.linspace(100, 150, 220))
+    frame.iloc[-1, frame.columns.get_loc("Volume")] = np.inf
+    result = audit_price_history(frame)
+    assert result["status"] == "FAIL"
+    assert any("volume infinite" in item["message"] for item in result["checks"])
