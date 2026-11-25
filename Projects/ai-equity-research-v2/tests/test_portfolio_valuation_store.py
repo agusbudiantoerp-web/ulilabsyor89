@@ -43,3 +43,29 @@ def test_valuation_snapshots_reject_duplicate_dates_and_invalid_values(tmp_path)
     invalid.loc[0,"portfolio_value"]=0
     with pytest.raises(ValueError,match="positif"):
         save_valuations("owner","main",invalid,path=db)
+
+
+def test_valuation_snapshot_replacement_rolls_back_when_insert_fails(tmp_path):
+    import sqlite3
+
+    db = str(tmp_path / "valuations.sqlite")
+    save_valuations("owner", "main", sample(), path=db)
+    with sqlite3.connect(db) as connection:
+        connection.execute("""
+            CREATE TRIGGER reject_valuation_insert
+            BEFORE INSERT ON portfolio_valuations
+            WHEN NEW.portfolio_value = 9999
+            BEGIN
+                SELECT RAISE(ABORT, 'injected insert failure');
+            END
+        """)
+
+    replacement = pd.DataFrame([
+        {"date": "2026-03-01", "portfolio_value": 9999, "external_flow": 0},
+    ])
+    with pytest.raises(sqlite3.IntegrityError, match="injected insert failure"):
+        save_valuations("owner", "main", replacement, path=db)
+
+    preserved = list_valuations("owner", "main", path=db)
+    assert len(preserved) == 2
+    assert preserved["date"].tolist() == ["2026-01-01", "2026-02-01"]
