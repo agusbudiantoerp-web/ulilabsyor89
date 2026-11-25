@@ -48,6 +48,32 @@ def test_opening_lots_can_be_used_for_partial_sale():
     assert result["open_cost_basis"] == pytest.approx(200)
 
 
+@pytest.mark.parametrize("field", ["quantity", "unit_cost"])
+def test_opening_tax_lots_reject_boolean_numeric_inputs(field):
+    lot = {"ticker": "BBCA", "quantity": 10, "unit_cost": 100}
+    lot[field] = True
+    with pytest.raises(ValueError, match="bukan boolean"):
+        calculate_tax_lots([], opening_lots=[lot])
+
+
+def test_opening_tax_lots_accept_dataframe_rows():
+    import pandas as pd
+    result = calculate_tax_lots(
+        [],
+        opening_lots=pd.DataFrame([{
+            "ticker": "BBCA", "quantity": 10, "unit_cost": 100,
+            "acquisition_date": "2026-01-01",
+        }]),
+    )
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(10)
+    assert result["open_cost_basis"] == pytest.approx(1000)
+
+
+def test_opening_tax_lots_reject_non_dictionary_rows():
+    with pytest.raises(ValueError, match="dictionary"):
+        calculate_tax_lots([], opening_lots=["BBCA"])
+
+
 def test_tax_lots_reject_short_sale_and_unknown_method():
     events = [{"date": "2026-03-01", "event_type": "SELL", "amount": 250, "ticker": "TLKM", "quantity": 5, "price": 50}]
     with pytest.raises(ValueError, match="melebihi tax lot"):
