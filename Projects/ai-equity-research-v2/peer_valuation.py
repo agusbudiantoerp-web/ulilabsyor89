@@ -7,6 +7,7 @@ from collections.abc import Iterable
 import pandas as pd
 
 METRICS = ("pe_ttm", "pb", "ev_ebitda", "ev_sales", "roe", "roic", "revenue_growth", "operating_margin")
+METADATA_FIELDS = ("source", "provider_ticker", "fiscal_year_end", "quote_currency")
 
 
 def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: str) -> dict:
@@ -20,6 +21,10 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
     ].copy()
     if selected.empty:
         raise ValueError("Tidak ada peer dengan industri dan mata uang yang sama.")
+    for field in METADATA_FIELDS:
+        if field not in selected:
+            selected[field] = "unknown"
+    selected["currency_mismatch"] = selected["quote_currency"].astype(str).str.upper().ne(selected["currency"].astype(str).str.upper())
     for metric in METRICS:
         if metric not in selected:
             selected[metric] = float("nan")
@@ -31,6 +36,13 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
     summaries = {}
     for metric in METRICS:
         values = selected[metric].dropna()
+        q1 = float(values.quantile(0.25)) if len(values) else None
+        q3 = float(values.quantile(0.75)) if len(values) else None
+        iqr = q3 - q1 if len(values) else None
+        outliers = []
+        if len(values) >= 4 and iqr is not None:
+            lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+            outliers = selected.loc[selected[metric].notna() & ((selected[metric] < lower) | (selected[metric] > upper)), "ticker"].astype(str).tolist()
         summaries[metric] = {
             "median": float(values.median()) if len(values) else None,
             "mean": float(values.mean()) if len(values) else None,
@@ -38,6 +50,7 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
             "max": float(values.max()) if len(values) else None,
             "coverage": int(len(values)),
             "coverage_pct": float(len(values) / len(selected) * 100.0),
+            "q1": q1, "q3": q3, "iqr": iqr, "outlier_tickers": outliers,
         }
     return {
         "industry": industry,
@@ -45,7 +58,7 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
         "peer_count": int(len(selected)),
         "tickers": selected["ticker"].astype(str).tolist(),
         "metrics": summaries,
-        "records": selected[["ticker", "industry", "currency", *METRICS]].to_dict("records"),
+        "records": selected[["ticker", "industry", "currency", *METADATA_FIELDS, "currency_mismatch", *METRICS]].to_dict("records"),
         "limitations": (
             "Peer set harus ditinjau manual. Trailing/forward period, fiscal year, "
             "net debt, minority interest, diluted shares dan definisi provider dapat berbeda. "
