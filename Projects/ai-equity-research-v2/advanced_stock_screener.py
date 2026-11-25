@@ -9,6 +9,7 @@ import pandas as pd
 from daily_signal_engine import load_daily_history, calculate_indicators
 from market_engine import resolve_market_ticker
 from stock_scoring import score_stock
+from market_data_provider import YahooFinanceProvider
 
 ADVANCED_UNIVERSE = {
     "IDX": [
@@ -40,9 +41,7 @@ def screen_symbol(symbol: str, market: str, period: str = "1y") -> dict[str, Any
     bars, meta = load_daily_history(symbol, market, period)
     indicators = calculate_indicators(bars)
     row = indicators.iloc[-1]
-    import yfinance as yf
-    info = yf.Ticker(resolved["ticker"]).get_info()
-    info = info if isinstance(info, dict) else {}
+    info = YahooFinanceProvider().fetch_info(resolved["ticker"])
 
     close = float(row["Close"])
     atr = float(row["ATR14"]) if pd.notna(row["ATR14"]) else None
