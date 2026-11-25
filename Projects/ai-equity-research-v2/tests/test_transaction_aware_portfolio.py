@@ -252,3 +252,16 @@ def test_transaction_replay_preserves_exchange_local_close_calendar_date():
     )
     assert pd.Timestamp("2026-01-02") in result["curve"].index
     assert result["curve"].loc[pd.Timestamp("2026-01-02"), "market_value"] == pytest.approx(110)
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"initial_cash": __import__("numpy").bool_(True)},
+    {"initial_positions": {"AAA": __import__("numpy").bool_(True)}},
+])
+def test_transaction_replay_rejects_numpy_boolean_opening_inputs(kwargs):
+    dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    with pytest.raises(ValueError, match="boolean"):
+        run_transaction_aware_portfolio(
+            {"AAA": pd.Series([100.0, 101.0], index=dates)},
+            {"AAA": "IDR"}, [], **kwargs,
+        )
