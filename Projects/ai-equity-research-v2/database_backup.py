@@ -224,8 +224,9 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create verified AI Equity Research database backups.")
-    parser.add_argument("backend", choices=("local", "sqlite", "postgres"))
+    parser.add_argument("backend", choices=("local", "sqlite", "postgres", "verify"))
     parser.add_argument("--source", help="SQLite database path; required for backend=sqlite.")
+    parser.add_argument("--manifest", help="Backup manifest path; required for backend=verify.")
     parser.add_argument("--output-dir", default="backups")
     args = parser.parse_args()
 
