@@ -5,6 +5,7 @@ from valuation_intelligence_page import render_valuation_intelligence
 from cross_market_simulation_page import render_cross_market_simulation
 from corporate_action_calendar_page import render_corporate_action_calendar
 from investment_thesis_page import render_investment_thesis
+from thesis_review_page import render_thesis_reviews
 
 from auth import audit_login_once, get_claim, logout, oidc_is_configured, oidc_provider_name, resolve_streamlit_identity
 from equity_research_page import render_equity_research
@@ -85,6 +86,7 @@ PAGES = {
     "3d. Cross-Market & Monte Carlo": (render_cross_market_simulation, "manage_portfolio"),
     "3e. Corporate Actions Calendar": (render_corporate_action_calendar, "run_analysis"),
     "3f. Investment Thesis": (render_investment_thesis, "manage_thesis"),
+    "3g. Thesis Review Inbox": (render_thesis_reviews, "approve_thesis"),
     "4. Backtesting": (render_backtesting, "run_analysis"),
     "5. Performance Dashboard": (render_performance_dashboard, "view_dashboard"),
     "6. Security & Audit (Admin)": (lambda: render_security_audit(identity, st.secrets), "view_audit"),
