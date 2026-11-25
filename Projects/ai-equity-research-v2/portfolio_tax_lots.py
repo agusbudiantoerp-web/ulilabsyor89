@@ -24,10 +24,31 @@ def calculate_tax_lots(events, *, method: str = "FIFO", opening_lots=None) -> di
     if method not in {"FIFO", "AVERAGE_COST"}:
         raise ValueError("Metode tax lot harus FIFO atau AVERAGE_COST.")
     lots = defaultdict(list)
-    for raw in (opening_lots or []):
+    if opening_lots is None:
+        opening_rows = []
+    elif isinstance(opening_lots, pd.DataFrame):
+        opening_rows = opening_lots.to_dict("records")
+    else:
+        try:
+            opening_rows = list(opening_lots)
+        except TypeError as exc:
+            raise ValueError("Opening lots harus berupa daftar baris atau DataFrame.") from exc
+    for raw in opening_rows:
+        if not isinstance(raw, dict):
+            raise ValueError("Setiap opening lot harus berupa dictionary.")
         ticker = str(raw.get("ticker") or "").strip().upper()
-        quantity = float(raw.get("quantity", 0))
-        unit_cost = float(raw.get("unit_cost", 0))
+        raw_quantity = raw.get("quantity", 0)
+        raw_unit_cost = raw.get("unit_cost", 0)
+        if (
+            isinstance(raw_quantity, bool) or type(raw_quantity).__name__ in {"bool_", "bool"}
+            or isinstance(raw_unit_cost, bool) or type(raw_unit_cost).__name__ in {"bool_", "bool"}
+        ):
+            raise ValueError("Opening lot quantity dan unit_cost harus angka, bukan boolean.")
+        try:
+            quantity = float(raw_quantity)
+            unit_cost = float(raw_unit_cost)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Opening lot quantity dan unit_cost harus angka finite.") from exc
         if not ticker or not math.isfinite(quantity) or not math.isfinite(unit_cost) or quantity <= 0 or unit_cost < 0:
             raise ValueError("Opening lot harus memiliki ticker, quantity positif dan unit_cost non-negatif.")
         raw_date = str(raw.get("acquisition_date") or "").strip()
