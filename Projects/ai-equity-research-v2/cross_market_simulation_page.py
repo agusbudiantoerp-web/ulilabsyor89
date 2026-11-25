@@ -86,7 +86,10 @@ def render_cross_market_simulation() -> None:
             c2.metric("Base currency", result["base_currency"])
             c3.metric("Jumlah aset", len(result["weights"]))
             st.line_chart(curve["equity_index"])
+            st.markdown("**Base-currency asset returns**")
             st.dataframe(result["asset_returns"].tail(10), use_container_width=True)
+            st.markdown("**FX contribution by asset (percentage points)**")
+            st.dataframe(result["asset_fx_contribution_pct"].tail(10), use_container_width=True)
             st.caption(result["method"])
             st.download_button(
                 "Unduh FX-adjusted equity curve CSV",
