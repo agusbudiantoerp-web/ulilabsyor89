@@ -137,3 +137,13 @@ def test_mixed_currency_portfolio_rejects_normalized_ticker_collisions():
             {"aaa": closes, "AAA": closes},
             {"AAA": "IDR"}, {"AAA": 1.0}
         )
+
+
+def test_mixed_currency_portfolio_rejects_numpy_boolean_weight():
+    import numpy as np
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    closes = pd.Series([100.0, 101.0], index=dates)
+    with pytest.raises(ValueError, match="bukan boolean"):
+        combine_mixed_currency_returns(
+            {"AAA": closes}, {"AAA": "IDR"}, {"AAA": np.bool_(True)}
+        )
