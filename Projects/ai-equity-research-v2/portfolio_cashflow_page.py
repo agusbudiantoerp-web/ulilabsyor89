@@ -168,6 +168,15 @@ def render_portfolio_cashflow() -> None:
                         tax_result = calculate_tax_lots(
                             events, method=tax_method, opening_lots=opening_lots,
                         )
+                        st.session_state["portfolio_tax_lot_realized_frame"] = tax_result["realized_trades"].copy()
+                        st.session_state["portfolio_tax_lot_open_lots_frame"] = tax_result["open_lots"].copy()
+                        st.session_state["portfolio_tax_lot_metrics"] = {
+                            "method": tax_result["method"],
+                            "realized_pnl": tax_result["realized_pnl"],
+                            "realized_cost_basis": tax_result["realized_cost_basis"],
+                            "realized_sale_proceeds": tax_result["realized_sale_proceeds"],
+                            "open_cost_basis": tax_result["open_cost_basis"],
+                        }
                         m1, m2, m3 = st.columns(3)
                         m1.metric("Realized P&L", f"{tax_result['realized_pnl']:,.2f}")
                         m2.metric("Cost basis terjual", f"{tax_result['realized_cost_basis']:,.2f}")
