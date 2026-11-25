@@ -37,3 +37,12 @@ def test_excel_report_escapes_formula_like_untrusted_text():
     summary = {row[0]: row[1] for row in workbook["Summary"].iter_rows(values_only=True) if row[0]}
     assert str(summary["Provider note"]).startswith("'+")
     assert workbook["External Data"]["A2"].value.startswith("'  @")
+
+
+def test_research_excel_export_neutralizes_formula_after_utf8_bom_prefix():
+    excel = build_excel_report(
+        portfolio=pd.DataFrame([{"Ticker": "\\ufeff=HYPERLINK(\"https://evil.example\",\"x\")"}])
+    )
+    workbook = load_workbook(BytesIO(excel), read_only=True, data_only=False)
+    assert workbook["Portfolio"]["A2"].value.startswith("'\\ufeff=")
+    workbook.close()
