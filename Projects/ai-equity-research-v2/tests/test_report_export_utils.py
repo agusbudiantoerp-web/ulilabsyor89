@@ -23,6 +23,6 @@ def test_csv_export_escapes_formula_like_text_but_preserves_numeric_values():
 
 
 def test_csv_export_neutralizes_formula_after_utf8_bom_prefix():
-    frame = pd.DataFrame({"Ticker": ["\\ufeff=HYPERLINK(\"https://evil.example\",\"x\")"]})
+    frame = pd.DataFrame({"Ticker": ["chr(0xFEFF) + "=HYPERLINK(\"https://evil.example\",\"x\")"]})
     rows = list(pd.read_csv(BytesIO(safe_csv_bytes(frame))).itertuples(index=False, name=None))
-    assert rows[0][0].startswith("'\\ufeff=")
+    assert rows[0][0].startswith("'" + chr(0xFEFF) + "=")
