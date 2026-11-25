@@ -69,6 +69,28 @@ def test_opening_tax_lots_accept_dataframe_rows():
     assert result["open_cost_basis"] == pytest.approx(1000)
 
 
+def test_opening_tax_lots_treats_missing_dataframe_acquisition_date_as_undated():
+    import pandas as pd
+    result = calculate_tax_lots(
+        [],
+        opening_lots=pd.DataFrame([{
+            "ticker": "BBCA", "quantity": 10, "unit_cost": 100,
+            "acquisition_date": float("nan"),
+        }]),
+    )
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(10)
+    assert result["open_lots"].iloc[0]["acquisition_date"] == ""
+
+
+@pytest.mark.parametrize("value", [20260101, True])
+def test_opening_tax_lots_rejects_numeric_or_boolean_acquisition_dates(value):
+    with pytest.raises(ValueError, match="acquisition_date"):
+        calculate_tax_lots([], opening_lots=[{
+            "ticker": "BBCA", "quantity": 10, "unit_cost": 100,
+            "acquisition_date": value,
+        }])
+
+
 def test_opening_tax_lots_reject_non_dictionary_rows():
     with pytest.raises(ValueError, match="dictionary"):
         calculate_tax_lots([], opening_lots=["BBCA"])
