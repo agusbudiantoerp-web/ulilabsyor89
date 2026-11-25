@@ -3,10 +3,10 @@
 ## Implemented application controls
 
 - Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, derives the principal from the verified issuer-bound immutable `iss|sub`, and denies access when login or role mapping is missing.
-- Server-managed roles are `viewer`, `analyst`, `portfolio_manager` and `admin`. Role mapping is maintained in private Streamlit Secrets; the browser console is read-only.
+- Server-managed roles are `viewer`, `analyst`, `portfolio_manager` and `admin`. `portfolio_manager` and `admin` can review assigned investment thesis versions; `analyst`, `portfolio_manager` and `admin` can author their own theses. Role mapping is maintained in private Streamlit Secrets; the browser console is read-only.
 - Server-side page gates protect research, daily signals, portfolio/risk, backtesting, performance and the admin-only Security & Audit console. Selected portfolio-management, report-export and other sensitive operations also enforce permissions at their execution points.
 - Session state is cleared when the authenticated principal changes in a reused Streamlit session.
-- Portfolio books, daily scans/signals/forward outcomes and saved single-ticker, walk-forward and multi-asset research runs are owner-scoped using the immutable OIDC principal. Existing legacy records are quarantined as `legacy-unassigned`; they are not silently assigned to the first user or uploaded from local SQLite.
+- Portfolio books, cash-flow event ledgers, corporate event records, versioned investment theses/review requests, daily scans/signals/forward outcomes and saved single-ticker, walk-forward and multi-asset research runs are owner-scoped using the immutable OIDC principal. Thesis review decisions are restricted to the explicitly assigned reviewer and the specific saved thesis version. Existing legacy records are quarantined as `legacy-unassigned`; they are not silently assigned to the first user or uploaded from local SQLite.
 - Performance/learning records use PostgreSQL when configured and local SQLite otherwise. Local SQLite history is not automatically merged into cloud PostgreSQL.
 - Login/logout and application activity are audit-logged. The audit console is admin-only; audit history is intentionally system-wide rather than tenant-private.
 - Audit writes are serialized in PostgreSQL and SQLite. A SHA-256 hash chain can detect accidental or partial tampering, but it is not WORM storage and cannot resist a privileged database administrator rewriting the entire chain.
@@ -27,7 +27,7 @@
 1. Configure one trusted OIDC provider in Preview Streamlit Secrets and register the exact callback URL; see `OIDC_SETUP.md`.
 2. Map each approved immutable `issuer|sub` principal to the least-privilege role. Unknown principals must remain denied.
 3. Configure a dedicated Preview PostgreSQL database with TLS and least-privilege grants. Never use production credentials for Preview.
-4. Review and exercise every privileged page and operation against each role, including direct invocation paths, exports, portfolio CRUD, saved-run CRUD, and admin actions.
+4. Review and exercise every privileged page and operation against each role, including direct invocation paths, exports, portfolio CRUD, thesis authoring/reviewer assignment, reviewer approval decisions, saved-run CRUD, and admin actions.
 5. Verify two-user isolation for portfolio books, learning/performance records and research/backtest history. Confirm audit records remain admin-only.
 6. Verify PostgreSQL schema, grants, connection limits, backups and recovery procedures on Preview/staging.
 7. Export audit events to an access-controlled append-only/WORM system if regulatory or operational retention requires immutability.
