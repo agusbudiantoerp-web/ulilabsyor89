@@ -15,12 +15,18 @@ def _clean_close(series: pd.Series, label: str) -> pd.Series:
     if not isinstance(series, pd.Series) or series.empty:
         raise ValueError(f"Close {label} kosong.")
     values = pd.to_numeric(series, errors="coerce")
-    values.index = pd.to_datetime(values.index)
+    try:
+        parsed_index = pd.to_datetime(values.index, errors="coerce")
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Tanggal close {label} tidak valid.") from exc
+    if parsed_index.isna().any():
+        raise ValueError(f"Tanggal close {label} tidak valid.")
+    values.index = parsed_index
     if values.index.tz is not None:
         values.index = values.index.tz_localize(None)
-    values = values.sort_index()
     if values.index.has_duplicates:
-        values = values.groupby(level=0).last()
+        raise ValueError(f"Tanggal close {label} duplikat; agregasi harus dilakukan secara eksplisit.")
+    values = values.sort_index()
     if values.isna().any() or not all(math.isfinite(float(x)) for x in values):
         raise ValueError(f"Close {label} mengandung nilai kosong/non-finite.")
     if (values <= 0).any():
@@ -45,8 +51,12 @@ def convert_asset_returns_to_base_currency(
     base = str(base_currency).upper().strip()
     if currency not in {"IDR", "USD"} or base not in {"IDR", "USD"}:
         raise ValueError("Mata uang aset dan base hanya mendukung IDR atau USD.")
-    if max_fx_gap_days < 0:
-        raise ValueError("max_fx_gap_days tidak boleh negatif.")
+    if (
+        isinstance(max_fx_gap_days, bool)
+        or not isinstance(max_fx_gap_days, int)
+        or not 0 <= max_fx_gap_days <= 30
+    ):
+        raise ValueError("max_fx_gap_days harus integer 0–30.")
     asset = _clean_close(local_close, "asset")
     asset_frame = pd.DataFrame({"date": asset.index, "local_close": asset.values})
     if currency == base:
