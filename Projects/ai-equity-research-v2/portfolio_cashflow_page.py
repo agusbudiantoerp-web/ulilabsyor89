@@ -24,6 +24,7 @@ def _audit_cashflow(owner, role, action, resource_type, resource_id, details):
 def render_portfolio_cashflow() -> None:
     owner = str(st.session_state.get("_auth_subject_id") or "").strip()
     role = st.session_state.get("_auth_role")
+    require_permission(role, "manage_portfolio")
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
