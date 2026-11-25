@@ -225,7 +225,7 @@ def render_portfolio_cashflow() -> None:
                                 symbol, shares, unit_cost = parts[0].upper(), float(parts[1]), float(parts[2])
                                 opening_lots.append({
                                     "ticker": symbol, "quantity": shares,
-                                    "unit_cost": unit_cost, "acquisition_date": "opening",
+                                    "unit_cost": unit_cost, "acquisition_date": "",
                                 })
                         tax_result = calculate_tax_lots(
                             events, method=tax_method, opening_lots=opening_lots,
