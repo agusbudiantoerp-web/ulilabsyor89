@@ -2,7 +2,43 @@
 from __future__ import annotations
 
 import math
+import numbers
 import pandas as pd
+
+
+def _validated_close(bars: pd.DataFrame, label: str) -> pd.Series:
+    if not isinstance(bars, pd.DataFrame) or bars.empty or "Close" not in bars.columns:
+        raise ValueError(f"{label}: data Close tidak tersedia.")
+    if not isinstance(bars.index, pd.DatetimeIndex):
+        raise ValueError(f"{label}: index harus berupa DatetimeIndex.")
+    if bars.index.has_duplicates:
+        raise ValueError(f"{label}: tanggal historis duplikat.")
+    if not bars.index.is_monotonic_increasing:
+        raise ValueError(f"{label}: tanggal historis harus berurutan.")
+    index = bars.index
+    if index.tz is not None:
+        index = index.tz_localize(None)
+    if index.has_duplicates:
+        raise ValueError(f"{label}: tanggal duplikat setelah normalisasi timezone.")
+    close = pd.to_numeric(bars["Close"], errors="coerce")
+    if close.isna().any() or not all(math.isfinite(float(value)) for value in close):
+        raise ValueError(f"{label}: Close mengandung nilai kosong, non-numeric atau non-finite.")
+    if (close <= 0).any():
+        raise ValueError(f"{label}: Close harus positif.")
+    close.index = index
+    return close
+
+
+def _finite_parameter(name: str, value, *, minimum: float | None = None) -> float:
+    if isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
+        raise ValueError(f"{name} harus berupa angka finite.")
+    try:
+        result = float(value)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError(f"{name} harus berupa angka finite.") from None
+    if not math.isfinite(result) or (minimum is not None and result < minimum):
+        raise ValueError(f"{name} harus finite dan >= {minimum}.")
+    return result
 
 
 def run_multi_asset_backtest(
@@ -15,21 +51,27 @@ def run_multi_asset_backtest(
     max_weight_pct: float = 20.0,
     min_history: int = 220,
 ) -> dict:
-    """Equal-weight active trend candidates; signals are lagged one session before returns."""
-    if not bars_by_symbol:
+    """Equal-weight active trend candidates; signals are lagged one full session."""
+    if not isinstance(bars_by_symbol, dict) or not bars_by_symbol:
         raise ValueError("Masukkan minimal satu instrumen.")
-    if initial_capital <= 0 or fee_bps < 0 or slippage_bps < 0:
-        raise ValueError("Modal dan biaya harus valid.")
-    if max_positions < 1 or not 0 < max_weight_pct <= 100:
-        raise ValueError("Batas posisi/bobot tidak valid.")
+    initial_capital = _finite_parameter("initial_capital", initial_capital, minimum=0)
+    if initial_capital <= 0:
+        raise ValueError("Modal harus lebih besar dari 0.")
+    fee_bps = _finite_parameter("fee_bps", fee_bps, minimum=0)
+    slippage_bps = _finite_parameter("slippage_bps", slippage_bps, minimum=0)
+    max_weight_pct = _finite_parameter("max_weight_pct", max_weight_pct, minimum=0)
+    for name, value, minimum in (("max_positions", max_positions, 1), ("min_history", min_history, 1)):
+        if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value < minimum:
+            raise ValueError(f"{name} harus bilangan bulat >= {minimum}.")
+    if max_weight_pct > 100:
+        raise ValueError("max_weight_pct tidak boleh melebihi 100%.")
+    if fee_bps + slippage_bps >= 10_000:
+        raise ValueError("Biaya transaksi gabungan harus di bawah 100%.")
+
     closes, signals, strengths = {}, {}, {}
     rejected = []
     for symbol, bars in bars_by_symbol.items():
-        if bars is None or bars.empty or "Close" not in bars:
-            rejected.append({"ticker": symbol, "reason": "Data close tidak tersedia."})
-            continue
-        frame = bars.copy().sort_index()
-        close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
+        close = _validated_close(bars, str(symbol))
         if len(close) < min_history:
             rejected.append({"ticker": symbol, "reason": f"Histori kurang dari {min_history} sesi."})
             continue
@@ -49,14 +91,14 @@ def run_multi_asset_backtest(
         strengths[str(symbol)] = strength.where(signal > 0).rename(str(symbol))
     if not closes:
         raise ValueError("Tidak ada instrumen dengan histori memadai.")
+
     close_frame = pd.concat(closes.values(), axis=1).sort_index()
-    # Calculate returns on each asset's own trading calendar before aligning markets.
+    # Returns are calculated on each instrument's own exchange calendar.
     return_series = [series.pct_change(fill_method=None).rename(symbol) for symbol, series in closes.items()]
     daily_returns = pd.concat(return_series, axis=1).reindex(close_frame.index)
     daily_returns = daily_returns.replace([float("inf"), -float("inf")], float("nan")).fillna(0.0)
     signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).fillna(0.0)
     strength_frame = pd.concat(strengths.values(), axis=1).reindex(close_frame.index)
-    # Shift signal and ranking score by one full bar to prevent look-ahead.
     active = signal_frame.shift(1).fillna(0.0)
     active_strength = strength_frame.shift(1)
     weights = pd.DataFrame(0.0, index=active.index, columns=active.columns)
@@ -64,7 +106,7 @@ def run_multi_asset_backtest(
         candidates = row[row > 0].index
         if len(candidates):
             ranking = active_strength.loc[date, candidates].dropna().sort_values(ascending=False)
-            chosen = ranking.index[:max_positions]
+            chosen = ranking.index[:int(max_positions)]
             if len(chosen):
                 weight = min(1.0 / len(chosen), max_weight_pct / 100.0)
                 weights.loc[date, chosen] = weight
@@ -74,38 +116,31 @@ def run_multi_asset_backtest(
     cost_rate = (fee_bps + slippage_bps) / 10_000.0
     gross = (weights * daily_returns.reindex_like(weights).fillna(0.0)).sum(axis=1)
     net = gross - turnover * cost_rate
-    equity = (1 + net).cumprod() * float(initial_capital)
+    equity = (1 + net).cumprod() * initial_capital
     peak = equity.cummax()
     drawdown = (equity / peak - 1) * 100
     elapsed_days = max(1, (equity.index[-1] - equity.index[0]).days)
     years = elapsed_days / 365.25
     total_return = (float(equity.iloc[-1]) / initial_capital - 1) * 100
     cagr = ((float(equity.iloc[-1]) / initial_capital) ** (1 / years) - 1) * 100 if years > 0 and equity.iloc[-1] > 0 else -100.0
-    vol = float(net.std(ddof=1) * math.sqrt(252)) if len(net) > 1 else 0.0
-    sharpe = float(net.mean() / net.std(ddof=1) * math.sqrt(252)) if len(net) > 1 and net.std(ddof=1) > 0 else 0.0
+    daily_std = float(net.std(ddof=1)) if len(net) > 1 else 0.0
+    vol = daily_std * math.sqrt(252)
+    sharpe = float(net.mean() / daily_std * math.sqrt(252)) if daily_std > 0 else 0.0
+
     benchmark_return = None
-    if benchmark_bars is not None and not benchmark_bars.empty:
-        if isinstance(benchmark_bars.columns, pd.MultiIndex):
-            matches = [i for i, col in enumerate(benchmark_bars.columns)
-                       if "Close" in {str(part).title() for part in (col if isinstance(col, tuple) else (col,))}]
-            benchmark_close = benchmark_bars.iloc[:, matches[0]] if matches else pd.Series(dtype=float)
-        else:
-            matches = [col for col in benchmark_bars.columns if str(col).strip().lower() == "close"]
-            benchmark_close = benchmark_bars[matches[0]] if matches else pd.Series(dtype=float)
-        if isinstance(benchmark_close, pd.DataFrame):
-            benchmark_close = benchmark_close.iloc[:, 0]
-        benchmark_close = pd.to_numeric(benchmark_close, errors="coerce").dropna()
-        benchmark_close.index = pd.to_datetime(benchmark_close.index)
-        if getattr(benchmark_close.index, "tz", None) is not None:
-            benchmark_close.index = benchmark_close.index.tz_localize(None)
+    if benchmark_bars is not None:
+        benchmark_close = _validated_close(benchmark_bars, "Benchmark")
         aligned_benchmark = benchmark_close.reindex(net.index).dropna()
         if len(aligned_benchmark) > 1:
             benchmark_return = float((aligned_benchmark.iloc[-1] / aligned_benchmark.iloc[0] - 1) * 100)
-    curve = pd.DataFrame({"equity": equity, "daily_return_pct": net * 100, "drawdown_pct": drawdown,
-                          "gross_return_pct": gross * 100, "turnover": turnover})
+    curve = pd.DataFrame({
+        "equity": equity, "daily_return_pct": net * 100,
+        "drawdown_pct": drawdown, "gross_return_pct": gross * 100,
+        "turnover": turnover,
+    })
     curve.index.name = "date"
     return {
-        "initial_capital": float(initial_capital), "final_equity": float(equity.iloc[-1]),
+        "initial_capital": initial_capital, "final_equity": float(equity.iloc[-1]),
         "total_return_pct": float(total_return), "cagr_pct": float(cagr),
         "max_drawdown_pct": float(drawdown.min()), "annualized_volatility_pct": vol * 100,
         "sharpe_ratio": sharpe, "benchmark_return_pct": benchmark_return,
@@ -115,5 +150,5 @@ def run_multi_asset_backtest(
         "estimated_cost_paid": float((turnover * cost_rate * equity.shift(1).fillna(initial_capital)).sum()),
         "curve": curve.reset_index().to_dict("records"),
         "method": "Long-only equal-weight trend portfolio; signals use completed bar t and returns start at t+1; turnover costs applied on weight changes.",
-        "limitations": "Simulation only. No dividends, taxes, borrow costs, intraday execution, market impact, corporate-action reconciliation or survivorship correction. Missing prices are not forward-filled; uninvested cash earns zero. Benchmark is price-only.",
+        "limitations": "Simulation only. No dividends, taxes, borrow costs, intraday execution, market impact, corporate-action reconciliation or survivorship correction. Missing asset prices on non-trading dates contribute zero return; uninvested cash earns zero. Benchmark is price-only.",
     }
