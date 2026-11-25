@@ -125,7 +125,7 @@ def test_market_data_contract_flags_duplicate_trading_dates():
 
 
 def test_market_data_contract_flags_non_finite_ohlcv():
-    bars = sample_bars()
+    bars = sample_bars().astype({"Volume": "float64"})
     bars.iloc[0, bars.columns.get_loc("Volume")] = float("inf")
     stamp = datetime(2026, 11, 9, tzinfo=timezone.utc)
     result = build_market_data_metadata(bars, retrieved_at=stamp, as_of=stamp)
