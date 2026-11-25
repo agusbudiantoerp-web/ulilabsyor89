@@ -457,6 +457,23 @@ def render_research_exports(latest: dict | None, history: list | None, owner_id:
             "Remaining tax lot cost basis": tax_metrics.get("open_cost_basis"),
         })
 
+    dcf_reconciliation = st.session_state.get("valuation_reconciliation_result") or {}
+    if dcf_reconciliation:
+        extra_sheets["DCF Reconciliation"] = pd.DataFrame([{
+            key: value for key, value in dcf_reconciliation.items()
+            if key not in {"warnings", "method", "assumption_gaps"}
+        } | {
+            "net_debt_gap": dcf_reconciliation.get("assumption_gaps", {}).get("net_debt_gap"),
+            "wacc_gap_pct_points": dcf_reconciliation.get("assumption_gaps", {}).get("wacc_gap_pct_points"),
+            "terminal_growth_gap_pct_points": dcf_reconciliation.get("assumption_gaps", {}).get("terminal_growth_gap_pct_points"),
+            "warnings": "; ".join(dcf_reconciliation.get("warnings", [])),
+        }])
+        metrics.update({
+            "DCF reconciliation EV gap %": dcf_reconciliation.get("enterprise_value_gap_pct"),
+            "DCF reconciliation equity gap": dcf_reconciliation.get("equity_value_gap"),
+            "DCF reconciliation intrinsic price gap %": dcf_reconciliation.get("intrinsic_price_gap_pct"),
+        })
+
     block_bootstrap = st.session_state.get("cross_market_block_bootstrap_result") or {}
     if block_bootstrap:
         extra_sheets["Block Bootstrap Percentiles"] = pd.DataFrame([
