@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, normalize_events
+from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, normalize_events, reconcile_portfolio_ledger
 
 
 def test_cash_flow_ledger_separates_external_flows_dividends_and_costs():
@@ -89,3 +89,36 @@ def test_xirr_rejects_ambiguous_multiple_sign_changes():
     ]
     with pytest.raises(ValueError, match="lebih dari satu akar"):
         calculate_xirr(flows)
+
+
+def test_portfolio_reconciliation_handles_partial_sell_dividend_fee_and_split():
+    events = [
+        {"date": "2026-01-01", "event_type": "DEPOSIT", "amount": 10000},
+        {"date": "2026-01-02", "event_type": "BUY", "amount": 1000, "ticker": "BBCA", "quantity": 10, "price": 100},
+        {"date": "2026-01-03", "event_type": "DIVIDEND", "amount": 50, "ticker": "BBCA"},
+        {"date": "2026-01-04", "event_type": "FEE", "amount": 10},
+        {"date": "2026-01-05", "event_type": "SELL", "amount": 480, "ticker": "BBCA", "quantity": 4, "price": 120},
+        {"date": "2026-01-06", "event_type": "SPLIT", "amount": 0, "ticker": "BBCA", "quantity": 2},
+    ]
+    result = reconcile_portfolio_ledger(events)
+    assert result["cash_balance"] == pytest.approx(9520)
+    assert result["positions"]["BBCA"] == pytest.approx(12)
+
+
+def test_portfolio_reconciliation_rejects_oversell_and_negative_cash():
+    with pytest.raises(ValueError, match="melebihi"):
+        reconcile_portfolio_ledger([
+            {"date": "2026-01-01", "event_type": "SELL", "amount": 100, "ticker": "BBCA", "quantity": 1, "price": 100}
+        ], initial_positions={"BBCA": 0})
+    with pytest.raises(ValueError, match="Cash balance negatif"):
+        reconcile_portfolio_ledger([
+            {"date": "2026-01-01", "event_type": "WITHDRAWAL", "amount": 100}
+        ], initial_cash=10)
+
+
+def test_portfolio_reconciliation_flags_transaction_amount_mismatch():
+    result = reconcile_portfolio_ledger([
+        {"date": "2026-01-01", "event_type": "BUY", "amount": 1200, "ticker": "BBCA", "quantity": 10, "price": 100}
+    ], initial_cash=2000)
+    assert result["cash_balance"] == pytest.approx(800)
+    assert len(result["warnings"]) == 1
