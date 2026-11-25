@@ -109,8 +109,10 @@ def run_multi_asset_backtest(
     return_series = [series.pct_change(fill_method=None).rename(symbol) for symbol, series in closes.items()]
     daily_returns = pd.concat(return_series, axis=1).reindex(close_frame.index)
     daily_returns = daily_returns.replace([float("inf"), -float("inf")], float("nan")).fillna(0.0)
-    signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).fillna(0.0)
-    strength_frame = pd.concat(strengths.values(), axis=1).reindex(close_frame.index)
+    # Carry each instrument's last observed signal/strength across other
+    # exchanges' holidays; never forward-fill prices or realized returns.
+    signal_frame = pd.concat(signals.values(), axis=1).reindex(close_frame.index).ffill().fillna(0.0)
+    strength_frame = pd.concat(strengths.values(), axis=1).reindex(close_frame.index).ffill()
     active = signal_frame.shift(1).fillna(0.0)
     active_strength = strength_frame.shift(1)
     weights = pd.DataFrame(0.0, index=active.index, columns=active.columns)
