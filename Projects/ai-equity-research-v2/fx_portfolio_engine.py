@@ -131,7 +131,7 @@ def combine_mixed_currency_returns(
     clean_weights = {}
     for symbol in symbols:
         raw_weight = weight_map[symbol]
-        if isinstance(raw_weight, bool) or type(raw_weight).__name__ == "bool_":
+        if isinstance(raw_weight, bool) or type(raw_weight).__name__ in {"bool_", "bool"}:
             raise ValueError("Bobot harus berupa angka, bukan boolean.")
         try:
             clean_weights[symbol] = float(raw_weight)
