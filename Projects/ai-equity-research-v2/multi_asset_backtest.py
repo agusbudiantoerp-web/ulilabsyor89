@@ -7,7 +7,19 @@ import pandas as pd
 
 
 def _validated_close(bars: pd.DataFrame, label: str) -> pd.Series:
-    if not isinstance(bars, pd.DataFrame) or bars.empty or "Close" not in bars.columns:
+    if not isinstance(bars, pd.DataFrame) or bars.empty:
+        raise ValueError(f"{label}: data Close tidak tersedia.")
+    close_column = "Close" if "Close" in bars.columns else None
+    if close_column is None and isinstance(bars.columns, pd.MultiIndex):
+        matches = [
+            column for column in bars.columns
+            if any(str(part).strip().lower() == "close" for part in (column if isinstance(column, tuple) else (column,)))
+        ]
+        if len(matches) == 1:
+            close_column = matches[0]
+        elif len(matches) > 1:
+            raise ValueError(f"{label}: kolom Close benchmark ambigu; pilih satu instrumen terlebih dahulu.")
+    if close_column is None:
         raise ValueError(f"{label}: data Close tidak tersedia.")
     if not isinstance(bars.index, pd.DatetimeIndex):
         raise ValueError(f"{label}: index harus berupa DatetimeIndex.")
@@ -20,7 +32,7 @@ def _validated_close(bars: pd.DataFrame, label: str) -> pd.Series:
         index = index.tz_localize(None)
     if index.has_duplicates:
         raise ValueError(f"{label}: tanggal duplikat setelah normalisasi timezone.")
-    close = pd.to_numeric(bars["Close"], errors="coerce")
+    close = pd.to_numeric(bars[close_column], errors="coerce")
     if close.isna().any() or not all(math.isfinite(float(value)) for value in close):
         raise ValueError(f"{label}: Close mengandung nilai kosong, non-numeric atau non-finite.")
     if (close <= 0).any():
