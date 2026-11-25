@@ -55,6 +55,14 @@ IDR and USD are never summed without an explicit FX conversion. The allocation p
 
 This is a measurement and evaluation loop, not automatic model retraining. Strategy changes should receive a new ruleset version before comparing performance.
 
+## Data provenance and freshness contract
+
+- Every history download records provider/source ticker, market, exchange, quote currency, retrieval timestamp, latest bar date, bar count and adjustment mode.
+- The current Yahoo Finance history loader explicitly requests `auto_adjust=True`; the contract labels the resulting OHLC as provider-adjusted rather than raw/unadjusted.
+- Basic OHLCV validation reports missing/non-numeric/non-finite values, invalid OHLC relationships, non-positive prices, negative volume, duplicate dates and stale bars.
+- Screener results carry the provenance record, and Market Intelligence displays its source, currency, adjustment basis, latest bar and quality status.
+- A passing basic quality check is not independent proof of Yahoo Finance accuracy, complete corporate-action history, point-in-time data or survivorship-bias-free coverage.
+
 ## Data and safety notes
 
 - Price/fundamental data is retrieved from Yahoo Finance via yfinance and may be delayed, incomplete, revised or rate-limited.
