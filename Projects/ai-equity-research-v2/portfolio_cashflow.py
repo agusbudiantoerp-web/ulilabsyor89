@@ -20,7 +20,7 @@ CASH_EVENT_TYPES = {"DEPOSIT", "WITHDRAWAL", "DIVIDEND", "BUY", "SELL", "FEE", "
 def _reject_boolean_values(frame: pd.DataFrame, columns: tuple[str, ...]) -> None:
     for column in columns:
         if column in frame and frame[column].map(
-            lambda value: isinstance(value, bool) or type(value).__name__ == "bool_"
+            lambda value: isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}
         ).any():
             raise ValueError(f"{column} tidak boleh berupa boolean.")
 
@@ -38,7 +38,7 @@ def _parse_event_calendar_dates(series: pd.Series, label: str) -> pd.Series:
     """Preserve the supplied local calendar day for exchange event dates."""
     parsed = []
     for value in series:
-        if isinstance(value, numbers.Number) or isinstance(value, bool) or type(value).__name__ == "bool_":
+        if isinstance(value, numbers.Number) or isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
             raise ValueError(f"{label} tidak valid.")
         try:
             timestamp = pd.Timestamp(value)
@@ -59,7 +59,7 @@ def normalize_events(events: pd.DataFrame | Iterable[dict]) -> pd.DataFrame:
     if frame.empty:
         return pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
     def _is_boolean(value):
-        return isinstance(value, bool) or type(value).__name__ == "bool_"
+        return isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}
 
     # Do not let pandas interpret integer/boolean values as nanoseconds from
     # the Unix epoch when a human-readable event date is required.
@@ -216,7 +216,7 @@ def calculate_xirr(cash_flows: pd.DataFrame | Iterable[dict], *, ending_value: f
         raise ValueError("Cash flow kosong atau tidak valid.")
     if not all(math.isfinite(float(x)) for x in frame["amount"]):
         raise ValueError("Cash flow harus finite.")
-    if isinstance(ending_value, bool) or type(ending_value).__name__ == "bool_":
+    if isinstance(ending_value, bool) or type(ending_value).__name__ in {"bool_", "bool"}:
         raise ValueError("Ending value harus berupa angka, bukan boolean.")
     end_value = float(ending_value)
     if not math.isfinite(end_value) or end_value < 0:
@@ -293,9 +293,9 @@ def reconcile_portfolio_ledger(
     are separate cash outflows. SPLIT quantity is the new-shares-per-old-share
     ratio. Same-day ordering follows the stable order supplied by the caller.
     """
-    if isinstance(initial_cash, bool) or type(initial_cash).__name__ == "bool_":
+    if isinstance(initial_cash, bool) or type(initial_cash).__name__ in {"bool_", "bool"}:
         raise ValueError("Initial cash harus berupa angka, bukan boolean.")
-    if isinstance(amount_tolerance_pct, bool) or type(amount_tolerance_pct).__name__ == "bool_":
+    if isinstance(amount_tolerance_pct, bool) or type(amount_tolerance_pct).__name__ in {"bool_", "bool"}:
         raise ValueError("Amount tolerance harus berupa angka, bukan boolean.")
     cash = float(initial_cash)
     if not math.isfinite(cash) or cash < 0:
@@ -305,7 +305,7 @@ def reconcile_portfolio_ledger(
         raise ValueError("Amount tolerance harus finite dan tidak negatif.")
     positions = {}
     for ticker, shares in (initial_positions or {}).items():
-        if isinstance(shares, bool) or type(shares).__name__ == "bool_":
+        if isinstance(shares, bool) or type(shares).__name__ in {"bool_", "bool"}:
             raise ValueError("Initial positions harus berupa angka, bukan boolean.")
         positions[str(ticker).upper().strip()] = float(shares)
     if any(not math.isfinite(value) or value < 0 for value in positions.values()):
