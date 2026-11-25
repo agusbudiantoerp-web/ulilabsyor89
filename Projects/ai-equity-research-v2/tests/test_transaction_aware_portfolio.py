@@ -238,3 +238,17 @@ def test_transaction_replay_normalizes_ticker_keys_consistently():
 def test_transaction_replay_rejects_ticker_collisions_after_normalization(price_closes, currencies):
     with pytest.raises(ValueError, match="duplikat setelah normalisasi"):
         run_transaction_aware_portfolio(price_closes, currencies, [])
+
+
+
+def test_transaction_replay_preserves_exchange_local_close_calendar_date():
+    local_dates = pd.date_range("2026-01-01", periods=2, freq="D", tz="Asia/Jakarta")
+    closes = pd.Series([100.0, 110.0], index=local_dates)
+    result = run_transaction_aware_portfolio(
+        {"AAA": closes},
+        {"AAA": "IDR"},
+        [{"date": "2026-01-02", "event_type": "DEPOSIT", "amount": 1000}],
+        initial_positions={"AAA": 1},
+    )
+    assert pd.Timestamp("2026-01-02") in result["curve"].index
+    assert result["curve"].loc[pd.Timestamp("2026-01-02"), "market_value"] == pytest.approx(110)
