@@ -81,7 +81,8 @@ This is a measurement and evaluation loop, not automatic model retraining. Strat
 - USD/IDR is aligned backward as-of to each asset trading date with an explicit maximum calendar-day tolerance; missing FX coverage fails closed.
 - Local asset return and FX contribution are reported separately per asset; inverse USD/IDR conversion is used for IDR assets in a USD base portfolio.
 - Static target weights are preserved across market holidays; a closed market contributes zero daily return rather than being reweighted into another market.
-- This is a daily close valuation model, not an intraday synchronized execution model. FX data provider, timezone, market holidays and stale-data tolerance should be reviewed.
+- The cross-market page also supports transaction-aware replay from a CSV event ledger. It reconstructs cash and holdings from dated deposits, withdrawals, BUY/SELL fills, dividends, fees, taxes and splits; marks positions to backward-as-of closes; converts trade/dividend amounts using explicit `amount_currency` or asset currency; and calculates daily TWR after removing external deposits/withdrawals. The UI includes a CSV template and displays/export the resulting equity curve.
+- This is a daily close valuation model, not an intraday synchronized execution model. It does not model broker settlement, separate local-currency cash sub-ledgers, automatic fills, market impact or broker reconciliation. FX provider, timezone, market holidays and stale-data tolerance should be reviewed.
 
 ## 13. Peer-Relative Valuation
 
