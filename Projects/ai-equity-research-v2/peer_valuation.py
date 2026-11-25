@@ -35,7 +35,7 @@ def build_peer_comparison(records: Iterable[dict], *, industry: str, currency: s
         if field not in selected:
             selected[field] = "unknown"
     selected["currency_mismatch"] = selected["quote_currency"].astype(str).str.upper().ne(selected["currency"].astype(str).str.upper())
-    fiscal_dates = pd.to_datetime(selected["fiscal_year_end"], errors="coerce")
+    fiscal_dates = pd.to_datetime(selected["fiscal_year_end"], errors="coerce", format="mixed")
     valid_fiscal_dates = fiscal_dates.dropna()
     fiscal_anchor = valid_fiscal_dates.sort_values().iloc[len(valid_fiscal_dates) // 2] if len(valid_fiscal_dates) else pd.NaT
     selected["fiscal_period_gap_days"] = (
