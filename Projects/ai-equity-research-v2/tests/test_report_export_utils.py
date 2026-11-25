@@ -20,3 +20,9 @@ def test_csv_export_escapes_formula_like_text_but_preserves_numeric_values():
     assert rows[0][1] == -125.5
     assert rows[0][2].startswith("'+")
     assert rows[1][2].startswith("'-")
+
+
+def test_csv_export_neutralizes_formula_after_utf8_bom_prefix():
+    frame = pd.DataFrame({"Ticker": ["\\ufeff=HYPERLINK(\"https://evil.example\",\"x\")"]})
+    rows = list(pd.read_csv(BytesIO(safe_csv_bytes(frame))).itertuples(index=False, name=None))
+    assert rows[0][0].startswith("'\\ufeff=")
