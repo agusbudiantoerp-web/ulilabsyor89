@@ -258,3 +258,24 @@ def test_block_bootstrap_rejects_boolean_block_size():
             returns_frame(), {"A": 0.5, "B": 0.5},
             block_size=True, simulations=100, horizon_days=10,
         )
+
+@pytest.mark.parametrize("runner,extra", [
+    (run_portfolio_monte_carlo, {}),
+    (run_regime_switching_monte_carlo, {
+        "regime_labels": pd.Series(["calm"] * 40 + ["stress"] * 40),
+        "transition_matrix": [[0.9, 0.1], [0.2, 0.8]],
+    }),
+    (run_block_bootstrap_monte_carlo, {}),
+])
+def test_simulation_runners_reject_daily_return_at_or_below_total_loss(runner, extra):
+    frame = returns_frame()
+    frame.iloc[0, 0] = -1.0
+    kwargs = {
+        "historical_returns": frame,
+        "weights": {"A": 0.6, "B": 0.4},
+        "simulations": 100,
+        "horizon_days": 10,
+        **extra,
+    }
+    with pytest.raises(ValueError, match="-100%"):
+        runner(**kwargs)
