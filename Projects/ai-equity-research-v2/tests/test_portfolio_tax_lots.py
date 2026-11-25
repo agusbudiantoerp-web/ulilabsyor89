@@ -145,3 +145,19 @@ def test_fifo_sorts_opening_lots_even_when_input_order_is_not_chronological():
     remaining = result["open_lots"].iloc[0]
     assert remaining["acquisition_date"] == "2026-03-01"
     assert remaining["quantity"] == pytest.approx(5)
+
+def test_average_cost_supports_multiple_sales_from_remaining_pooled_lot():
+    result = calculate_tax_lots(
+        [
+            {"date": "2026-02-01", "event_type": "SELL", "amount": 600, "ticker": "BBCA", "quantity": 5, "price": 120},
+            {"date": "2026-02-15", "event_type": "SELL", "amount": 240, "ticker": "BBCA", "quantity": 2, "price": 120},
+        ],
+        method="AVERAGE_COST",
+        opening_lots=[
+            {"ticker": "BBCA", "quantity": 10, "unit_cost": 100, "acquisition_date": "2026-01-01"},
+        ],
+    )
+    assert result["realized_cost_basis"] == pytest.approx(700)
+    assert result["realized_pnl"] == pytest.approx(140)
+    assert result["open_quantity_by_ticker"]["BBCA"] == pytest.approx(3)
+    assert result["open_cost_basis"] == pytest.approx(300)
