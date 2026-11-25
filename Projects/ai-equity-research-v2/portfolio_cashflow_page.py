@@ -10,7 +10,7 @@ from portfolio_tax_lots import calculate_tax_lots
 from portfolio_reconciliation import reconcile_broker_statement
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
-from security_controls import record_audit_event
+from security_controls import record_audit_event, require_permission
 from report_export_utils import safe_csv_bytes
 
 
