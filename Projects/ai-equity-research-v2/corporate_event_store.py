@@ -8,6 +8,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
+from corporate_action_calendar import normalize_corporate_events
+
 
 def _url():
     value = os.getenv("DATABASE_URL") or os.getenv("CLOUD_DATABASE_URL")
@@ -68,21 +72,36 @@ def create_events(owner_id, events, *, path=None):
     owner = str(owner_id or "").strip()
     if not owner or not isinstance(events, (list, tuple)) or not events:
         raise ValueError("Owner dan daftar event wajib diisi.")
+    if any(not isinstance(event, dict) for event in events):
+        raise ValueError("Setiap event harus berupa dictionary.")
+    # Enforce the same event taxonomy, date, provenance URL and numeric rules
+    # at the persistence boundary, not only in the Streamlit form/import path.
+    validated = normalize_corporate_events(events)["events"]
     now = datetime.now(timezone.utc).isoformat()
     rows, event_ids = [], []
-    for event in events:
-        if not isinstance(event, dict):
-            raise ValueError("Setiap event harus berupa dictionary.")
-        required = ("ticker", "event_type", "event_date", "status", "source", "retrieved_at")
-        if any(not str(event.get(key) or "").strip() for key in required):
-            raise ValueError("Ticker, event type, date, status, source dan retrieved_at wajib.")
+    for event in validated.to_dict("records"):
+        normalized = {}
+        for key, value in event.items():
+            try:
+                missing = pd.isna(value)
+                if bool(missing) if not hasattr(missing, "__len__") else False:
+                    normalized[key] = None
+                    continue
+            except (TypeError, ValueError):
+                pass
+            if hasattr(value, "isoformat"):
+                normalized[key] = value.isoformat()
+            elif hasattr(value, "item"):
+                normalized[key] = value.item()
+            else:
+                normalized[key] = value
         event_id = uuid.uuid4().hex
-        payload = json.dumps(event, ensure_ascii=False, default=str, allow_nan=False)
+        payload = json.dumps(normalized, ensure_ascii=False, default=str, allow_nan=False)
         json_payload = json.loads(payload)
         rows.append((
-            event_id, owner, str(event["ticker"]).upper(), str(event["event_type"]).upper(),
-            str(event["event_date"]), str(event["status"]).upper(), str(event["source"]),
-            str(event["retrieved_at"]), payload, json_payload, now,
+            event_id, owner, str(normalized["ticker"]).upper(), str(normalized["event_type"]).upper(),
+            str(normalized["event_date"]), str(normalized["status"]).upper(), str(normalized["source"]),
+            str(normalized["retrieved_at"]), payload, json_payload, now,
         ))
         event_ids.append(event_id)
     initialize(path)
