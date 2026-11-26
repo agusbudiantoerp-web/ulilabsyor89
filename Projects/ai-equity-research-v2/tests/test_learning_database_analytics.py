@@ -79,6 +79,9 @@ def test_outcomes_persist_owner_identity_and_reject_cross_owner_access(tmp_path)
         ).fetchone()[0]
     assert stored_owner == "test-owner"
     assert outcome_summary(db_path=db_path, owner_id="another-owner") == []
+    with sqlite3.connect(db_path) as db:
+        owner_column = next(row for row in db.execute("PRAGMA table_info(outcomes)") if row[1] == "owner_id")
+    assert owner_column[3] == 1  # fresh SQLite schema enforces NOT NULL
 
 
 def test_outcome_summary_does_not_count_unavailable_horizons(tmp_path):

@@ -76,7 +76,7 @@ def initialize(db_path: str | None = None):
                 id BIGSERIAL PRIMARY KEY,
                 signal_id BIGINT NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
                 horizon INTEGER NOT NULL, observed_date TEXT, close DOUBLE PRECISION,
-                return_pct DOUBLE PRECISION, UNIQUE(signal_id,horizon)
+                return_pct DOUBLE PRECISION, owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', UNIQUE(signal_id,horizon)
             )""",
             "CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(bar_date DESC)",
             "CREATE INDEX IF NOT EXISTS idx_outcomes_horizon ON outcomes(horizon)",
@@ -143,7 +143,7 @@ def initialize(db_path: str | None = None):
         );
         CREATE TABLE IF NOT EXISTS outcomes(
             id INTEGER PRIMARY KEY, signal_id INTEGER NOT NULL, horizon INTEGER NOT NULL,
-            observed_date TEXT, close REAL, return_pct REAL, UNIQUE(signal_id,horizon)
+            observed_date TEXT, close REAL, return_pct REAL, owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned', UNIQUE(signal_id,horizon)
         );
         CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(bar_date DESC);
         CREATE INDEX IF NOT EXISTS idx_outcomes_horizon ON outcomes(horizon);

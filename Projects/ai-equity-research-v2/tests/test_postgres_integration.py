@@ -152,6 +152,13 @@ def test_postgres_learning_records_are_owner_scoped(postgres_test_database):
                 (alice_signal["id"],),
             ).fetchone()[0]
         assert persisted_owner == owner_a
+        with psycopg.connect(postgres_test_database) as db:
+            owner_nullable = db.execute("""
+                SELECT is_nullable FROM information_schema.columns
+                WHERE table_schema=current_schema()
+                  AND table_name='outcomes' AND column_name='owner_id'
+            """).fetchone()[0]
+        assert owner_nullable == "NO"
     finally:
         import psycopg
         with psycopg.connect(postgres_test_database) as db:
