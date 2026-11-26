@@ -293,6 +293,7 @@ def test_postgres_restore_requires_explicit_confirmation_and_empty_target(tmp_pa
         "size_bytes": archive.stat().st_size,
         "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
         "validation": "pg_restore --list: ok",
+        "source_identity_sha256": database_backup._postgres_database_identity("postgresql://backup_user:secret@source-db.example/source_db"),
     }), encoding="utf-8")
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://restore_user:secret@preview-db.example/restore_target?sslmode=require")
@@ -373,4 +374,46 @@ def test_postgres_restore_rejects_sqlite_manifest(tmp_path):
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="backend PostgreSQL"):
         restore_postgres_backup(manifest)
+
+def test_postgres_restore_refuses_source_database_as_destination(tmp_path, monkeypatch):
+    import hashlib
+    import database_backup
+
+    archive = tmp_path / "source.dump"
+    archive.write_bytes(b"archive")
+    manifest = tmp_path / "source.dump.manifest.json"
+    manifest.write_text(json.dumps({
+        "backend": "PostgreSQL",
+        "backup_file": archive.name,
+        "size_bytes": archive.stat().st_size,
+        "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "validation": "pg_restore --list: ok",
+        "source_identity_sha256": database_backup._postgres_database_identity(
+            "postgresql://backup_user:secret@preview-db.example/restore_target"
+        ),
+    }), encoding="utf-8")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://restore_user:secret@preview-db.example/restore_target")
+    monkeypatch.setenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, "YES")
+    with pytest.raises(RuntimeError, match="sumber backup"):
+        database_backup.restore_postgres_backup(manifest)
+
+
+def test_postgres_restore_rejects_legacy_manifest_without_source_fingerprint(tmp_path, monkeypatch):
+    import hashlib
+    import database_backup
+
+    archive = tmp_path / "legacy.dump"
+    archive.write_bytes(b"archive")
+    manifest = tmp_path / "legacy.dump.manifest.json"
+    manifest.write_text(json.dumps({
+        "backend": "PostgreSQL",
+        "backup_file": archive.name,
+        "size_bytes": archive.stat().st_size,
+        "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "validation": "pg_restore --list: ok",
+    }), encoding="utf-8")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://restore_user:secret@preview-db.example/restore_target")
+    monkeypatch.setenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, "YES")
+    with pytest.raises(ValueError, match="fingerprint sumber"):
+        database_backup.restore_postgres_backup(manifest)
 
