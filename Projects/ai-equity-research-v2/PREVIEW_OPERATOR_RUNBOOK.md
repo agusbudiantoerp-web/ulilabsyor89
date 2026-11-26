@@ -139,11 +139,12 @@ Use two separate Google test accounts, A and B, plus an assigned reviewer where 
 
 ### PostgreSQL backup and restore drill
 
-Run these commands from the trusted workstation. The backup connection may use the approved Preview backup identity. The restore target must be a separate, empty disposable database; use a migration/admin identity with sufficient CREATE privileges. Never point either command at production.
+Run these commands from the repository root in PowerShell. First change into the project directory. The backup connection may use the approved Preview backup identity. The restore target must be a separate, empty disposable database; use a migration/admin identity with sufficient CREATE privileges. Never point either command at production.
 
 Create and verify the archive:
 
 ```powershell
+Set-Location .\Projects\ai-equity-research-v2
 $env:DATABASE_URL = "YOUR_PRIVATE_PREVIEW_BACKUP_POSTGRES_URL"
 python database_backup.py postgres --output-dir backups
 # Copy the printed manifest path, then:
