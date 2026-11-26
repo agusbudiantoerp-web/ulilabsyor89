@@ -58,10 +58,11 @@ Use two distinct Google test accounts and map each verified `issuer|sub` to an a
 
 ## 6. Backup and recovery
 
-- Create a PostgreSQL custom-format logical backup using `database_backup.py postgres` from a trusted administrator workstation.
-- Verify the generated SHA-256 manifest and `pg_restore --list`.
-- Restore to a separate staging database and repeat the health check and owner-isolation smoke tests.
-- Never rehearse destructive restore commands against production.
+- From a trusted workstation, create a PostgreSQL custom-format logical backup with `python database_backup.py postgres --output-dir backups`; keep the generated archive and manifest together.
+- Verify the manifest with `python database_backup.py verify --manifest "backups\\YOUR_BACKUP.dump.manifest.json"`. The manifest records the archive SHA-256/size and a non-secret source endpoint fingerprint.
+- Restore only to a separate, empty disposable recovery database using `AI_EQUITY_RESEARCH_CONFIRM_POSTGRES_RESTORE=YES` and `python database_backup.py restore-postgres --manifest "...manifest.json"`. The restore tool refuses a known source-endpoint match and any destination containing user relations. See `PREVIEW_OPERATOR_RUNBOOK.md` for complete PowerShell commands.
+- PostgreSQL roles are cluster-level and are not included in a database archive. On a different cluster, recreate/verify the restricted runtime role, rerun the explicit RLS migration, then repeat read-only database diagnostics and owner-isolation smoke tests before connecting the app.
+- This logical restore drill does not test point-in-time recovery or provider-level disaster recovery. Never rehearse restore commands against production.
 
 ## 7. Release decision
 
