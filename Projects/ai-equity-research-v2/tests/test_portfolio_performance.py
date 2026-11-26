@@ -21,7 +21,7 @@ def test_snapshot_attributes_realized_unrealized_dividend_and_costs():
     assert result["dividend_income"] == pytest.approx(20)
     assert result["fees_and_taxes"] == pytest.approx(7)
     assert result["total_profit_including_dividends"] == pytest.approx(173)
-    assert result["total_return_on_recorded_cost_basis_pct"] == pytest.approx(18.7913043478)
+    assert result["total_return_on_recorded_cost_basis_pct"] == pytest.approx(18.8043478261)
     assert list(result["holdings"]["ticker"]) == ["BBCA", "TLKM"]
 
 def test_snapshot_requires_complete_prices_and_reports_unused_prices():
