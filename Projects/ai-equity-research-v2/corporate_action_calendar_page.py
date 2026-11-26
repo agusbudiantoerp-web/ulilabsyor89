@@ -4,6 +4,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from corporate_action_calendar import normalize_corporate_events
 from corporate_event_store import create_event, create_events, delete_event, list_events
 from security_controls import record_audit_event, require_permission
@@ -27,7 +29,7 @@ def render_corporate_action_calendar() -> None:
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
-    st.subheader("Corporate Actions & Event Calendar")
+    render_page_hero("INVESTMENT EVENT MONITOR", "Corporate Actions & Event Calendar", "Track source-attributed earnings, dividends, splits and rights issues with explicit event status and dates.", "DIVIDENDS  ·  SPLITS  ·  RIGHTS ISSUE")
     st.caption("Catat event earnings, deklarasi dividen, ex-date, record date, pay date, stock split dan rights issue dengan sumber dan status yang jelas.")
     st.warning("Event tidak diambil dari feed exchange/issuer secara otomatis. Masukkan data yang telah diverifikasi; kalender ini bukan daftar komprehensif.")
     st.markdown("**Impor event secara massal dari CSV**")
