@@ -6,6 +6,8 @@ import math
 import pandas as pd
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from security_controls import require_permission
 
 from daily_signal_engine import load_daily_history
@@ -32,7 +34,7 @@ def _download_usdidr(period: str) -> pd.Series:
 
 def render_cross_market_simulation() -> None:
     require_permission(st.session_state.get("_auth_role"), "manage_portfolio")
-    st.subheader("Cross-Market Portfolio · FX · Monte Carlo")
+    render_page_hero("RISK & SIMULATION LAB", "Cross-Market Portfolio · FX · Monte Carlo", "Analyze IDR/USD portfolio returns, currency alignment, Monte Carlo distributions and historical stress scenarios.", "FX ALIGNMENT  ·  MONTE CARLO  ·  STRESS TEST")
     st.caption("Gabungkan saham IDX dan US dalam satu mata uang dasar, lalu jalankan simulasi dan stress test.")
     with st.expander("Cross-market portfolio return", expanded=True):
         c1, c2 = st.columns(2)
