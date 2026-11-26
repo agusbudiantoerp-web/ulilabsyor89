@@ -81,8 +81,8 @@ def test_rejects_unsupported_locale():
 
 def test_auto_locale_treats_three_digit_suffix_as_thousands_separator():
     result = normalize_broker_statement(
-        "date,type,amount,ticker,quantity,price\\n"
-        "2026-11-25,BUY,1,000,BBCA,1,000,1,000\\n"
+        "date;type;amount;ticker;quantity;price\\n"
+        "2026-11-25;BUY;1,000;BBCA;1,000;1,000\\n"
     )
     row = result["events"].iloc[0]
     assert row["amount"] == pytest.approx(1000)
