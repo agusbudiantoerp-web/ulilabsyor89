@@ -69,11 +69,11 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run for the current feature branch UI refresh: **719 passed, 0 failed, 0 skipped** on commit `e2dde2d556033a39ab3ecc1ce3eb660df130b43b`.
-- Python module compilation and the complete automated suite both passed.
-- PostgreSQL integration tests ran against the workflow's ephemeral PostgreSQL 16 service. This does not replace separate Preview/staging verification.
-- [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762282574).
-- Do not treat CI as proof of Preview or production readiness; OIDC callbacks, live provider credentials, two-user isolation, and backup/restore still require the release-gate exercise.
+- Latest completed full CI run for the current feature branch: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2`.
+- Python 3.10 module compilation and the complete automated suite both passed.
+- PostgreSQL integration tests ran against the workflow's ephemeral PostgreSQL 16 service; the PR workflow and push workflow both completed successfully.
+- [GitHub Actions PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762865322) · [GitHub Actions push run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762860086).
+- CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
 ## Research limitations
 
