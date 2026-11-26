@@ -23,6 +23,9 @@ def run_schema_migrations() -> tuple[str, ...]:
             f"Set {CONFIRMATION_VARIABLE}=YES to explicitly confirm schema migration."
         )
 
+    # Only this explicit administrator command enables PostgreSQL DDL initializers.
+    os.environ["AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT"] = "YES"
+
     from daily_signal_storage import initialize as initialize_daily_signals
     from portfolio_store import initialize as initialize_portfolios
     from research_run_store import initialize as initialize_research_runs
