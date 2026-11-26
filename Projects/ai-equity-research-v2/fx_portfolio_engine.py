@@ -35,6 +35,19 @@ def _clean_close(series: pd.Series, label: str) -> pd.Series:
     return values.astype(float)
 
 
+def portfolio_requires_fx(asset_currencies: Mapping[str, str], base_currency: str) -> bool:
+    """Return whether any portfolio asset needs IDR/USD conversion."""
+    if not isinstance(asset_currencies, Mapping):
+        raise ValueError("asset_currencies harus berupa mapping.")
+    base = str(base_currency).upper().strip()
+    if base not in {"IDR", "USD"}:
+        raise ValueError("Base currency hanya mendukung IDR atau USD.")
+    return any(
+        str(currency).upper().strip() != base
+        for currency in asset_currencies.values()
+    )
+
+
 def convert_asset_returns_to_base_currency(
     local_close: pd.Series,
     asset_currency: str,
