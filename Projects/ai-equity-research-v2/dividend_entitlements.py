@@ -25,7 +25,7 @@ def _positions_at_record_date(portfolio_events, ticker, record_date, initial_pos
         symbol = str(key).strip().upper()
         if not symbol:
             raise ValueError("Ticker initial_positions tidak boleh kosong.")
-        if isinstance(value, bool):
+        if isinstance(value, bool) or type(value).__name__ in {"bool_", "bool"}:
             raise ValueError("Initial positions harus berupa angka finite dan non-negatif.")
         try:
             shares = float(value)
@@ -37,6 +37,8 @@ def _positions_at_record_date(portfolio_events, ticker, record_date, initial_pos
     ledger = ledger.loc[
         ledger["ticker"].eq(ticker) & ledger["date"].le(pd.Timestamp(record_date))
     ].copy()
+    if ticker not in positions and ledger.empty:
+        return None
     ledger["_priority"] = ledger["event_type"].map({"SPLIT": 0}).fillna(1)
     ledger = ledger.sort_values(["date", "_priority"], kind="stable")
     for row in ledger.to_dict("records"):
@@ -97,7 +99,8 @@ def estimate_dividend_entitlements(
                 warnings.append(f"{ticker}: deklarasi dividen memiliki detail duplikat yang konflik; estimasi dilewati.")
                 continue
             amount = declaration.get("amount")
-            currency = str(declaration.get("currency") or "").strip().upper()
+            raw_currency = declaration.get("currency")
+            currency = "" if pd.isna(raw_currency) else str(raw_currency).strip().upper()
             if pd.isna(amount) or float(amount) <= 0 or not currency:
                 warnings.append(
                     f"{ticker}: deklarasi dividen harus memiliki nominal bruto per saham dan mata uang."
@@ -130,6 +133,11 @@ def estimate_dividend_entitlements(
             shares = _positions_at_record_date(
                 portfolio_events, ticker, record_date, initial_positions
             )
+            if shares is None:
+                warnings.append(
+                    f"{ticker}: tidak ada posisi awal atau histori BUY/SELL/SPLIT sampai record date; estimasi dilewati."
+                )
+                continue
             gross = shares * float(amount)
             output.append({
                 "ticker": ticker,
