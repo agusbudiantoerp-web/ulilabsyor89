@@ -20,7 +20,7 @@
 - Shared market-data provider adapter with Yahoo Finance, bounded retries, immediate rate-limit handling, thread-safe TTL cache and OHLCV provenance/freshness checks, including invalid/future/duplicate/unsorted bar dates and invalid cache-age guardrails.
 - Scenario analysis now includes a full operating-assumption sensitivity matrix across revenue growth and EBITDA margin; unavailable cells remain visible with reasons, the UI shows the matrix, and the Excel and PDF Research Packs export the sensitivity results.
 - Peer-relative valuation with currency/fiscal/source metadata, coverage and outlier flags; manual issuer-filing CSV verification with metric/period/currency exception reporting; reverse DCF with enterprise-to-equity bridge, sensitivity and cross-check against Multi-Stage DCF.
-- FX-aware IDX/US portfolio returns and transaction-aware replay with historical close marks, base-currency cash events, external-flow-adjusted TWR, explicit FX freshness limits and settlement payables/receivables. Monte Carlo includes seeded parametric, two-state regime-switching and circular moving-block bootstrap methods, plus historical price shocks and user-supplied FX/rate/sector factor stress.
+- FX-aware IDX/US portfolio returns and transaction-aware replay with historical close marks, FX-only returns on local-market holidays, explicit stale-price/FX freshness limits, base-currency cash events, external-flow-adjusted TWR and settlement payables/receivables. Monte Carlo includes seeded parametric, two-state regime-switching and circular moving-block bootstrap methods, plus validated historical price shocks and user-supplied FX/rate/sector factor stress.
 - Persistent owner-scoped cash-flow/dividend ledger, cash/share reconciliation, TWR/XIRR and saved valuation snapshots. FIFO/weighted-average tax lots, realized P&L, opening lots, one-to-one broker CSV exception matching and explicit unsettled BUY/SELL settlement dates are supported; this is not a broker integration or statutory tax engine.
 - Source-attributed corporate event calendar with confirmed/estimated/cancelled status, stale/duplicate/future-retrieval flags, URL validation and owner-scoped storage. Calendar coverage is explicitly non-comprehensive and official feed automation is not included.
 - Versioned owner-scoped investment theses, saved research-run links, assigned reviewer inbox and version-specific review decisions.
@@ -69,10 +69,10 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest full feature-code test baseline: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2`.
+- Latest full feature-branch test run: **751 passed, 0 failed**, on commit `e5cae55933725aba7ff864e079dd8fed0d4fbaca`.
 - Python 3.10 module compilation and the complete automated suite passed, including PostgreSQL integration tests against an ephemeral PostgreSQL 16 service.
 - [GitHub Actions PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762865322) · [GitHub Actions push run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762860086).
-- Latest feature branch head `7400e374eebd9ab3b3950a42b78b2ac6076f8e7b` passed both PR and push CI workflows, including Python 3.10 compilation and the complete automated/PostgreSQL integration suite: [PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45765826620) · [push run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45765821674).
+- Latest feature branch head `e5cae55933725aba7ff864e079dd8fed0d4fbaca` passed PR CI, including Python module compilation and the complete automated/PostgreSQL integration suite: [PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768724692).
 - CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
 ## Research limitations
