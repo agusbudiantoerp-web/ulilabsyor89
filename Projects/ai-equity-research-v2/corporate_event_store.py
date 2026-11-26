@@ -38,7 +38,7 @@ def _sqlite(path=None):
     return db
 
 
-def _pg():
+def _pg(owner_id=None, actor_id=None):
     try:
         import psycopg
         from psycopg.rows import dict_row
@@ -46,10 +46,16 @@ def _pg():
         raise RuntimeError("Driver PostgreSQL belum terpasang.") from exc
     if not _url():
         raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
-    return psycopg.connect(_url(), row_factory=dict_row, connect_timeout=15)
+    url = _url()
+    if owner_id is not None or actor_id is not None:
+        from postgres_rls import connect_with_owner_context
+        return connect_with_owner_context(url, owner_id, actor_id)
+    return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
 
 
 def initialize(path=None):
+    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        return
     if path is None and _url():
         with _pg() as db:
             with db.cursor() as cur:
@@ -108,7 +114,7 @@ def create_events(owner_id, events, *, path=None):
     initialize(path)
     if path is None and _url():
         from psycopg.types.json import Jsonb
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.executemany("""INSERT INTO corporate_events
                     (id,owner_id,ticker,event_type,event_date,status,source,retrieved_at,payload_json,created_at)
@@ -139,7 +145,7 @@ def list_events(owner_id, *, path=None, limit=1000):
     bounded = min(int(limit), 5000)
     initialize(path)
     if path is None and _url():
-        with _pg() as db:
+        with _pg(owner) as db:
             rows = db.execute("SELECT id,payload_json,created_at FROM corporate_events WHERE owner_id=%s ORDER BY event_date DESC LIMIT %s",(owner,bounded)).fetchall()
     else:
         with _sqlite(path) as db:
@@ -159,7 +165,7 @@ def delete_event(owner_id, event_id, *, path=None):
         raise ValueError("Owner identity wajib diisi.")
     initialize(path)
     if path is None and _url():
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("DELETE FROM corporate_events WHERE id=%s AND owner_id=%s RETURNING id",(event_id,owner))
                 return cur.fetchone() is not None

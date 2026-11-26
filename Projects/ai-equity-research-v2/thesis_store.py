@@ -36,7 +36,7 @@ def _connect(path=None):
     return db
 
 
-def _pg():
+def _pg(owner_id=None, actor_id=None):
     try:
         import psycopg
         from psycopg.rows import dict_row
@@ -45,6 +45,9 @@ def _pg():
     url = _database_url()
     if not url:
         raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
+    if owner_id is not None or actor_id is not None:
+        from postgres_rls import connect_with_owner_context
+        return connect_with_owner_context(url, owner_id, actor_id)
     return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
 
 
@@ -76,6 +79,8 @@ def _validate(owner_id, ticker, market, title, content, status, review_date):
 
 
 def initialize(path=None):
+    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        return
     if path is None and _database_url():
         with _pg() as db:
             with db.cursor() as cur:
@@ -133,7 +138,7 @@ def create_thesis(owner_id, ticker, market, title, content, *, status="DRAFT", r
     initialize(path)
     if path is None and _database_url():
         from psycopg.types.json import Jsonb
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("""INSERT INTO research_theses
                     (id,owner_id,ticker,market,title,status,review_date,current_version,content_json,created_at,updated_at)
@@ -161,7 +166,7 @@ def list_theses(owner_id, *, path=None):
     initialize(path)
     query = "SELECT id,ticker,market,title,status,review_date,current_version,created_at,updated_at FROM research_theses WHERE owner_id={owner} ORDER BY updated_at DESC"
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(owner) as db:
             rows = db.execute(query.format(owner="%s"), (owner,)).fetchall()
     else:
         with _connect(path) as db:
@@ -175,7 +180,7 @@ def get_thesis(owner_id, thesis_id, *, path=None):
         raise ValueError("Owner identity wajib diisi.")
     initialize(path)
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(owner) as db:
             row = db.execute("SELECT * FROM research_theses WHERE id=%s AND owner_id=%s", (thesis_id,owner)).fetchone()
             versions = db.execute("SELECT version,actor_id,content_json,created_at FROM research_thesis_versions WHERE thesis_id=%s AND owner_id=%s ORDER BY version", (thesis_id,owner)).fetchall()
     else:
@@ -212,7 +217,7 @@ def update_thesis(owner_id, thesis_id, *, title, content, status, review_date=""
     initialize(path)
     if path is None and _database_url():
         from psycopg.types.json import Jsonb
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("SELECT current_version FROM research_theses WHERE id=%s AND owner_id=%s FOR UPDATE", (thesis_id,owner))
                 row = cur.fetchone()
@@ -252,7 +257,7 @@ def delete_thesis(owner_id, thesis_id, *, path=None):
         raise ValueError("Owner identity wajib diisi.")
     initialize(path)
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("DELETE FROM research_theses WHERE id=%s AND owner_id=%s RETURNING id", (thesis_id,owner))
                 return cur.fetchone() is not None
@@ -278,7 +283,7 @@ def request_review(owner_id, thesis_id, reviewer_id, *, actor_id="", path=None):
     review_id = uuid.uuid4().hex
     now = datetime.now(timezone.utc).isoformat()
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("SELECT current_version FROM research_theses WHERE id=%s AND owner_id=%s", (thesis_id, owner))
                 thesis = cur.fetchone()
@@ -321,7 +326,7 @@ def list_reviews_for_thesis(owner_id, thesis_id, *, path=None):
     query = """SELECT id,reviewer_id,requested_by,version,status,comments,created_at,updated_at
         FROM research_thesis_reviews WHERE owner_id={owner} AND thesis_id={thesis} ORDER BY created_at DESC"""
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(owner) as db:
             rows = db.execute(query.format(owner="%s", thesis="%s"), (owner, thesis_id)).fetchall()
     else:
         with _connect(path) as db:
@@ -339,7 +344,7 @@ def list_reviews_for_reviewer(reviewer_id, *, path=None):
         JOIN research_theses t ON t.id=r.thesis_id AND t.owner_id=r.owner_id
         WHERE r.reviewer_id={reviewer} ORDER BY r.created_at DESC"""
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(actor_id=reviewer_id) as db:
             rows = db.execute(query.format(reviewer="%s"), (reviewer,)).fetchall()
     else:
         with _connect(path) as db:
@@ -358,7 +363,7 @@ def get_review_for_reviewer(reviewer_id, review_id, *, path=None):
         JOIN research_thesis_versions v ON v.owner_id=r.owner_id AND v.thesis_id=r.thesis_id AND v.version=r.version
         WHERE r.id={id} AND r.reviewer_id={reviewer}"""
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(actor_id=reviewer_id) as db:
             row = db.execute(query.format(id="%s", reviewer="%s"), (review_id, reviewer)).fetchone()
     else:
         with _connect(path) as db:
@@ -382,7 +387,7 @@ def decide_review(reviewer_id, review_id, decision, comments="", *, path=None):
     now = datetime.now(timezone.utc).isoformat()
     initialize(path)
     if path is None and _database_url():
-        with _pg() as db:
+        with _pg(actor_id=reviewer_id) as db:
             with db.cursor() as cur:
                 cur.execute("""UPDATE research_thesis_reviews SET status=%s,comments=%s,updated_at=%s
                     WHERE id=%s AND reviewer_id=%s AND status='PENDING' RETURNING id""",

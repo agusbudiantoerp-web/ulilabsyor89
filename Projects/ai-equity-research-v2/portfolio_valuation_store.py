@@ -35,7 +35,7 @@ def _sqlite(path=None):
     return db
 
 
-def _pg():
+def _pg(owner_id=None, actor_id=None):
     try:
         import psycopg
         from psycopg.rows import dict_row
@@ -43,10 +43,16 @@ def _pg():
         raise RuntimeError("Driver PostgreSQL belum terpasang.") from exc
     if not _url():
         raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
-    return psycopg.connect(_url(),row_factory=dict_row,connect_timeout=15)
+    url = _url()
+    if owner_id is not None or actor_id is not None:
+        from postgres_rls import connect_with_owner_context
+        return connect_with_owner_context(url, owner_id, actor_id)
+    return psycopg.connect(url,row_factory=dict_row,connect_timeout=15)
 
 
 def initialize(path=None):
+    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        return
     if path is None and _url():
         with _pg() as db:
             with db.cursor() as cur:
@@ -114,7 +120,7 @@ def save_valuations(owner_id, portfolio_id, valuations, *, currency="IDR", path=
     initialize(path)
     rows=[(owner,portfolio,row["date"],float(row["portfolio_value"]),float(row["external_flow"]),unit,now) for row in frame.to_dict("records")]
     if path is None and _url():
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("DELETE FROM portfolio_valuations WHERE owner_id=%s AND portfolio_id=%s", (owner, portfolio))
                 cur.executemany("""INSERT INTO portfolio_valuations
@@ -144,7 +150,7 @@ def list_valuations(owner_id, portfolio_id, *, path=None):
     initialize(path)
     query="SELECT valuation_date AS date,portfolio_value,external_flow,currency FROM portfolio_valuations WHERE owner_id={owner} AND portfolio_id={portfolio} ORDER BY valuation_date"
     if path is None and _url():
-        with _pg() as db:
+        with _pg(owner) as db:
             rows=db.execute(query.format(owner="%s",portfolio="%s"),(owner,portfolio)).fetchall()
     else:
         with _sqlite(path) as db:
@@ -159,7 +165,7 @@ def delete_valuations(owner_id, portfolio_id, *, path=None):
         raise ValueError("Owner dan portfolio ID wajib diisi.")
     initialize(path)
     if path is None and _url():
-        with _pg() as db:
+        with _pg(owner) as db:
             with db.cursor() as cur:
                 cur.execute("DELETE FROM portfolio_valuations WHERE owner_id=%s AND portfolio_id=%s",(owner,portfolio))
                 return cur.rowcount
