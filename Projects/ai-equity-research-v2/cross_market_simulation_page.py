@@ -11,7 +11,7 @@ from ui_theme import render_page_hero
 from security_controls import require_permission
 
 from daily_signal_engine import load_daily_history
-from fx_portfolio_engine import combine_mixed_currency_returns
+from fx_portfolio_engine import combine_mixed_currency_returns, portfolio_requires_fx
 from portfolio_simulation import (
     run_historical_stress_scenarios, run_portfolio_monte_carlo,
     run_factor_stress_scenario, run_regime_switching_monte_carlo,
@@ -75,7 +75,7 @@ def render_cross_market_simulation() -> None:
                                 currencies[symbol] = currency
                             except Exception as exc:
                                 errors.append({"ticker": symbol, "market": market, "error": type(exc).__name__})
-                    needs_fx = any(currency != base for currency in currencies.values())
+                    needs_fx = portfolio_requires_fx(currencies, base)
                     if needs_fx:
                         try:
                             fx = _download_usdidr(period)
@@ -84,7 +84,7 @@ def render_cross_market_simulation() -> None:
                             errors.append({"ticker": "USDIDR=X", "market": "FX", "error": type(exc).__name__})
                     else:
                         fx = None
-                if closes and fx is not None:
+                if closes and (fx is not None or not needs_fx):
                     weights = {symbol: 1.0 / len(closes) for symbol in closes}
                     try:
                         result = combine_mixed_currency_returns(
