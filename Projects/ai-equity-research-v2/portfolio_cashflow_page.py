@@ -7,6 +7,7 @@ import streamlit as st
 
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_tax_lots import calculate_tax_lots
+from portfolio_performance import calculate_portfolio_performance_snapshot
 from portfolio_reconciliation import reconcile_broker_statement
 from portfolio_snapshot_reconciliation import (
     reconcile_broker_snapshot, classify_snapshot_exceptions,
@@ -472,6 +473,118 @@ def render_portfolio_cashflow() -> None:
                 )
                 st.caption("Urutan laporan: blocker → critical → warning → matched. Rekomendasi adalah panduan pemeriksaan, bukan instruksi koreksi otomatis.")
             st.caption(summary["method"])
+
+    st.divider()
+    with st.expander("Portfolio Performance Attribution (realized + unrealized P&L)", expanded=False):
+        st.caption(
+            "Menggabungkan realized P&L dari tax lots, unrealized P&L dari harga pasar yang Anda masukkan, "
+            "dividen, fee dan pajak ledger. Gunakan satu mata uang dan tanggal cut-off yang sama."
+        )
+        performance_date = st.date_input("Tanggal snapshot kinerja", key="portfolio_performance_as_of")
+        performance_method = st.selectbox(
+            "Metode cost basis kinerja", ["FIFO", "AVERAGE_COST"],
+            key="portfolio_performance_method",
+        )
+        performance_opening_raw = st.text_area(
+            "Opening tax lots (TICKER:jumlah:biaya_per_saham; pisahkan koma)",
+            value="", key="portfolio_performance_opening_lots",
+            help="Isi posisi yang sudah ada sebelum histori ledger. Contoh: BBCA:100:8500, TLKM:50:3000.",
+        )
+        performance_prices_raw = st.text_area(
+            "Harga pasar snapshot (TICKER:HARGA; pisahkan koma)",
+            value="", key="portfolio_performance_market_prices",
+            help="Masukkan harga terakhir yang sudah diverifikasi. Contoh: BBCA:9200, TLKM:3100.",
+        )
+        if st.button("Hitung portfolio performance", key="portfolio_performance_calculate"):
+            for stale_key in ("portfolio_performance_summary", "portfolio_performance_holdings"):
+                st.session_state.pop(stale_key, None)
+            try:
+                opening_lots = []
+                for item in performance_opening_raw.split(",") if performance_opening_raw.strip() else []:
+                    parts = [part.strip() for part in item.split(":")]
+                    if len(parts) != 3 or not parts[0]:
+                        raise ValueError("Format opening tax lot harus TICKER:jumlah:biaya_per_saham.")
+                    opening_lots.append({
+                        "ticker": parts[0].upper(), "quantity": float(parts[1]),
+                        "unit_cost": float(parts[2]), "acquisition_date": "",
+                    })
+                market_prices = {}
+                for item in performance_prices_raw.split(",") if performance_prices_raw.strip() else []:
+                    parts = [part.strip() for part in item.split(":")]
+                    if len(parts) != 2 or not parts[0]:
+                        raise ValueError("Format harga pasar harus TICKER:HARGA.")
+                    symbol = parts[0].upper()
+                    if symbol in market_prices:
+                        raise ValueError(f"Ticker harga pasar duplikat: {symbol}.")
+                    market_prices[symbol] = float(parts[1])
+                event_dates = pd.to_datetime(events["date"], errors="coerce")
+                if event_dates.isna().any():
+                    raise ValueError("Tanggal event ledger tidak valid; perbaiki sebelum menghitung snapshot.")
+                performance_events = events.loc[event_dates.dt.date <= performance_date].copy()
+                tax_result = calculate_tax_lots(
+                    performance_events, method=performance_method, opening_lots=opening_lots,
+                )
+                performance = calculate_portfolio_performance_snapshot(
+                    tax_result, performance_events, market_prices, as_of_date=performance_date,
+                )
+                st.session_state["portfolio_performance_summary"] = {
+                    key: performance[key] for key in (
+                        "as_of_date", "market_value", "open_cost_basis", "unrealized_pnl",
+                        "realized_pnl", "realized_sale_proceeds", "dividend_income",
+                        "fees", "taxes", "fees_and_taxes", "total_profit_including_dividends",
+                        "total_return_on_recorded_cost_basis_pct", "unused_price_tickers",
+                        "limitations",
+                    )
+                }
+                st.session_state["portfolio_performance_holdings"] = performance["holdings"].copy()
+                _audit_cashflow(
+                    owner, role, "PORTFOLIO_PERFORMANCE_SNAPSHOT",
+                    "portfolio_performance", "cashflow_ledger",
+                    {
+                        "as_of_date": str(performance_date),
+                        "method": performance_method,
+                        "event_count": int(len(performance_events)),
+                        "holding_count": int(len(performance["holdings"])),
+                        "priced_holding_count": int(len(performance["holdings"])),
+                        "unused_price_count": int(len(performance["unused_price_tickers"])),
+                    },
+                )
+            except Exception as exc:
+                st.error(f"Portfolio performance tidak dapat dihitung: {type(exc).__name__}: {exc}")
+        performance_summary = st.session_state.get("portfolio_performance_summary") or {}
+        performance_holdings = st.session_state.get("portfolio_performance_holdings")
+        if performance_summary:
+            st.caption(f"Snapshot per {performance_summary['as_of_date']} · metode {performance_method}")
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Realized P&L", f"{performance_summary['realized_pnl']:,.2f}")
+            m2.metric("Unrealized P&L", f"{performance_summary['unrealized_pnl']:,.2f}")
+            m3.metric("Total P&L + dividen", f"{performance_summary['total_profit_including_dividends']:,.2f}")
+            m4, m5, m6 = st.columns(3)
+            m4.metric("Market value saham", f"{performance_summary['market_value']:,.2f}")
+            m5.metric("Dividen", f"{performance_summary['dividend_income']:,.2f}")
+            return_pct = performance_summary["total_return_on_recorded_cost_basis_pct"]
+            m6.metric("Return atas cost basis", f"{return_pct:.2f}%" if return_pct is not None else "N/A")
+            st.caption(
+                f"Cost basis terbuka: {performance_summary['open_cost_basis']:,.2f} · "
+                f"Fee: {performance_summary['fees']:,.2f} · Pajak: {performance_summary['taxes']:,.2f}"
+            )
+            if performance_summary["unused_price_tickers"]:
+                st.warning("Harga pasar tidak digunakan karena ticker tidak memiliki open lot: " +
+                           ", ".join(performance_summary["unused_price_tickers"]))
+            if isinstance(performance_holdings, pd.DataFrame):
+                st.dataframe(performance_holdings, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "Unduh performance attribution CSV", safe_csv_bytes(performance_holdings),
+                    file_name="portfolio_performance_attribution.csv", mime="text/csv",
+                    key="portfolio_performance_export",
+                    on_click=lambda: _audit_cashflow(
+                        owner, role, "PORTFOLIO_PERFORMANCE_EXPORT",
+                        "portfolio_performance", "cashflow_ledger",
+                        {"format": "csv", "row_count": len(performance_holdings),
+                         "as_of_date": str(performance_summary["as_of_date"])},
+                    ),
+                )
+            st.caption(performance_summary["limitations"])
 
     st.markdown("**Time-Weighted Return (TWR)**")
     st.caption(
