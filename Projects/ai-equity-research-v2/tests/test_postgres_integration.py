@@ -413,6 +413,33 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
         "Market": "IDX", "Ticker": "BBCA", "Shares": 10, "Average Cost": 9000,
     }]), owner_id=owner_a)
     assert any(row["id"] == book_id for row in list_books(owner_id=owner_a))
+
+    # A raw runtime connection without transaction-local tenant context must
+    # see no tenant rows and must not be able to insert a forged owner_id.
+    with psycopg.connect(runtime_url) as raw:
+        assert raw.execute(
+            "SELECT count(*) FROM portfolio_books WHERE id=%s", (book_id,)
+        ).fetchone()[0] == 0
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            raw.execute(
+                "INSERT INTO portfolio_books(owner_id,id,name,updated_at) "
+                "VALUES (%s,%s,%s,%s)",
+                (owner_a, "forged-" + suffix, "forged", "2026-11-26T00:00:00+00:00"),
+            )
+
+    # The identity is transaction-local: it disappears automatically after
+    # commit and cannot leak into the next transaction on a pooled connection.
+    with psycopg.connect(runtime_url) as raw:
+        with raw.transaction():
+            raw.execute(
+                "SELECT set_config('app.current_owner_id', %s, true)", (owner_a,)
+            )
+            assert raw.execute(
+                "SELECT count(*) FROM portfolio_books WHERE id=%s", (book_id,)
+            ).fetchone()[0] == 1
+        assert raw.execute(
+            "SELECT count(*) FROM portfolio_books WHERE id=%s", (book_id,)
+        ).fetchone()[0] == 0
     assert all(row["id"] != book_id for row in list_books(owner_id=owner_b))
 
     run_id = save_run(
