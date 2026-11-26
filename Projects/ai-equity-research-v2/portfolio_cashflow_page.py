@@ -349,8 +349,15 @@ def render_portfolio_cashflow() -> None:
                 exception_report = classify_snapshot_exceptions(result["details"])
                 st.session_state["snapshot_broker_details"] = exception_report["details"].copy()
                 st.session_state["snapshot_broker_summary"] = {
-                    key: result[key] for key in ("status", "cash_difference", "matched_count", "exception_count", "warnings", "method")
+                    key: result[key] for key in (
+                        "status", "cash_difference", "matched_count", "exception_count",
+                        "warnings", "method", "ledger_currency", "broker_currency",
+                        "ledger_as_of_date", "broker_as_of_date", "date_difference_days",
+                        "comparable", "read_only",
+                    )
                 }
+                st.session_state["snapshot_broker_summary"]["ledger_event_count"] = ledger_result["event_count"]
+                st.session_state["snapshot_broker_summary"]["ledger_warnings"] = list(ledger_result["warnings"])
                 st.session_state["snapshot_broker_summary"]["priority_counts"] = exception_report["priority_counts"]
                 st.session_state["snapshot_broker_summary"]["action_required_count"] = exception_report["action_required_count"]
                 st.session_state["snapshot_broker_excluded_future_events"] = excluded_future_events
@@ -363,6 +370,16 @@ def render_portfolio_cashflow() -> None:
             m1.metric("Status", summary["status"])
             m2.metric("Baris cocok", summary["matched_count"])
             m3.metric("Pengecualian", summary["exception_count"])
+            st.caption(
+                f"Cut-off ledger: {summary['ledger_as_of_date']} ({summary['ledger_currency']}) · "
+                f"Snapshot broker: {summary['broker_as_of_date']} ({summary['broker_currency']}) · "
+                f"Selisih tanggal: {summary['date_difference_days']} hari · "
+                f"Event ledger yang digunakan: {summary['ledger_event_count']}"
+            )
+            if summary["ledger_warnings"]:
+                with st.expander("Peringatan rekonstruksi ledger", expanded=False):
+                    for warning in summary["ledger_warnings"]:
+                        st.warning(warning)
             if summary["cash_difference"] is not None:
                 st.metric("Selisih kas (broker − ledger)", f"{summary['cash_difference']:,.2f}")
             for warning in summary["warnings"]:
