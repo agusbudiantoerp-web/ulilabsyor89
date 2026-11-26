@@ -111,6 +111,12 @@ OLLAMA_TIMEOUT_SECONDS=300
 OLLAMA_NUM_PREDICT=650
 ~~~
 
+## Broker statement and balance reconciliation
+
+Broker CSV transactions are normalized into a preview and matched one-to-one against the internal cash-flow ledger. A separate read-only broker snapshot comparison checks cash balances and ticker quantities, reports missing/extra holdings and quantity/cash differences, and exports an exception CSV. Snapshot comparisons are blocked when currencies differ or the as-of dates exceed the configured tolerance. No broker snapshot or statement is automatically written into the portfolio ledger.
+
+The snapshot comparison requires the user to provide the broker cash balance, currency, as-of date, and holdings as `TICKER,SHARES` rows. It also requires the ledger opening balances and its as-of date. Use matching cut-off definitions; unsettled cash, settlement timing, corporate actions, fractional entitlements/cash-in-lieu, fees/taxes and FX can explain differences. The tool is an exception report, not broker confirmation, custody evidence, or an automatic adjustment facility.
+
 ## Research and model limitations
 
 - Backtests are historical simulations, not forecasts. Results depend on the data window, fees, slippage, liquidity and assumptions.
