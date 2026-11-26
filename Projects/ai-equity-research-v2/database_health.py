@@ -132,7 +132,11 @@ def check_postgres_health(secrets: Any = None) -> dict:
                 )
                 rls_rows = cursor.fetchall()
                 cursor.execute(
-                    "SELECT tablename, policyname, permissive, roles, cmd, qual, with_check "
+                    "SELECT tablename, policyname, permissive, roles, cmd, qual, with_check, "
+                    "('public' = ANY(roles) OR current_user::name = ANY(roles) OR EXISTS ("
+                    "SELECT 1 FROM unnest(roles) AS policy_role "
+                    "WHERE policy_role <> 'public' AND pg_has_role(current_user, policy_role, 'USAGE'))) "
+                    "AS applies_to_current_user "
                     "FROM pg_policies WHERE schemaname=current_schema() "
                     "AND tablename = ANY(%s)",
                     (sorted(OWNER_SCOPED_TABLES & existing),),
@@ -169,7 +173,9 @@ def check_postgres_health(secrets: Any = None) -> dict:
         # an accidentally broad policy cannot silently bypass tenant isolation.
         policies_by_table = {}
         for row in policy_rows:
-            table, policy_name, permissive, roles, command, using_expr, check_expr = row
+            table, policy_name, permissive, roles, command, using_expr, check_expr, applies = row
+            if not applies:
+                continue
             policies_by_table.setdefault(table, []).append({
                 "name": policy_name,
                 "permissive": str(permissive).upper(),

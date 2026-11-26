@@ -6,7 +6,8 @@ from database_health import OWNER_SCOPED_TABLES, REQUIRED_TABLES, check_postgres
 
 def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
                            superuser=False, bypass_rls=False, table_owner="db_owner",
-                           tenant_policies=True, broad_policy=False):
+                           tenant_policies=True, broad_policy=False,
+                           policy_role_mismatch=False):
     class FakeCursor:
         def __init__(self):
             self.one = None
@@ -41,7 +42,9 @@ def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
                             check = "owner_id = current_setting('app.current_owner_id', true)" if command in {"INSERT", "UPDATE"} else None
                             if broad_policy and table == sorted(params[0])[0] and command == "SELECT":
                                 using = "true"
-                            self.many.append((table, f"{table}_{command.lower()}_tenant", "PERMISSIVE", ["app_role"], command, using, check))
+                            applies = not (policy_role_mismatch and table == sorted(params[0])[0])
+                            roles = ["other_role"] if not applies else ["app_role"]
+                            self.many.append((table, f"{table}_{command.lower()}_tenant", "PERMISSIVE", roles, command, using, check, applies))
 
         def fetchone(self):
             return self.one
@@ -133,3 +136,16 @@ def test_database_health_rejects_application_role_that_owns_rls_tables(monkeypat
     result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
     assert result["ok"] is False
     assert any("pemilik tabel" in item["reason"] for item in result["rls_issues"])
+
+
+def test_database_health_rejects_policies_not_applicable_to_application_role(monkeypatch):
+    _install_fake_postgres(
+        monkeypatch, rls_enabled=True, force_rls=True,
+        policy_role_mismatch=True,
+    )
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["ok"] is False
+    assert any(
+        "belum ada policy tenant" in item["reason"]
+        for item in result["rls_issues"]
+    )
