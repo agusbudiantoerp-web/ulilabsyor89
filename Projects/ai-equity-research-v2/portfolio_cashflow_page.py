@@ -8,6 +8,7 @@ import streamlit as st
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_tax_lots import calculate_tax_lots
 from portfolio_reconciliation import reconcile_broker_statement
+from broker_statement_import import normalize_broker_statement
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
 from security_controls import record_audit_event, require_permission
@@ -131,6 +132,12 @@ def render_portfolio_cashflow() -> None:
         broker_file = st.file_uploader(
             "Broker statement CSV", type=["csv"], key="portfolio_broker_statement_upload",
         )
+        locale_choice = st.selectbox(
+            "Format angka statement", ["auto", "id", "en"], index=0,
+            format_func=lambda value: {"auto": "Otomatis (deteksi pemisah)", "id": "Indonesia (1.234,56)", "en": "Internasional (1,234.56)"}[value],
+            key="portfolio_broker_locale",
+            help="Pilih Indonesia atau Internasional bila format angka tidak terbaca benar oleh deteksi otomatis.",
+        )
         date_tolerance = st.number_input(
             "Toleransi perbedaan tanggal (hari)", min_value=0, max_value=30,
             value=1, key="portfolio_broker_date_tolerance",
@@ -139,7 +146,15 @@ def render_portfolio_cashflow() -> None:
             try:
                 if broker_file is None:
                     raise ValueError("Unggah broker statement CSV terlebih dahulu.")
-                broker_frame = pd.read_csv(broker_file)
+                imported = normalize_broker_statement(broker_file, locale=locale_choice)
+                broker_frame = imported["events"]
+                st.session_state["portfolio_broker_import_preview"] = broker_frame.copy()
+                st.session_state["portfolio_broker_import_diagnostics"] = {
+                    "row_count": imported["row_count"],
+                    "detected_columns": imported["detected_columns"],
+                    "delimiter": imported["delimiter"],
+                    "warnings": imported["warnings"],
+                }
                 broker_result = reconcile_broker_statement(
                     events, broker_frame, date_tolerance_days=int(date_tolerance),
                 )
@@ -153,6 +168,19 @@ def render_portfolio_cashflow() -> None:
                 }
             except Exception as exc:
                 st.error(f"Rekonsiliasi broker gagal: {type(exc).__name__}: {exc}")
+        import_preview = st.session_state.get("portfolio_broker_import_preview")
+        import_diagnostics = st.session_state.get("portfolio_broker_import_diagnostics") or {}
+        if import_diagnostics:
+            st.caption(
+                f"CSV terbaca: {import_diagnostics['row_count']} baris · "
+                f"delimiter: {import_diagnostics['delimiter']} · "
+                f"kolom terdeteksi: {', '.join(import_diagnostics['detected_columns'].keys())}"
+            )
+            if isinstance(import_preview, pd.DataFrame):
+                st.markdown("**Preview transaksi hasil normalisasi (belum disimpan)**")
+                st.dataframe(import_preview, use_container_width=True, hide_index=True)
+            for warning in import_diagnostics["warnings"]:
+                st.warning(warning)
         broker_details = st.session_state.get("portfolio_broker_reconciliation_details")
         broker_metrics = st.session_state.get("portfolio_broker_reconciliation_metrics") or {}
         if broker_metrics:
