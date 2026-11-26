@@ -6,9 +6,9 @@ Last updated: 2026-11-26
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head at this readiness update: `7400e374eebd9ab3b3950a42b78b2ac6076f8e7b`.
+- Latest branch head at this readiness update: `e5cae55933725aba7ff864e079dd8fed0d4fbaca`.
 - Latest completed full CI code/test baseline: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2`; Python 3.10 compilation and PostgreSQL 16 integration passed. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762865322) · [push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762860086).
-- The latest branch head `7400e374eebd9ab3b3950a42b78b2ac6076f8e7b` passed both PR and push CI workflows, including Python module compilation and the complete automated/PostgreSQL integration suite: [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45765826620) · [push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45765821674).
+- Latest branch head `e5cae55933725aba7ff864e079dd8fed0d4fbaca` passed PR CI: **751 passed, 0 failed**, Python module compilation and PostgreSQL 16 integration succeeded: [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768724692).
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
@@ -23,7 +23,7 @@ Last updated: 2026-11-26
 - Portfolio cash-flow ledger, TWR/XIRR, FIFO/weighted-average tax lots, realized P&L, opening lots and split basis adjustments.
 - Manual broker-statement CSV reconciliation with matched/missing/unexpected and amount/quantity/price/date exceptions.
 - Transaction-aware historical portfolio replay with explicit trade fills, optional settlement dates, reserved unsettled buy payables, unsettled sell receivables, stale-price/FX checks and external-flow-adjusted TWR.
-- Cross-market daily return analysis, IID Monte Carlo, two-state Markov regime simulation with optional smoothed empirical transitions, moving-block bootstrap, and a two-window structural-break diagnostic warning. The structural-break diagnostic is heuristic, not a formal breakpoint test or out-of-sample calibration.
+- Cross-market daily return analysis with FX-only return marking on local-market holidays, explicit stale-price/FX limits, IID Monte Carlo, two-state Markov regime simulation with optional smoothed empirical transitions, moving-block bootstrap, and a two-window structural-break diagnostic warning. The structural-break diagnostic is heuristic, not a formal breakpoint test or out-of-sample calibration.
 - Owner-scoped thesis/version/reviewer export and review-aging dashboard.
 - Research Pack exports for applicable portfolio, reconciliation, filing, thesis and simulation outputs.
 - OIDC identity resolution using immutable issuer-bound `iss|sub`, server-managed fail-closed roles, owner-scoped stores, admin-only security/audit controls, database diagnostics and backup/restore tooling.
