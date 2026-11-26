@@ -131,6 +131,13 @@ def check_postgres_health(secrets: Any = None) -> dict:
                     (sorted(OWNER_SCOPED_TABLES & existing),),
                 )
                 rls_rows = cursor.fetchall()
+                cursor.execute(
+                    "SELECT tablename, policyname, permissive, roles, cmd, qual, with_check "
+                    "FROM pg_policies WHERE schemaname=current_schema() "
+                    "AND tablename = ANY(%s)",
+                    (sorted(OWNER_SCOPED_TABLES & existing),),
+                )
+                policy_rows = cursor.fetchall()
 
         missing = sorted(set(required_tables) - existing)
         rls_issues = []
@@ -155,6 +162,64 @@ def check_postgres_health(secrets: Any = None) -> dict:
                 rls_issues.append({
                     "scope": table,
                     "reason": "Role aplikasi adalah pemilik tabel dan dapat mengubah kebijakan RLS.",
+                })
+
+        # RLS being enabled is not sufficient: permissive policies are OR-combined.
+        # Require CRUD coverage and owner predicates on every permissive policy so
+        # an accidentally broad policy cannot silently bypass tenant isolation.
+        policies_by_table = {}
+        for row in policy_rows:
+            table, policy_name, permissive, roles, command, using_expr, check_expr = row
+            policies_by_table.setdefault(table, []).append({
+                "name": policy_name,
+                "permissive": str(permissive).upper(),
+                "command": str(command).upper(),
+                "using": str(using_expr or "").lower(),
+                "check": str(check_expr or "").lower(),
+            })
+        required_commands = {"SELECT", "INSERT", "UPDATE", "DELETE"}
+        owner_tokens = ("owner_id", "current_setting", "app.current_owner_id")
+        for table in sorted(OWNER_SCOPED_TABLES & existing):
+            policies = policies_by_table.get(table, [])
+            if not policies:
+                rls_issues.append({
+                    "scope": table,
+                    "reason": "RLS aktif tetapi belum ada policy tenant.",
+                })
+                continue
+            covered = set()
+            for policy in policies:
+                if policy["permissive"] != "PERMISSIVE":
+                    continue
+                command = policy["command"]
+                using_expr = policy["using"]
+                check_expr = policy["check"]
+                using_scoped = all(token in using_expr for token in owner_tokens)
+                check_scoped = all(token in check_expr for token in owner_tokens)
+                if command in {"ALL", "SELECT", "UPDATE", "DELETE"} and using_scoped:
+                    covered.update(required_commands if command == "ALL" else {command})
+                if command in {"ALL", "INSERT", "UPDATE"} and check_scoped:
+                    if command == "ALL":
+                        covered.update(required_commands)
+                    elif command == "INSERT":
+                        covered.add("INSERT")
+                    elif command == "UPDATE" and using_scoped:
+                        covered.add("UPDATE")
+                if command in {"ALL", "SELECT", "UPDATE", "DELETE"} and not using_scoped:
+                    rls_issues.append({
+                        "scope": table,
+                        "reason": f"Policy {policy['name']} memiliki USING tanpa pembatas owner_id/current_setting.",
+                    })
+                if command in {"ALL", "INSERT", "UPDATE"} and not check_scoped:
+                    rls_issues.append({
+                        "scope": table,
+                        "reason": f"Policy {policy['name']} memiliki WITH CHECK tanpa pembatas owner_id/current_setting.",
+                    })
+            missing_commands = sorted(required_commands - covered)
+            if missing_commands:
+                rls_issues.append({
+                    "scope": table,
+                    "reason": "Policy tenant belum mencakup operasi: " + ", ".join(missing_commands),
                 })
 
         elapsed = round((time.perf_counter() - started) * 1000, 1)
