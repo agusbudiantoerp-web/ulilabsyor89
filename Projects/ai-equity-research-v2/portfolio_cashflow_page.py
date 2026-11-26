@@ -8,7 +8,7 @@ import streamlit as st
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_tax_lots import calculate_tax_lots
 from portfolio_reconciliation import reconcile_broker_statement
-from portfolio_snapshot_reconciliation import reconcile_broker_snapshot
+from portfolio_snapshot_reconciliation import reconcile_broker_snapshot, classify_snapshot_exceptions
 from broker_statement_import import normalize_broker_statement
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
@@ -343,10 +343,13 @@ def render_portfolio_cashflow() -> None:
                     ledger_as_of_date=ledger_date, broker_as_of_date=broker_date,
                     cash_tolerance=cash_tol, shares_tolerance=share_tol, date_tolerance_days=int(date_tol),
                 )
-                st.session_state["snapshot_broker_details"] = result["details"].copy()
+                exception_report = classify_snapshot_exceptions(result["details"])
+                st.session_state["snapshot_broker_details"] = exception_report["details"].copy()
                 st.session_state["snapshot_broker_summary"] = {
                     key: result[key] for key in ("status", "cash_difference", "matched_count", "exception_count", "warnings", "method")
                 }
+                st.session_state["snapshot_broker_summary"]["priority_counts"] = exception_report["priority_counts"]
+                st.session_state["snapshot_broker_summary"]["action_required_count"] = exception_report["action_required_count"]
                 st.session_state["snapshot_broker_excluded_future_events"] = excluded_future_events
             except Exception as exc:
                 st.error(f"Snapshot reconciliation gagal: {type(exc).__name__}: {exc}")
@@ -364,10 +367,23 @@ def render_portfolio_cashflow() -> None:
             excluded_count = int(st.session_state.get("snapshot_broker_excluded_future_events", 0))
             if excluded_count:
                 st.info(f"{excluded_count} event setelah tanggal posisi ledger tidak disertakan dalam rekonstruksi.")
+            priority_counts = summary.get("priority_counts", {})
+            p1, p2, p3, p4 = st.columns(4)
+            p1.metric("Blocker", priority_counts.get("BLOCKER", 0))
+            p2.metric("Critical", priority_counts.get("CRITICAL", 0))
+            p3.metric("Warning", priority_counts.get("WARNING", 0))
+            p4.metric("Perlu tindakan", summary.get("action_required_count", 0))
             if isinstance(details, pd.DataFrame):
-                st.dataframe(details, use_container_width=True, hide_index=True)
+                priority_filter = st.selectbox(
+                    "Filter prioritas pengecualian",
+                    ["Semua", "BLOCKER", "CRITICAL", "WARNING", "MATCHED"],
+                    key="snapshot_broker_priority_filter",
+                )
+                visible_details = details if priority_filter == "Semua" else details.loc[details["priority"] == priority_filter]
+                st.dataframe(visible_details, use_container_width=True, hide_index=True)
                 st.download_button("Unduh laporan snapshot CSV", safe_csv_bytes(details),
-                    file_name="broker_snapshot_reconciliation.csv", mime="text/csv", key="snapshot_broker_download")
+                    file_name="broker_snapshot_exception_report.csv", mime="text/csv", key="snapshot_broker_download")
+                st.caption("Urutan laporan: blocker → critical → warning → matched. Rekomendasi adalah panduan pemeriksaan, bukan instruksi koreksi otomatis.")
             st.caption(summary["method"])
 
     st.markdown("**Time-Weighted Return (TWR)**")
