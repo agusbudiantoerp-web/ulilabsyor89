@@ -315,6 +315,12 @@ def render_portfolio_cashflow() -> None:
         share_tol = st.number_input("Toleransi selisih saham", min_value=0.0, value=0.00000001, format="%.8f", key="snapshot_share_tolerance")
         date_tol = st.number_input("Toleransi beda tanggal (hari)", min_value=0, max_value=30, value=0, key="snapshot_date_tolerance")
         if st.button("Bandingkan snapshot broker", key="snapshot_broker_compare"):
+            # Never leave an earlier successful report visible after a failed new attempt.
+            for stale_key in (
+                "snapshot_broker_summary", "snapshot_broker_details",
+                "snapshot_broker_excluded_future_events",
+            ):
+                st.session_state.pop(stale_key, None)
             try:
                 opening_positions = {}
                 for item in opening_raw.split(",") if opening_raw.strip() else []:
