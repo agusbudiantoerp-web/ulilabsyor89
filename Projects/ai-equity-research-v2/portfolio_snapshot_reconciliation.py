@@ -153,3 +153,62 @@ def reconcile_broker_snapshot(
         "read_only": True,
         "method": "Exact-date/currency-gated snapshot comparison; broker minus ledger; no ledger writes or automatic adjustments.",
     }
+
+
+def classify_snapshot_exceptions(details: pd.DataFrame) -> dict:
+    """Add deterministic priority and next-step guidance to snapshot comparison rows."""
+    if not isinstance(details, pd.DataFrame):
+        raise ValueError("Detail rekonsiliasi harus berupa DataFrame.")
+    required = {"item_type", "ticker", "status", "difference"}
+    if not required.issubset(details.columns):
+        raise ValueError("Kolom detail rekonsiliasi tidak lengkap.")
+    guidance = {
+        "NOT_COMPARABLE": (
+            "BLOCKER", 0, "Perbandingan terblokir",
+            "Samakan mata uang, tanggal cut-off, dan definisi saldo sebelum menilai selisih."
+        ),
+        "MISSING_IN_LEDGER": (
+            "CRITICAL", 1, "Holding broker tidak ada di ledger",
+            "Periksa trade confirmation, transfer saham, corporate action, lalu catat melalui alur ledger yang sah."
+        ),
+        "MISSING_IN_BROKER": (
+            "CRITICAL", 1, "Holding ledger tidak ada di broker",
+            "Periksa penjualan, transfer keluar, corporate action, dan posisi settled broker."
+        ),
+        "QUANTITY_MISMATCH": (
+            "WARNING", 2, "Jumlah saham berbeda",
+            "Telusuri partial fill, settlement, split, rights, bonus, dan fractional shares."
+        ),
+        "CASH_MISMATCH": (
+            "WARNING", 2, "Saldo kas berbeda",
+            "Rekonsiliasi deposit/withdrawal, proceeds, biaya, pajak, dividen, FX, dan unsettled cash."
+        ),
+        "MATCH": (
+            "MATCHED", 3, "Saldo cocok",
+            "Tidak perlu tindakan; simpan snapshot dan bukti cut-off untuk audit."
+        ),
+    }
+    result = details.copy()
+    priorities, ranks, categories, actions = [], [], [], []
+    for status in result["status"].astype(str):
+        priority, rank, category, action = guidance.get(
+            status, ("REVIEW", 2, "Status belum dikenali", "Tinjau detail secara manual sebelum mengambil tindakan.")
+        )
+        priorities.append(priority)
+        ranks.append(rank)
+        categories.append(category)
+        actions.append(action)
+    result["priority"] = priorities
+    result["priority_rank"] = ranks
+    result["exception_category"] = categories
+    result["recommended_action"] = actions
+    result = result.sort_values(
+        ["priority_rank", "item_type", "ticker"], kind="stable"
+    ).drop(columns=["priority_rank"]).reset_index(drop=True)
+    counts = result["priority"].value_counts().to_dict()
+    return {
+        "details": result,
+        "priority_counts": {key: int(counts.get(key, 0)) for key in ("BLOCKER", "CRITICAL", "WARNING", "REVIEW", "MATCHED")},
+        "action_required_count": int(result["priority"].isin(["BLOCKER", "CRITICAL", "WARNING", "REVIEW"]).sum()),
+        "read_only": True,
+    }
