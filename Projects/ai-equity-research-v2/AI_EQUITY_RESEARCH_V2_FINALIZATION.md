@@ -46,7 +46,7 @@ The application code and release documentation are prepared for validation, but 
 2. Dedicated Preview PostgreSQL setup, schema/grant verification and two-user isolation checks.
 3. Role-by-role verification of all page and operation permissions.
 4. End-to-end backtest/report/export review and backup/restore rehearsal.
-5. Final CI run on the final development commit and independent security review.
+5. Final CI is green on the current documentation head; complete an independent security review before release.
 6. Administrator approval before any merge or production deployment.
 
 Never use production database credentials for Preview or disposable integration tests. Never paste OAuth client secrets, cookie secrets, database URLs, Telegram tokens or chat IDs into chat or GitHub.
@@ -69,10 +69,10 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run for the current feature branch: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2`.
-- Python 3.10 module compilation and the complete automated suite both passed.
-- PostgreSQL integration tests ran against the workflow's ephemeral PostgreSQL 16 service; the PR workflow and push workflow both completed successfully.
+- Latest full feature-code test baseline: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2`.
+- Python 3.10 module compilation and the complete automated suite passed, including PostgreSQL integration tests against an ephemeral PostgreSQL 16 service.
 - [GitHub Actions PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762865322) · [GitHub Actions push run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762860086).
+- Current documentation head `3c5efa36c42d7bb7f03417ad829bd6519c3a4781` also passed both PR and push CI workflows: [PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45764968042) · [push run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45764960915).
 - CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
 ## Research limitations
