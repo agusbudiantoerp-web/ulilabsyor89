@@ -5,7 +5,7 @@ import uuid
 import pandas as pd
 import pytest
 
-from daily_signal_storage import outcome_summary, record_outcome, save_scan, signal_history, latest_scan
+from daily_signal_storage import outcome_summary, record_outcome, save_scan, signal_history, latest_scan, latest_scan
 from portfolio_store import delete_book, list_books, load_book, save_book
 from research_run_store import delete_run, get_run, list_runs, save_run
 from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
@@ -367,3 +367,90 @@ def test_postgres_audit_hash_chain_serializes_concurrent_appends(postgres_test_d
         and row["actor_id"] in set(actors)
     ]
     assert len(batch_rows) == len(actors)
+
+
+def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres_test_database, monkeypatch):
+    import psycopg
+    from psycopg import sql
+    from psycopg.conninfo import make_conninfo
+    from postgres_schema_migration import run_schema_migrations
+    from postgres_rls_migration import apply_rls_policies
+
+    runtime_role = "equity_runtime_test"
+    runtime_password = "equity_runtime_test_only"
+    monkeypatch.setenv("DATABASE_URL", postgres_test_database)
+    monkeypatch.setenv("AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION", "YES")
+    run_schema_migrations()
+
+    with psycopg.connect(postgres_test_database) as admin:
+        exists = admin.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (runtime_role,)).fetchone()
+        statement = "ALTER ROLE {} LOGIN PASSWORD %s NOSUPERUSER NOBYPASSRLS" if exists else "CREATE ROLE {} LOGIN PASSWORD %s NOSUPERUSER NOBYPASSRLS"
+        admin.execute(sql.SQL(statement).format(sql.Identifier(runtime_role)), (runtime_password,))
+
+    monkeypatch.setenv("AI_EQUITY_RESEARCH_CONFIRM_RLS_MIGRATION", "YES")
+    monkeypatch.setenv("AI_EQUITY_RESEARCH_RUNTIME_ROLE", runtime_role)
+    apply_rls_policies()
+    runtime_url = make_conninfo(postgres_test_database, user=runtime_role, password=runtime_password)
+    monkeypatch.setenv("DATABASE_URL", runtime_url)
+    monkeypatch.delenv("CLOUD_DATABASE_URL", raising=False)
+    monkeypatch.delenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT", raising=False)
+
+    suffix = uuid.uuid4().hex[:8]
+    owner_a, owner_b, reviewer = f"tenant-a-{suffix}", f"tenant-b-{suffix}", f"reviewer-{suffix}"
+    with psycopg.connect(runtime_url) as raw:
+        assert raw.execute("SELECT count(*) FROM portfolio_books").fetchone()[0] == 0
+
+    book_id = "rls-" + suffix
+    save_book(book_id, "RLS tenant A", pd.DataFrame([{
+        "Market": "IDX", "Ticker": "BBCA", "Shares": 10, "Average Cost": 9000,
+    }]), owner_id=owner_a)
+    assert any(row["id"] == book_id for row in list_books(owner_a))
+    assert all(row["id"] != book_id for row in list_books(owner_b))
+
+    run_id = save_run(
+        owner_id=owner_a, run_type="single_ticker", market="IDX",
+        symbols=["BBCA"], parameters={"rls": True}, result={"return": 1.0},
+    )
+    assert any(row["id"] == run_id for row in list_runs(owner_a))
+    assert all(row["id"] != run_id for row in list_runs(owner_b))
+
+    save_scan({
+        "counts": {"scanned": 1, "failed": 0},
+        "results": [{
+            "market": "IDX", "ticker": "BBCA", "bar_date": "2026-11-20",
+            "signal": "WATCH", "score": 50, "close": 9000,
+        }],
+        "errors": [],
+    }, owner_id=owner_a)
+    assert latest_scan(owner_id=owner_a) is not None
+    assert latest_scan(owner_id=owner_b) is None
+
+    thesis_id = create_thesis(owner_a, "BBCA", "IDX", "RLS thesis", {"summary": "private thesis"})
+    review_id = request_review(owner_a, thesis_id, reviewer)
+    queue = list_reviews_for_reviewer(reviewer)
+    assert any(row["id"] == review_id and row["owner_id"] == owner_a for row in queue)
+    assert get_review_for_reviewer(reviewer, review_id)["content"]["summary"] == "private thesis"
+    decide_review(reviewer, review_id, "APPROVED", "RLS reviewer decision")
+    assert list_reviews_for_thesis(owner_a, thesis_id)[0]["status"] == "APPROVED"
+    assert list_theses(owner_b) == []
+
+    corporate_id = create_corporate_event(owner_a, {
+        "ticker": "BBCA", "event_type": "EX_DIVIDEND", "event_date": "2026-12-01",
+        "status": "CONFIRMED", "source": "Issuer",
+        "retrieved_at": "2026-11-25T00:00:00+00:00",
+    })
+    assert any(row["id"] == corporate_id for row in list_corporate_events(owner_a))
+    assert list_corporate_events(owner_b) == []
+
+    cashflow_id = create_cashflow_event(owner_a, {
+        "date": "2026-11-20", "event_type": "DEPOSIT", "amount": 1000,
+        "ticker": "", "notes": "RLS test",
+    })
+    assert any(row["id"] == cashflow_id for row in list_cashflow_events(owner_a))
+    assert list_cashflow_events(owner_b) == []
+
+    save_valuations(owner_a, "rls-portfolio", [{
+        "date": "2026-11-20", "portfolio_value": 10000, "external_flow": 0,
+    }])
+    assert len(list_valuations(owner_a, "rls-portfolio")) == 1
+    assert list_valuations(owner_b, "rls-portfolio").empty
