@@ -63,7 +63,7 @@ def _pg(owner_id=None, actor_id=None):
 
 
 def initialize(path=None):
-    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+    if path is None and _url() and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
         return
     if path is None and _url():
         with _pg() as db:

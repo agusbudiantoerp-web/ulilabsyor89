@@ -79,7 +79,7 @@ def _validate(owner_id, ticker, market, title, content, status, review_date):
 
 
 def initialize(path=None):
-    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+    if path is None and _database_url() and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
         return
     if path is None and _database_url():
         with _pg() as db:
