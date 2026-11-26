@@ -56,10 +56,12 @@ def _number(value: object, locale: str) -> float:
                 thousands_sep = "." if decimal_sep == "," else ","
                 raw = raw.replace(thousands_sep, "").replace(decimal_sep, ".")
             elif "," in raw:
-                raw = raw.replace(",", ".")
-            elif raw.count(".") > 1:
+                tail = raw.rsplit(",", 1)[1]
+                raw = raw.replace(",", "") if len(tail) == 3 else raw.replace(",", ".")
+            elif "." in raw:
                 parts = raw.split(".")
-                raw = "".join(parts[:-1]) + "." + parts[-1]
+                if len(parts) > 2 or len(parts[-1]) == 3:
+                    raw = "".join(parts)
         else:
             raise ValueError("locale harus auto, id, atau en.")
         result = float(raw)
