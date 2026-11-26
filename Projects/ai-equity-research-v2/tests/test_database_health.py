@@ -5,7 +5,8 @@ from database_health import OWNER_SCOPED_TABLES, REQUIRED_TABLES, check_postgres
 
 
 def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
-                           superuser=False, bypass_rls=False, table_owner="db_owner"):
+                           superuser=False, bypass_rls=False, table_owner="db_owner",
+                           tenant_policies=True, broad_policy=False):
     class FakeCursor:
         def __init__(self):
             self.one = None
@@ -31,6 +32,16 @@ def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
                     (name, rls_enabled, force_rls, table_owner, "app_role")
                     for name in params[0]
                 ]
+            elif "FROM pg_policies" in query:
+                self.many = []
+                if tenant_policies:
+                    for table in params[0]:
+                        for command in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                            using = "owner_id = current_setting('app.current_owner_id', true)" if command != "INSERT" else None
+                            check = "owner_id = current_setting('app.current_owner_id', true)" if command in {"INSERT", "UPDATE"} else None
+                            if broad_policy and table == sorted(params[0])[0] and command == "SELECT":
+                                using = "true"
+                            self.many.append((table, f"{table}_{command.lower()}_tenant", "PERMISSIVE", ["app_role"], command, using, check))
 
         def fetchone(self):
             return self.one
@@ -86,6 +97,24 @@ def test_database_health_passes_when_rls_is_forced_and_role_is_restricted(monkey
     assert result["connected"] is True
     assert result["ok"] is True
     assert result["rls_issues"] == []
+
+
+def test_database_health_rejects_rls_enabled_without_tenant_policies(monkeypatch):
+    _install_fake_postgres(
+        monkeypatch, rls_enabled=True, force_rls=True, tenant_policies=False,
+    )
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["ok"] is False
+    assert any("belum ada policy tenant" in item["reason"] for item in result["rls_issues"])
+
+
+def test_database_health_rejects_broad_permissive_tenant_policy(monkeypatch):
+    _install_fake_postgres(
+        monkeypatch, rls_enabled=True, force_rls=True, broad_policy=True,
+    )
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["ok"] is False
+    assert any("tanpa pembatas owner_id" in item["reason"] for item in result["rls_issues"])
 
 
 def test_database_health_rejects_superuser_or_bypassrls_application_role(monkeypatch):
