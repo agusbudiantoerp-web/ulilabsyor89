@@ -46,3 +46,8 @@
 ## PostgreSQL RLS policy diagnostics
 
 The read-only database health check verifies more than `relrowsecurity` and `relforcerowsecurity`: it also inspects `pg_policies` for each registered owner-scoped table. A release-ready table must have tenant-scoped permissive policy coverage for SELECT, INSERT, UPDATE, and DELETE, with both `USING` and `WITH CHECK` expressions (where applicable) binding `owner_id` to `current_setting('app.current_owner_id', true)`. Broad permissive policies and missing CRUD coverage are reported as release blockers. This remains diagnostic only: it does not create policies, set per-transaction owner context, or change database privileges. Actual RLS rollout still requires a separately reviewed migration and integration tests using the restricted non-owner application role.
+
+
+## Forward-outcome tenant ownership migration
+
+The daily-learning `outcomes` table now stores its own non-null `owner_id`. Existing PostgreSQL rows are backfilled from their parent signal before the column is made NOT NULL; SQLite migration backfills the same relationship and assigns only orphaned legacy rows to `legacy-unassigned`. Outcome writes verify the signal under the requesting owner and persist that owner on insert/upsert. Summary and history joins also require matching owner IDs. Automated coverage verifies that another owner cannot write or read the outcome. This closes the table-level ownership gap; it does not replace PostgreSQL RLS or staging two-user acceptance tests.
