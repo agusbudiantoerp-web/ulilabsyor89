@@ -340,6 +340,7 @@ def test_postgres_restore_refuses_nonempty_target_before_running_pg_restore(tmp_
         "size_bytes": archive.stat().st_size,
         "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
         "validation": "pg_restore --list: ok",
+        "source_identity_sha256": database_backup._postgres_database_identity("postgresql://backup_user:secret@source-db.example/source_db"),
     }), encoding="utf-8")
     monkeypatch.setenv("DATABASE_URL", "postgresql://restore_user:secret@preview-db.example/restore_target")
     monkeypatch.setenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, "YES")
