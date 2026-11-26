@@ -10,6 +10,7 @@ from security_controls import record_audit_event, require_permission
 from report_export_utils import safe_csv_bytes
 from portfolio_event_store import list_events as list_portfolio_events
 from dividend_entitlements import estimate_dividend_entitlements
+from rights_issue_entitlements import estimate_rights_issue_entitlements
 
 
 def _audit_corporate_event(owner, role, action, event_id, details):
@@ -59,7 +60,7 @@ def render_corporate_action_calendar() -> None:
             "Event type", ["EARNINGS", "DIVIDEND_DECLARATION", "EX_DIVIDEND", "RECORD_DATE",
                            "PAY_DATE", "STOCK_SPLIT", "RIGHTS_ISSUE", "OTHER"]
         )
-        event_date = c3.date_input("Tanggal event")
+        event_date = c3.date_input("Tanggal event / record date HMETD")
         c4, c5, c6 = st.columns(3)
         status = c4.selectbox("Status", ["CONFIRMED", "ESTIMATED", "CANCELLED"])
         source = c5.text_input("Sumber (issuer / BEI / provider)")
@@ -68,6 +69,9 @@ def render_corporate_action_calendar() -> None:
         amount = c7.number_input("Nominal dividen bruto per saham (opsional)", min_value=0.0, value=0.0, help="Untuk DIVIDEND_DECLARATION isi DPS bruto; untuk event lain gunakan nominal yang relevan atau kosongkan.")
         currency = c8.text_input("Mata uang")
         split_ratio = c9.number_input("Rasio split (opsional)", min_value=0.0, value=0.0)
+        c10, c11 = st.columns(2)
+        rights_ratio = c10.number_input("Rasio HMETD per saham lama", min_value=0.0, value=0.0, help="Contoh 0,5 berarti 1 hak untuk setiap 2 saham lama.")
+        subscription_price = c11.number_input("Harga pelaksanaan per hak", min_value=0.0, value=0.0, help="Harga tebus per hak; mata uang mengikuti kolom Mata uang.")
         source_url = st.text_input("URL dokumen sumber")
         timezone_name = st.text_input("Timezone event", "Asia/Jakarta")
         details = st.text_input("Catatan")
@@ -79,7 +83,10 @@ def render_corporate_action_calendar() -> None:
             "retrieved_at": pd.Timestamp(retrieved).tz_localize("UTC").isoformat(),
             "source_url": source_url, "timezone": timezone_name,
             "amount": amount if amount > 0 else None, "currency": currency,
-            "split_ratio": split_ratio if split_ratio > 0 else None, "details": details,
+            "split_ratio": split_ratio if split_ratio > 0 else None,
+            "rights_ratio": rights_ratio if rights_ratio > 0 else None,
+            "subscription_price": subscription_price if subscription_price > 0 else None,
+            "details": details,
         }
         try:
             normalized = normalize_corporate_events([row])
@@ -108,6 +115,16 @@ def render_corporate_action_calendar() -> None:
                 st.dataframe(entitlements, use_container_width=True, hide_index=True)
                 st.caption(entitlement_result["method"])
             for warning in entitlement_result["warnings"]:
+                st.warning(warning)
+            st.markdown("**Estimasi HMETD / rights issue (tidak mengubah saldo portofolio)**")
+            rights_result = estimate_rights_issue_entitlements(portfolio_rows, stored_events)
+            rights_table = rights_result["entitlements"]
+            if rights_table.empty:
+                st.caption("Belum ada event RIGHTS_ISSUE CONFIRMED dengan rasio, harga pelaksanaan, mata uang, dan posisi record date yang valid.")
+            else:
+                st.dataframe(rights_table, use_container_width=True, hide_index=True)
+                st.caption(rights_result["method"])
+            for warning in rights_result["warnings"]:
                 st.warning(warning)
         except Exception as exc:
             st.error(f"Estimasi hak dividen tidak dapat dihitung ({type(exc).__name__}): {exc}")
