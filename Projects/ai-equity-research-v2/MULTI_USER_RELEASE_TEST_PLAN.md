@@ -14,13 +14,15 @@ This plan is intentionally separate from feature development. Run it only after 
 
 - Configure `DATABASE_URL` only in the Preview app's private Streamlit Secrets.
 - Provision the Preview database using a dedicated migration/DDL principal from a trusted administrator workstation. Set `DATABASE_URL` privately to that migration connection and set `AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION=YES`; run `python postgres_schema_migration.py` from this project folder. The script refuses to run without both settings and never prints the connection string.
-- After schema creation, provision a separate runtime role that is not a table owner, is not SUPERUSER/BYPASSRLS, and has only the required table privileges. Apply reviewed grants and (once the transaction owner-context implementation is complete) tenant RLS policies. Do not use the migration principal as the app runtime identity.
-- Configure the Preview Streamlit app's `DATABASE_URL` with the runtime role only.
+- Create a separate runtime role that is not SUPERUSER, not BYPASSRLS, not a table owner and does not inherit any other PostgreSQL role. Give it no broad role memberships. Keep its password separate from the migration identity.
+- With the administrator migration connection still in the private local environment, set `AI_EQUITY_RESEARCH_RUNTIME_ROLE` to the exact runtime role name and `AI_EQUITY_RESEARCH_CONFIRM_RLS_MIGRATION=YES`; run `python postgres_rls_migration.py`. The migration enables and forces RLS on 12 owner-scoped tables, installs tenant and assigned-reviewer policies, grants required table privileges and only the backing sequences needed for inserts. The migration identity must be SUPERUSER or BYPASSRLS and own the application tables (unless it is a database superuser).
+- Remove the administrator `DATABASE_URL` and migration confirmation variables from the shell after the migration. Never configure the migration identity in Streamlit Secrets.
+- Configure the Preview Streamlit app's `DATABASE_URL` with the runtime role only, plus the Preview-specific OIDC settings described in `OIDC_SETUP.md`.
 - Sign in as the designated administrator and open **Security & Audit (Admin)**.
-- Run **Uji koneksi, skema & hak akses PostgreSQL**. Confirm the connection, required tables, least-privilege grants, and actual RLS policy coverage pass. A failure is a release blocker; the diagnostic is read-only.
-- Confirm the console identifies PostgreSQL for cloud-backed signals, portfolio books and research runs. Audit storage may intentionally use SQLite only when an explicit `audit_db_path` override is configured.
+- Run **Uji koneksi, skema & hak akses PostgreSQL**. Confirm the connection, required tables, least-privilege grants, RLS/FORCE RLS, tenant/reviewer policy coverage, runtime-role ownership/membership and sequence permissions pass. A failure is a release blocker; the diagnostic is read-only.
+- Confirm the console identifies PostgreSQL for cloud-backed signals, portfolio books, research runs and audit events. Local SQLite history is not automatically migrated to Preview.
 - Do not use production database credentials for Preview validation.
-- Optional automated PostgreSQL storage integration tests are available in `tests/test_postgres_integration.py`. Set `AI_EQUITY_RESEARCH_TEST_DATABASE_URL` only to a disposable test database; the tests create and delete uniquely identified test records and must never target production.
+- CI runs the PostgreSQL integration suite against an ephemeral PostgreSQL 16 service. It provisions a restricted runtime role and verifies tenant isolation, reviewer access, no-context read/write behavior, transaction-local context reset, audit-chain append/read and denied access to unrelated administrator-owned sequences. This CI test does not replace the Preview migration and acceptance checks.
 
 ## 3. Multi-user isolation
 
@@ -40,7 +42,7 @@ Use two distinct Google test accounts and map each verified `issuer|sub` to an a
 - Analyst: may run research and export reports but cannot manage portfolio books or access the admin console.
 - Portfolio manager: may run research, manage portfolio books and export reports, but cannot access admin-only controls.
 - Admin: may access all approved pages and the Security & Audit console.
-- Confirm LOGIN, LOGOUT, scan, screener, backtest, portfolio lifecycle, report export, audit export, database health and schema initialization events are recorded.
+- Confirm LOGIN, LOGOUT, scan, screener, backtest, portfolio lifecycle, report export, audit export and database health events are recorded. Record schema/RLS migration execution separately in the administrator's change log; migrations are intentionally not run through the app.
 - Run audit hash-chain verification and inspect the first failing event if the chain is invalid.
 - Treat the hash chain as tamper-evident, not WORM/immutable.
 
