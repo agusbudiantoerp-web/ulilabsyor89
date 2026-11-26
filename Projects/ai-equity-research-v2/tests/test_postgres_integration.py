@@ -399,6 +399,10 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
     monkeypatch.delenv("CLOUD_DATABASE_URL", raising=False)
     monkeypatch.delenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT", raising=False)
 
+    from database_health import check_postgres_health
+    diagnostics = check_postgres_health()
+    assert diagnostics["rls_issues"] == []
+
     suffix = uuid.uuid4().hex[:8]
     owner_a, owner_b, reviewer = f"tenant-a-{suffix}", f"tenant-b-{suffix}", f"reviewer-{suffix}"
     with psycopg.connect(runtime_url) as raw:
