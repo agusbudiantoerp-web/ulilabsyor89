@@ -16,8 +16,8 @@ The dashboard supports two isolated storage backends:
 DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
 ```
 
-4. Reboot the Streamlit app. The administrator-only Security & Audit page can initialize the idempotent application schemas and then verify connectivity, required tables and configured table privileges. Do not assume that a configured URL means the database is reachable.
-5. Existing learning rows are assigned `legacy-unassigned` and are not visible to authenticated users. Local SQLite portfolio books and research runs are not automatically uploaded.
+4. From a trusted administrator workstation, run `postgres_schema_migration.py` with a dedicated private DDL connection and explicit `AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION=YES`. Create a separate runtime role with no table ownership, SUPERUSER/BYPASSRLS, or inherited role memberships. Then run `postgres_rls_migration.py` with `AI_EQUITY_RESEARCH_RUNTIME_ROLE` and `AI_EQUITY_RESEARCH_CONFIRM_RLS_MIGRATION=YES` to apply and FORCE tenant policies. The migration identity must own the schema objects and have SUPERUSER/BYPASSRLS. Never put this connection in Streamlit Secrets.
+5. Configure Streamlit Secrets with only the restricted runtime `DATABASE_URL`, reboot the Preview app, and run the read-only Security & Audit database check. Confirm RLS, FORCE RLS, table ownership, policy coverage/applicability and required grants all pass. Existing learning rows assigned `legacy-unassigned` remain unavailable to authenticated users. Local SQLite portfolio books and research runs are not automatically uploaded.
 
 Never commit the real connection URI, database password, or service credentials. Keep `.streamlit/secrets.toml` out of Git.
 

@@ -90,9 +90,15 @@ def apply_rls_policies() -> tuple[str, ...]:
             if missing:
                 raise RuntimeError("Required owner-scoped tables are missing: " + ", ".join(missing))
             cursor.execute(
-                "SELECT rolsuper FROM pg_roles WHERE rolname=current_user"
+                "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user"
             )
-            migration_is_superuser = bool(cursor.fetchone()[0])
+            migration_role = cursor.fetchone()
+            migration_is_superuser = bool(migration_role[0])
+            if not migration_is_superuser and not bool(migration_role[1]):
+                raise RuntimeError(
+                    "The RLS migration identity must be SUPERUSER or BYPASSRLS so future "
+                    "maintenance migrations can safely run after FORCE ROW LEVEL SECURITY."
+                )
             for table, table_owner in owners.items():
                 if table_owner == runtime_role:
                     raise RuntimeError(f"Runtime role owns table {table}.")
