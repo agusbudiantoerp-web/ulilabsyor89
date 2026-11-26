@@ -7,7 +7,7 @@ from database_health import OWNER_SCOPED_TABLES, REQUIRED_TABLES, check_postgres
 def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
                            superuser=False, bypass_rls=False, table_owner="db_owner",
                            tenant_policies=True, broad_policy=False,
-                           policy_role_mismatch=False):
+                           policy_role_mismatch=False, inherited_roles=None):
     class FakeCursor:
         def __init__(self):
             self.one = None
@@ -28,6 +28,8 @@ def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
                 self.one = (True,)
             elif "SELECT current_user, r.rolsuper" in query:
                 self.one = ("app_role", superuser, bypass_rls)
+            elif "SELECT r.rolname FROM pg_roles" in query:
+                self.many = [(name,) for name in (inherited_roles or [])]
             elif "pg_class c JOIN pg_namespace" in query:
                 self.many = [
                     (name, rls_enabled, force_rls, table_owner, "app_role")
@@ -127,6 +129,19 @@ def test_database_health_rejects_superuser_or_bypassrls_application_role(monkeyp
     result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
     assert result["ok"] is False
     assert any(item["scope"] == "application_role" for item in result["rls_issues"])
+
+
+def test_database_health_rejects_inherited_postgres_roles(monkeypatch):
+    _install_fake_postgres(
+        monkeypatch, rls_enabled=True, force_rls=True,
+        inherited_roles=["table_owner"],
+    )
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["ok"] is False
+    assert any(
+        "mewarisi hak akses role PostgreSQL lain" in item["reason"]
+        for item in result["rls_issues"]
+    )
 
 
 def test_database_health_rejects_application_role_that_owns_rls_tables(monkeypatch):

@@ -132,6 +132,13 @@ def check_postgres_health(secrets: Any = None) -> dict:
                 )
                 rls_rows = cursor.fetchall()
                 cursor.execute(
+                    "SELECT r.rolname FROM pg_roles r "
+                    "WHERE r.rolname <> current_user "
+                    "AND pg_has_role(current_user, r.oid, 'USAGE') "
+                    "ORDER BY r.rolname"
+                )
+                inherited_roles = [row[0] for row in cursor.fetchall()]
+                cursor.execute(
                     "SELECT tablename, policyname, permissive, roles, cmd, qual, with_check, "
                     "('public' = ANY(roles) OR current_user::name = ANY(roles) OR EXISTS ("
                     "SELECT 1 FROM unnest(roles) AS policy_role "
@@ -145,6 +152,11 @@ def check_postgres_health(secrets: Any = None) -> dict:
 
         missing = sorted(set(required_tables) - existing)
         rls_issues = []
+        if inherited_roles:
+            rls_issues.append({
+                "scope": "application_role",
+                "reason": "Role aplikasi mewarisi hak akses role PostgreSQL lain: " + ", ".join(inherited_roles) + ".",
+            })
         if application_role["superuser"] or application_role["bypass_rls"]:
             rls_issues.append({
                 "scope": "application_role",
