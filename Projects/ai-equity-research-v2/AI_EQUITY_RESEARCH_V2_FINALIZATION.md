@@ -77,3 +77,8 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 ## Research limitations
 
 Yahoo Finance data may be delayed, incomplete, revised, rate-limited or unavailable. IDX/US reporting currencies and fiscal periods can differ. Signals and valuation outputs are research hypotheses, not executable quotes or personalized investment advice. No module places broker orders.
+
+
+## PostgreSQL RLS policy diagnostics
+
+The read-only database health check verifies more than `relrowsecurity` and `relforcerowsecurity`: it also inspects `pg_policies` for each registered owner-scoped table. A release-ready table must have tenant-scoped permissive policy coverage for SELECT, INSERT, UPDATE, and DELETE, with both `USING` and `WITH CHECK` expressions (where applicable) binding `owner_id` to `current_setting('app.current_owner_id', true)`. Broad permissive policies and missing CRUD coverage are reported as release blockers. This remains diagnostic only: it does not create policies, set per-transaction owner context, or change database privileges. Actual RLS rollout still requires a separately reviewed migration and integration tests using the restricted non-owner application role.
