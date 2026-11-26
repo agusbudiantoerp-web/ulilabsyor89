@@ -6,9 +6,9 @@ Last updated: 2026-11-26
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head: `8e41ba05ff41ee656e29d557b429575b1d97b9c9` (documentation-only release-readiness update).
-- Latest CI on the current branch head completed successfully: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45824026379).
-- Latest code-bearing verification baseline: `e67a54530ea8ff0813afc3152408f4a23215223f`, **772 passed, 0 failed**; Python 3.10 module compilation and the complete suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45823801298). The intervening branch-head change is documentation-only; no code changes were made after that 772-test baseline.
+- Latest branch head at the time of this update: `8753684adf10759eda5ed6aa6590661bbdc68e54` (Preview operator runbook added; documentation-only).
+- Latest full CI verification: **772 passed, 0 failed** on commit `8eb92f7742925dee07688003ea8c56c3938372a6`; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45825699086).
+- CI for the intervening documentation-only commit `615c87425617f4b74488e36e644862b1acafa1b5` also completed successfully: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45825963452). The runbook-only update does not change application code and requires its own branch-head CI check.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
@@ -19,8 +19,8 @@ Last updated: 2026-11-26
 
 ## Implemented in the development branch
 
-- IDX/US research, DCF, Multi-Stage DCF, Reverse DCF, cross-model EV/equity/price bridge checks, and operating sensitivity across revenue-growth × EBIhDA-margin assumptions with Excel/PDF Research Pack export.
-- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow with strict currency/URL/ticker/numeric validation and separate invalid-value reporting. Filing validation checks three-letter currency codes, structurally valid HhTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, distinguishes invalid provider values from genuinely missing data, and exposes invalid-value counts separately in the valuation UI. Multi-Stage DCF returns explicit unavailable results for non-finite forecast/terminal calculations rather than leaking numerical overflow.
+- IDX/US research, DCF, Multi-Stage DCF, Reverse DCF, cross-model EV/equity/price bridge checks, and operating sensitivity across revenue-growth × EBITDA-margin assumptions with Excel/PDF Research Pack export.
+- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow with strict currency/URL/ticker/numeric validation and separate invalid-value reporting. Filing validation checks three-letter currency codes, structurally valid HTTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, distinguishes invalid provider values from genuinely missing data, and exposes invalid-value counts separately in the valuation UI. Multi-Stage DCF returns explicit unavailable results for non-finite forecast/terminal calculations rather than leaking numerical overflow.
 - Portfolio cash-flow ledger, TWR/XIRR, FIFO/weighted-average tax lots, realized P&L, opening lots and split basis adjustments.
 - Manual broker-statement CSV reconciliation with matched/missing/unexpected and amount/quantity/price/date exceptions.
 - Transaction-aware historical portfolio replay with explicit trade fills, optional settlement dates, reserved unsettled buy payables, unsettled sell receivables, stale-price/FX checks and external-flow-adjusted TWR.
@@ -74,3 +74,8 @@ The `outcomes` table now has a persisted, non-null `owner_id`, backfilled from i
 
 The Streamlit runtime does not execute PostgreSQL DDL. Run `postgres_schema_migration.py` out-of-band using a dedicated administrator connection and explicit confirmation. Then run `postgres_rls_migration.py` using the administrator connection, a dedicated restricted runtime role name, and explicit confirmation. The application receives only the restricted non-owner runtime connection. Both migration steps are covered by PostgreSQL 16 CI integration tests, but still must be executed and verified in the actual Preview environment.
 
+
+
+## Preview operator runbook
+
+A step-by-step Preview-only operator guide is available in `PREVIEW_OPERATOR_RUNBOOK.md`. It covers Google callback setup, disposable PostgreSQL provisioning, separation of migration/runtime identities, schema and RLS migration commands, read-only diagnostics, two-identity acceptance and explicit stop/go criteria. It does not authorize production changes.
