@@ -1,20 +1,11 @@
 import sys
 from types import ModuleType
 
-from database_health import REQUIRED_TABLES, check_postgres_health
+from database_health import OWNER_SCOPED_TABLES, REQUIRED_TABLES, check_postgres_health
 
 
-def test_database_health_fails_closed_when_url_is_not_configured(monkeypatch):
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.delenv("CLOUD_DATABASE_URL", raising=False)
-    result = check_postgres_health({})
-    assert result["configured"] is False
-    assert result["connected"] is False
-    assert result["ok"] is False
-    assert set(result["missing_tables"]) == set(REQUIRED_TABLES)
-
-
-def test_database_health_checks_connection_tables_and_privileges(monkeypatch):
+def _install_fake_postgres(monkeypatch, *, rls_enabled=False, force_rls=False,
+                           superuser=False, bypass_rls=False, table_owner="db_owner"):
     class FakeCursor:
         def __init__(self):
             self.one = None
@@ -33,6 +24,13 @@ def test_database_health_checks_connection_tables_and_privileges(monkeypatch):
                 self.many = [(name,) for name in params[0]]
             elif "has_table_privilege" in query:
                 self.one = (True,)
+            elif "SELECT current_user, r.rolsuper" in query:
+                self.one = ("app_role", superuser, bypass_rls)
+            elif "pg_class c JOIN pg_namespace" in query:
+                self.many = [
+                    (name, rls_enabled, force_rls, table_owner, "app_role")
+                    for name in params[0]
+                ]
 
         def fetchone(self):
             return self.one
@@ -54,11 +52,55 @@ def test_database_health_checks_connection_tables_and_privileges(monkeypatch):
     fake_psycopg.connect = lambda url, connect_timeout: FakeConnection()
     monkeypatch.setitem(sys.modules, "psycopg", fake_psycopg)
 
+
+def test_database_health_fails_closed_when_url_is_not_configured(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("CLOUD_DATABASE_URL", raising=False)
+    result = check_postgres_health({})
+    assert result["configured"] is False
+    assert result["connected"] is False
+    assert result["ok"] is False
+    assert set(result["missing_tables"]) == set(REQUIRED_TABLES)
+    assert result["rls_issues"] == []
+
+
+def test_database_health_requires_rls_and_restricted_application_role(monkeypatch):
+    _install_fake_postgres(monkeypatch, rls_enabled=False, force_rls=False)
     result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
     assert result["configured"] is True
     assert result["connected"] is True
-    assert result["ok"] is True
+    assert result["ok"] is False
     assert result["database"] == "research_test"
     assert result["missing_tables"] == []
     assert result["privilege_issues"] == []
+    assert result["application_role"] == {
+        "name": "app_role", "superuser": False, "bypass_rls": False,
+    }
+    assert {item["scope"] for item in result["rls_issues"]} == OWNER_SCOPED_TABLES
     assert result["latency_ms"] >= 0
+
+
+def test_database_health_passes_when_rls_is_forced_and_role_is_restricted(monkeypatch):
+    _install_fake_postgres(monkeypatch, rls_enabled=True, force_rls=True)
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["connected"] is True
+    assert result["ok"] is True
+    assert result["rls_issues"] == []
+
+
+def test_database_health_rejects_superuser_or_bypassrls_application_role(monkeypatch):
+    _install_fake_postgres(
+        monkeypatch, rls_enabled=True, force_rls=True, bypass_rls=True,
+    )
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["ok"] is False
+    assert any(item["scope"] == "application_role" for item in result["rls_issues"])
+
+
+def test_database_health_rejects_application_role_that_owns_rls_tables(monkeypatch):
+    _install_fake_postgres(
+        monkeypatch, rls_enabled=True, force_rls=True, table_owner="app_role",
+    )
+    result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
+    assert result["ok"] is False
+    assert any("pemilik tabel" in item["reason"] for item in result["rls_issues"])
