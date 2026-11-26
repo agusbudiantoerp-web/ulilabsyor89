@@ -141,11 +141,14 @@ def render_security_audit(identity: dict, secrets) -> None:
             if prepared.get("ok"):
                 st.success("Skema PostgreSQL berhasil disiapkan dan pemeriksaan dasar lulus.")
             else:
-                st.warning("Skema telah diproses, tetapi masih ada tabel atau hak akses yang perlu diperiksa.")
+                st.warning("Skema telah diproses, tetapi masih ada tabel, hak akses, atau kebijakan RLS yang perlu diperiksa.")
                 if prepared.get("missing_tables"):
                     st.write("Tabel belum tersedia:", ", ".join(prepared["missing_tables"]))
                 if prepared.get("privilege_issues"):
                     st.dataframe(pd.DataFrame(prepared["privilege_issues"]), use_container_width=True, hide_index=True)
+                if prepared.get("rls_issues"):
+                    st.error("Isolasi database belum memenuhi syarat produksi. Aktifkan RLS + FORCE RLS dan gunakan role aplikasi non-owner tanpa SUPERUSER/BYPASSRLS.")
+                    st.dataframe(pd.DataFrame(prepared["rls_issues"]), use_container_width=True, hide_index=True)
         except Exception as exc:
             st.error(f"Inisialisasi skema gagal: {type(exc).__name__}. Detail koneksi disembunyikan.")
     if st.button("Uji koneksi, skema & hak akses PostgreSQL", key="database_health_check"):
@@ -165,13 +168,24 @@ def render_security_audit(identity: dict, secrets) -> None:
                 st.warning("Tabel belum tersedia: " + ", ".join(health["missing_tables"]))
             if health.get("privilege_issues"):
                 st.dataframe(pd.DataFrame(health["privilege_issues"]), use_container_width=True, hide_index=True)
-            if not health.get("missing_tables") and not health.get("privilege_issues"):
+            if health.get("application_role"):
+                st.json(health["application_role"])
+            if health.get("rls_issues"):
+                st.error("RLS belum aman untuk produksi. Semua tabel tenant harus mengaktifkan dan memaksa RLS; role aplikasi tidak boleh menjadi pemilik tabel, SUPERUSER, atau BYPASSRLS.")
+                st.dataframe(pd.DataFrame(health["rls_issues"]), use_container_width=True, hide_index=True)
+            if not health.get("missing_tables") and not health.get("privilege_issues") and not health.get("rls_issues"):
                 st.caption(f"Versi PostgreSQL: {health.get('server_version', 'N/A')}")
         _audit_event = {
             "connected": bool(health.get("connected")),
             "schema_ok": bool(health.get("ok")),
             "missing_table_count": len(health.get("missing_tables", [])),
             "privilege_issue_count": len(health.get("privilege_issues", [])),
+            "rls_issue_count": len(health.get("rls_issues", [])),
+            "application_role_restricted": bool(
+                health.get("application_role")
+                and not health["application_role"].get("superuser")
+                and not health["application_role"].get("bypass_rls")
+            ),
         }
         try:
             record_audit_event(
