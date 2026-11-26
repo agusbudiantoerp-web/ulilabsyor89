@@ -49,7 +49,7 @@ def test_accepts_dataframe_and_keeps_import_read_only():
 
 def test_amount_is_absolute_and_warnings_explain_gross_net_ambiguity():
     result = normalize_broker_statement(
-        "date,type,amount,ticker\n2026-11-25,BUY,-1000,BBCA\n"
+        "date,type,amount,ticker\n2026-11-25,DIVIDEND,-1000,BBCA\n"
     )
     assert result["events"].iloc[0]["amount"] == 1000
     assert any("gross atau net" in warning for warning in result["warnings"])
@@ -81,8 +81,8 @@ def test_rejects_unsupported_locale():
 
 def test_auto_locale_treats_three_digit_suffix_as_thousands_separator():
     result = normalize_broker_statement(
-        "date;type;amount;ticker;quantity;price\\n"
-        "2026-11-25;BUY;1,000;BBCA;1,000;1,000\\n"
+        "date;type;amount;ticker;quantity;price\n"
+        "2026-11-25;BUY;1,000;BBCA;1,000;1,000\n"
     )
     row = result["events"].iloc[0]
     assert row["amount"] == pytest.approx(1000)
@@ -92,8 +92,8 @@ def test_auto_locale_treats_three_digit_suffix_as_thousands_separator():
 
 def test_auto_locale_preserves_two_digit_decimal_values():
     result = normalize_broker_statement(
-        "date;type;amount;ticker;quantity;price\\n"
-        "2026-11-25;BUY;1.234,56;BBCA;2;617,28\\n",
+        "date;type;amount;ticker;quantity;price\n"
+        "2026-11-25;BUY;1.234,56;BBCA;2;617,28\n",
         locale="id",
     )
     row = result["events"].iloc[0]
