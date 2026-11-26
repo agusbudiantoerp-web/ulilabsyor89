@@ -289,3 +289,43 @@ def test_simulation_runners_reject_numpy_boolean_controls(parameter):
             returns_frame(), {"A": 0.6, "B": 0.4},
             **{parameter: np.bool_(True)},
         )
+
+
+
+@pytest.mark.parametrize("bad_weight", [True, np.bool_(True), float("nan"), float("inf"), "bad"])
+def test_historical_stress_rejects_non_finite_or_boolean_weights(bad_weight):
+    with pytest.raises(ValueError, match="Bobot"):
+        run_historical_stress_scenarios(
+            returns_frame(), {"A": bad_weight, "B": 0.0}, {"A": -0.1, "B": 0.0}
+        )
+
+
+@pytest.mark.parametrize("bad_shock", [True, np.bool_(False), float("nan"), float("inf"), "bad"])
+def test_historical_stress_rejects_non_finite_or_boolean_shocks(bad_shock):
+    with pytest.raises(ValueError, match="Shock"):
+        run_historical_stress_scenarios(
+            returns_frame(), {"A": 1.0, "B": 0.0}, {"A": bad_shock, "B": 0.0}
+        )
+
+
+@pytest.mark.parametrize("bad_value", [True, np.bool_(True), float("nan"), float("inf"), "bad"])
+def test_factor_stress_rejects_non_finite_or_boolean_factor_shocks(bad_value):
+    with pytest.raises(ValueError, match="Factor shock"):
+        run_factor_stress_scenario(
+            {"A": 1.0}, {"A": {"market": 1.0}}, {"market": bad_value}
+        )
+
+
+@pytest.mark.parametrize("bad_beta", [True, np.bool_(True), float("nan"), float("inf"), "bad"])
+def test_factor_stress_rejects_non_finite_or_boolean_exposures(bad_beta):
+    with pytest.raises(ValueError, match="Beta"):
+        run_factor_stress_scenario(
+            {"A": 1.0}, {"A": {"market": bad_beta}}, {"market": 0.1}
+        )
+
+
+def test_factor_stress_rejects_boolean_weights():
+    with pytest.raises(ValueError, match="Bobot"):
+        run_factor_stress_scenario(
+            {"A": True}, {"A": {"market": 1.0}}, {"market": 0.1}
+        )
