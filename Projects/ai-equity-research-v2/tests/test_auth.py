@@ -83,6 +83,25 @@ def test_oidc_provider_name_selects_one_named_provider_and_rejects_ambiguous_con
     assert not oidc_is_configured(ambiguous)
 
 
+def test_oidc_configuration_accepts_named_microsoft_entra_provider():
+    secrets = {
+        "auth": {
+            "redirect_uri": "https://preview.example.streamlit.app/oauth2callback",
+            "cookie_secret": "private",
+            "microsoft": {
+                "client_id": "entra-client-id",
+                "client_secret": "private-client-secret",
+                "server_metadata_url": (
+                    "https://login.microsoftonline.com/tenant-id/v2.0/"
+                    ".well-known/openid-configuration"
+                ),
+            },
+        }
+    }
+    assert oidc_is_configured(secrets)
+    assert oidc_provider_name(secrets) == "microsoft"
+
+
 def test_identity_uses_subject_not_email_for_role_resolution():
     user = FakeUser(iss="https://accounts.google.com", sub="immutable-sub-001", email="person@example.com", name="Person")
     identity = resolve_streamlit_identity(
