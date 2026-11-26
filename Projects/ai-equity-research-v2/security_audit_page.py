@@ -6,6 +6,8 @@ import os
 import pandas as pd
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from daily_signal_storage import backend_name as signal_backend_name
 from portfolio_store import backend_name as portfolio_backend_name
 from research_run_store import backend_name as research_backend_name
@@ -45,7 +47,7 @@ def render_security_audit(identity: dict, secrets) -> None:
     if not actor_id:
         raise PermissionError("Identitas administrator tidak tersedia.")
 
-    st.header("Security & Audit Console")
+    render_page_hero("INVESTMENT GOVERNANCE CENTER", "Security & Audit Console", "Administrator controls for role mapping, access visibility, audit integrity and operational diagnostics.", "ACCESS CONTROL  ·  AUDIT INTEGRITY  ·  ADMIN")
     st.caption("Konsol administrator untuk meninjau pemetaan role dan jejak audit sistem.")
     audit_path = secrets.get("audit_db_path")
     audit_path_value = str(audit_path) if audit_path else None
