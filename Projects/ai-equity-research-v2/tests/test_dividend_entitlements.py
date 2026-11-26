@@ -99,3 +99,44 @@ def test_dividend_entitlement_does_not_assume_zero_without_position_history():
     result = estimate_dividend_entitlements([], corporate_cycle())
     assert result["entitlements"].empty
     assert any("tidak ada posisi awal" in warning for warning in result["warnings"])
+
+
+def test_dividend_cycles_do_not_borrow_next_declaration_ex_date():
+    events = [
+        {
+            "ticker": "BBCA", "event_type": "DIVIDEND_DECLARATION",
+            "event_date": "2026-12-01", "status": "CONFIRMED",
+            "source": "Issuer filing", "retrieved_at": "2026-11-25T00:00:00Z",
+            "amount": 50, "currency": "IDR",
+        },
+        {
+            "ticker": "BBCA", "event_type": "DIVIDEND_DECLARATION",
+            "event_date": "2026-12-15", "status": "CONFIRMED",
+            "source": "Issuer filing", "retrieved_at": "2026-11-25T00:00:00Z",
+            "amount": 100, "currency": "IDR",
+        },
+        {
+            "ticker": "BBCA", "event_type": "EX_DIVIDEND",
+            "event_date": "2026-12-20", "status": "CONFIRMED",
+            "source": "Issuer filing", "retrieved_at": "2026-11-25T00:00:00Z",
+        },
+        {
+            "ticker": "BBCA", "event_type": "RECORD_DATE",
+            "event_date": "2026-12-22", "status": "CONFIRMED",
+            "source": "Issuer filing", "retrieved_at": "2026-11-25T00:00:00Z",
+        },
+        {
+            "ticker": "BBCA", "event_type": "PAY_DATE",
+            "event_date": "2026-12-30", "status": "CONFIRMED",
+            "source": "Issuer filing", "retrieved_at": "2026-11-25T00:00:00Z",
+        },
+    ]
+    portfolio = [
+        {"date": "2026-12-01", "event_type": "BUY", "amount": 1000,
+         "ticker": "BBCA", "quantity": 10, "price": 100},
+    ]
+    result = estimate_dividend_entitlements(portfolio, events)
+    assert len(result["entitlements"]) == 1
+    assert result["entitlements"].iloc[0]["declaration_date"] == pd.Timestamp("2026-12-15")
+    assert result["entitlements"].iloc[0]["gross_entitlement_estimate"] == pytest.approx(1000)
+    assert any("ambigu" in warning for warning in result["warnings"])
