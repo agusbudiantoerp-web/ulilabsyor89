@@ -78,3 +78,24 @@ def test_rejects_ambiguous_duplicate_alias_columns():
 def test_rejects_unsupported_locale():
     with pytest.raises(ValueError, match="locale"):
         normalize_broker_statement("date,type,amount,ticker\n", locale="fr")
+
+def test_auto_locale_treats_three_digit_suffix_as_thousands_separator():
+    result = normalize_broker_statement(
+        "date,type,amount,ticker,quantity,price\\n"
+        "2026-11-25,BUY,1,000,BBCA,1,000,1,000\\n"
+    )
+    row = result["events"].iloc[0]
+    assert row["amount"] == pytest.approx(1000)
+    assert row["quantity"] == pytest.approx(1000)
+    assert row["price"] == pytest.approx(1000)
+
+
+def test_auto_locale_preserves_two_digit_decimal_values():
+    result = normalize_broker_statement(
+        "date;type;amount;ticker;quantity;price\\n"
+        "2026-11-25;BUY;1.234,56;BBCA;2;617,28\\n",
+        locale="id",
+    )
+    row = result["events"].iloc[0]
+    assert row["amount"] == pytest.approx(1234.56)
+    assert row["price"] == pytest.approx(617.28)
