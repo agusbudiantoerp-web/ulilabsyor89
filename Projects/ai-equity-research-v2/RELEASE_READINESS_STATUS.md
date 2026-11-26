@@ -6,9 +6,9 @@ Last updated: 2026-11-26
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head at the time of this update: `8753684adf10759eda5ed6aa6590661bbdc68e54` (Preview operator runbook added; documentation-only).
-- Latest full CI verification: **772 passed, 0 failed** on commit `8eb92f7742925dee07688003ea8c56c3938372a6`; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45825699086).
-- CI for the intervening documentation-only commit `615c87425617f4b74488e36e644862b1acafa1b5` also completed successfully: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45825963452). The runbook-only update does not change application code and requires its own branch-head CI check.
+- Latest branch head at the time of this update: `a154413ba4194b71d4853cddf9dbb5f82e54b944` (Preview operator runbook and release documentation; documentation-only).
+- Latest branch-head CI verification: **success** on commit `a154413ba4194b71d4853cddf9dbb5f82e54b944`; Python 3.10 module compilation and the complete automated/PostgreSQL integration job both completed successfully: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45827459261).
+- Latest code-bearing full-suite baseline: **772 passed, 0 failed** on commit `e67a54530ea8ff0813afc3152408f4a23215223f`, including PostgreSQL 16 integration: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45823801298). Subsequent changes through `a154413` are documentation-only.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
