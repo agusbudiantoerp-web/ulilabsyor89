@@ -47,7 +47,32 @@ Replace all placeholders privately in Streamlit Secrets. The `[auth]` values abo
 
 A named provider section such as `[auth.google]` is also supported by the application, but do not configure both the default provider keys and a named provider at the same time.
 
-## 3. Assign roles safely
+## 3. Microsoft Entra ID (optional named provider)
+
+The application accepts one named OIDC provider as well as Streamlit's default provider. For a Microsoft Entra ID tenant:
+
+1. In Microsoft Entra admin center, create or select an App registration.
+2. Under **Authentication**, add a **Web** redirect URI using the exact Preview or production callback: `https://YOUR-APP-NAME.streamlit.app/oauth2callback`.
+3. Create a client secret and keep its value private. Use the tenant-specific OpenID discovery endpoint below; replace `TENANT_ID` with the directory tenant ID (or a supported tenant authority chosen by the administrator).
+
+Example private Streamlit Secrets configuration:
+
+```toml
+[auth]
+redirect_uri = "https://YOUR-APP-NAME.streamlit.app/oauth2callback"
+cookie_secret = "REPLACE_WITH_A_LONG_RANDOM_PRIVATE_VALUE"
+
+[auth.microsoft]
+client_id = "YOUR_ENTRA_APPLICATION_CLIENT_ID"
+client_secret = "YOUR_ENTRA_CLIENT_SECRET"
+server_metadata_url = "https://login.microsoftonline.com/TENANT_ID/v2.0/.well-known/openid-configuration"
+
+[auth_roles]
+"EXACT_ISSUER_FROM_LOGIN|IMMUTABLE_SUBJECT_FROM_LOGIN" = "admin"
+```
+
+Do not configure `[auth].client_id`, `[auth].client_secret` or `[auth].server_metadata_url` alongside `[auth.microsoft]`; the app deliberately accepts exactly one provider configuration. The application calls Streamlit's named provider login using the configured section name. After a test login, copy the exact verified `iss|sub` principal shown by the denied-access screen into `[auth_roles]`; do not construct the issuer value from assumptions. Keep client secrets and tenant-specific settings private.
+## 4. Assign roles safely
 
 1. Save the provider settings and restart/reload the Streamlit app.
 2. Sign in with the intended Google account.
@@ -64,7 +89,7 @@ Supported roles:
 | `portfolio_manager` | Analyst access plus portfolio and risk management |
 | `admin` | All application pages and administrative permission primitives |
 
-## 4. Preview-first rollout
+## 5. Preview-first rollout
 
 Create a separate Streamlit Community Cloud app using the development branch and this project entry point:
 
@@ -83,11 +108,11 @@ After Streamlit assigns the preview app URL:
 
 Initially keep the Google OAuth consent screen in Testing and add only approved test accounts.
 
-## 5. Administrator console
+## 6. Administrator console
 
 The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, the server-side permission matrix, recent audit events, CSV export, hash-chain verification, storage routing, a confirmed PostgreSQL schema-preparation action and read-only connectivity/schema/privilege diagnostics. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
 
-## 6. Security and release limitations
+## 7. Security and release limitations
 
 - OIDC login and subject-to-role mapping do not by themselves prove complete tenant isolation.
 - Audit events use shared PostgreSQL when `DATABASE_URL` is configured; otherwise they use local SQLite. The hash chain is tamper-evident, not WORM/immutable.
