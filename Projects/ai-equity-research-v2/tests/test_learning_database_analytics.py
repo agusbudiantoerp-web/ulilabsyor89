@@ -55,6 +55,32 @@ def test_outcome_summary_includes_median_and_segments(tmp_path):
     assert buy_v1["median_forward_return_pct"] == pytest.approx(10.0)
 
 
+def test_outcomes_persist_owner_identity_and_reject_cross_owner_access(tmp_path):
+    from daily_signal_storage import signal_history
+    db_path, _ = _seed(tmp_path)
+    rows = signal_history(limit=10, db_path=db_path, owner_id="test-owner")
+    signal_id = next(row["id"] for row in rows if row["ticker"] == "AAA.JK")
+
+    with pytest.raises(ValueError, match="Signal tidak ditemukan"):
+        record_outcome(
+            signal_id, 1, "2026-01-06", 110.0,
+            db_path=db_path, owner_id="another-owner",
+        )
+
+    record_outcome(
+        signal_id, 1, "2026-01-06", 110.0,
+        db_path=db_path, owner_id="test-owner",
+    )
+    import sqlite3
+    with sqlite3.connect(db_path) as db:
+        stored_owner = db.execute(
+            "SELECT owner_id FROM outcomes WHERE signal_id=? AND horizon=1",
+            (signal_id,),
+        ).fetchone()[0]
+    assert stored_owner == "test-owner"
+    assert outcome_summary(db_path=db_path, owner_id="another-owner") == []
+
+
 def test_outcome_summary_does_not_count_unavailable_horizons(tmp_path):
     db_path, _ = _seed(tmp_path)
     summary = outcome_summary(db_path=db_path, owner_id='test-owner')
