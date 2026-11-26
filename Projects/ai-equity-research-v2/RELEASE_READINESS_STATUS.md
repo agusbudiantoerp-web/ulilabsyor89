@@ -44,13 +44,16 @@ Last updated: 2026-11-26
 
 ## Mandatory release gates — not yet signed off
 
-1. Configure Preview Google OIDC without sharing client secrets in chat.
-2. Configure a disposable staging PostgreSQL database, separate from production.
-3. Run two-user owner-isolation and role-permission tests.
-4. Verify audit-chain behavior, admin controls and denied-operation logging.
-5. Exercise backup and restore against staging data.
-6. Complete security and data-retention review.
-7. Review the final release candidate and obtain explicit approval before merging PR #4 or deploying.
+1. Configure Preview Google OIDC and register the exact callback URL; keep client secrets outside chat and source control.
+2. Provision a disposable Preview PostgreSQL database, separate from production, with TLS and a dedicated administrator/migration identity.
+3. Run `postgres_schema_migration.py` from a trusted administrator workstation with explicit confirmation.
+4. Create a dedicated non-owner, non-superuser, non-BYPASSRLS runtime role; run `postgres_rls_migration.py` with explicit confirmation and verify the read-only Security & Audit diagnostics report no RLS, policy, ownership or privilege issues.
+5. Configure Preview Streamlit with only the restricted runtime database connection and the server-side OIDC role map.
+6. Test two distinct Google identities across all owner-scoped stores, reviewer assignment/decisions, role-gated pages and direct operation paths; verify unknown identities are denied.
+7. Verify audit-chain behavior, admin-only audit UI, denied-operation logging and audit export controls.
+8. Exercise PostgreSQL backup and restore against staging data, including integrity verification.
+9. Complete dependency/vulnerability, security and data-retention review, plus an independent security review.
+10. Review the final release candidate and obtain explicit approval before merging PR #4 or deploying.
 
 ## Release decision
 
@@ -59,17 +62,15 @@ Last updated: 2026-11-26
 
 ## PostgreSQL RLS policy diagnostics
 
-The read-only database health check verifies more than `relrowsecurity` and `relforcerowsecurity`: it also inspects `pg_policies` for each registered owner-scoped table. A release-ready table must have tenant-scoped permissive policy coverage for SELECT, INSERT, UPDATE, and DELETE, with both `USING` and `WITH CHECK` expressions (where applicable) binding `owner_id` to `current_setting('app.current_owner_id', true)`. Broad permissive policies and missing CRUD coverage are reported as release blockers. This remains diagnostic only: it does not create policies, set per-transaction owner context, or change database privileges. Actual RLS rollout still requires a separately reviewed migration and integration tests using the restricted non-owner application role.
+The read-only database health check verifies RLS enablement and FORCE RLS, tenant/reviewer policy coverage, runtime-role attributes and ownership, and required CRUD grants. The separate `postgres_rls_migration.py` migration installs these policies and restricted grants. CI validates the migration against PostgreSQL 16 with a restricted non-owner runtime role, including no-context reads/writes and transaction-local context reset. These checks validate the migration mechanics in an ephemeral test database; the actual Preview database still requires explicit administrator rollout and read-only diagnostics before release.
 
 
 ## Forward-outcome ownership hardening
 
-The `outcomes` table now has a persisted, non-null `owner_id`, backfilled from its parent signal during PostgreSQL/SQLite initialization. Outcome writes validate ownership and persist the owner; reads and aggregates constrain joins by owner. A regression test covers cross-owner write rejection, persisted owner identity and cross-owner summary isolation. This is application-level ownership enforcement; PostgreSQL RLS remains unconfigured and is still a release gate.
+The `outcomes` table now has a persisted, non-null `owner_id`, backfilled from its parent signal during PostgreSQL/SQLite initialization. Outcome writes validate ownership and persist the owner; reads and aggregates constrain joins by owner. A regression test covers cross-owner write rejection, persisted owner identity and cross-owner summary isolation. This is reinforced by the separate PostgreSQL RLS migration, which forces row-level policies on the registered owner-scoped tables. Live Preview execution and two-identity acceptance remain release gates.
 
 
 ## Migration/runtime credential separation
 
-The Streamlit admin console no longer executes schema DDL using the application's runtime database URL. Schema migrations must be run out-of-band using `postgres_schema_migration.py` and a dedicated migration principal from a trusted administrator workstation. The app receives only a restricted non-owner runtime connection. This avoids creating tables owned by the runtime role and preserves least-privilege separation. The script does not install RLS policies; database-native tenant isolation remains unconfigured until the owner-context lifecycle is implemented and verified in staging.
+The Streamlit runtime does not execute PostgreSQL DDL. Run `postgres_schema_migration.py` out-of-band using a dedicated administrator connection and explicit confirmation. Then run `postgres_rls_migration.py` using the administrator connection, a dedicated restricted runtime role name, and explicit confirmation. The application receives only the restricted non-owner runtime connection. Both migration steps are covered by PostgreSQL 16 CI integration tests, but still must be executed and verified in the actual Preview environment.
 
-
-- PostgreSQL DDL is now separated from the Streamlit runtime: `postgres_schema_migration.py` requires an explicit private `DATABASE_URL` and one-time confirmation, and the admin console no longer runs schema creation with runtime credentials. This script does not enable RLS.
