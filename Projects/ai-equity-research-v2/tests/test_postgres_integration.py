@@ -24,6 +24,11 @@ def postgres_test_database(monkeypatch):
         pytest.skip("Set AI_EQUITY_RESEARCH_TEST_DATABASE_URL to a disposable PostgreSQL database.")
     monkeypatch.setenv("DATABASE_URL", url)
     monkeypatch.delenv("CLOUD_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION", "YES")
+    # Provision the disposable integration database before any test uses
+    # restricted runtime connections. Production never runs this fixture.
+    from postgres_schema_migration import run_schema_migrations
+    run_schema_migrations()
     return url
 
 
