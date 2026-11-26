@@ -301,8 +301,8 @@ def render_portfolio_cashflow() -> None:
         broker_currency = c2.selectbox("Mata uang broker", ["IDR", "USD"], key="snapshot_broker_currency")
         broker_date = st.date_input("Tanggal cut-off broker", key="snapshot_broker_date")
         holdings_raw = st.text_area(
-            "Holdings broker (TICKER,SHARES per baris)", value="BBCA,100\nTLKM,50",
-            key="snapshot_broker_holdings", help="Masukkan jumlah saham, bukan nilai pasar.",
+            "Holdings broker (TICKER,SHARES per baris)", value="",
+            key="snapshot_broker_holdings", help="Contoh format: BBCA,100 lalu TLKM,50. Masukkan jumlah saham, bukan nilai pasar.",
         )
         opening_cash = st.number_input("Saldo kas awal ledger", min_value=0.0, value=0.0, key="snapshot_ledger_opening_cash")
         opening_raw = st.text_input("Saldo saham awal ledger (TICKER:jumlah, pisahkan koma)", key="snapshot_ledger_opening_positions")
