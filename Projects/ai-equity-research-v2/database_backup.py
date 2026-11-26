@@ -308,6 +308,7 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
         return {"backup": str(backup_path), "manifest": str(manifest_path), "validation": "ok"}
     except Exception:
         backup_path.unlink(missing_ok=True)
+        backup_path.with_suffix(backup_path.suffix + ".manifest.json").unlink(missing_ok=True)
         raise
 
 
