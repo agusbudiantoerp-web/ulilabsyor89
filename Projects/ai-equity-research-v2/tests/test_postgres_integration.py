@@ -5,11 +5,12 @@ import uuid
 import pandas as pd
 import pytest
 
-from daily_signal_storage import outcome_summary, record_outcome, save_scan, signal_history
+from daily_signal_storage import outcome_summary, record_outcome, save_scan, signal_history, latest_scan
 from portfolio_store import delete_book, list_books, load_book, save_book
 from research_run_store import delete_run, get_run, list_runs, save_run
 from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
-                          request_review, list_reviews_for_reviewer, decide_review, update_thesis)
+                          request_review, list_reviews_for_reviewer, get_review_for_reviewer,
+                          list_reviews_for_thesis, decide_review, update_thesis)
 from corporate_event_store import create_event as create_corporate_event, delete_event as delete_corporate_event, list_events as list_corporate_events
 from portfolio_event_store import create_event as create_cashflow_event, delete_event as delete_cashflow_event, list_events as list_cashflow_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
