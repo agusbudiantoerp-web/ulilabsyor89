@@ -6,8 +6,8 @@ Last updated: 2026-11-27
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest validated code-bearing commit: `7abe492e11dc294bc2907f38986ffcf1eb56b82e` (Python 3.11 runtime, patched dependency floors, pandas 2.x compatibility, PostgreSQL source-target restore guard, and real PostgreSQL backup/restore round-trip integration test).
-- Latest push CI on that commit: **success** — PostgreSQL 16.16 client/server, Python 3.11, dependency audit reported **No known vulnerabilities found**, module compilation passed, and the complete suite passed **778 tests** including an actual `pg_dump` → `pg_restore` round-trip into a separate disposable database: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45909821159).
+- Latest validated code-bearing commit: `c42b1460ce6ad154b4bc5158cce23c9dedef1848` (includes a Streamlit `AppTest` entry-point smoke test that verifies the workspace renders and fails closed when OIDC Secrets are absent).
+- Latest push CI on that commit: **success** — PostgreSQL 16.16 client/server, Python 3.11, dependency audit reported **No known vulnerabilities found**, module compilation passed, and the complete suite passed **779 tests**. This includes the real `pg_dump` → `pg_restore` round-trip into a separate disposable database and the Streamlit startup smoke test: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45912015550).
 - The initial dependency audit found Pillow and SoupSieve CVEs in the original Python 3.10 resolution. The project runtime and CI now use Python 3.11 with patched Pillow/SoupSieve minimums; pandas is constrained below 3.0 to preserve validated date/type semantics.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
