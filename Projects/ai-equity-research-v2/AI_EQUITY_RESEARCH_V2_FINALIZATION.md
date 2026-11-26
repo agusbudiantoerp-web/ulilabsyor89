@@ -32,7 +32,7 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Streamlit-native OIDC login uses immutable issuer-bound `iss|sub` identity and server-managed roles: `viewer`, `analyst`, `portfolio_manager` and `admin`. Unknown principals fail closed.
 - Owner-scoped PostgreSQL/SQLite persistence is implemented for portfolio books, cash-flow events, valuation snapshots, corporate events, thesis/version/review records, daily learning/signals/outcomes and saved single-ticker, walk-forward and multi-asset research runs.
 - Session state is cleared when the authenticated principal changes.
-- Admin-only Security & Audit console includes role-map visibility, permission matrix, audit-chain verification, storage routing, confirmed PostgreSQL schema initialization and read-only connectivity/schema/privilege diagnostics.
+- Admin-only Security & Audit console includes role-map visibility, permission matrix, audit-chain verification, storage routing, read-only PostgreSQL connectivity/schema/privilege/RLS diagnostics; schema migrations run out-of-band with a separate DDL identity.
 - Audit events cover authentication, research and portfolio operations, cash-flow/valuation lifecycle actions, thesis/reviewer decisions, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
 - Excel/CSV formula-injection protections include leading whitespace and Unicode BOM handling; dynamic scenario worksheet names are sanitized/de-duplicated. PDF dynamic-text escaping is implemented.
 - `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. `verify --manifest` validates artifact size/hash and rejects POSIX/Windows path traversal. `restore-sqlite --manifest ... --target ...` restores a verified SQLite backup through a temporary file and integrity checks; existing targets are protected unless `--overwrite` is explicitly supplied. PostgreSQL restore is not automated. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
@@ -69,8 +69,8 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest feature-branch code head: `2a38a201a3d73b2c0c2cf8fd04a250aea5dfdda3`.
-- Latest full suite: **757 passed, 0 failed; fresh SQLite and PostgreSQL schemas enforce non-null outcome ownership**; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45773101971).
+- Latest feature-branch code head: `d51b19a9c4f17839808e24a7858ac209f0d6a3e8`.
+- Latest full suite: **761 passed, 0 failed**; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45775398277).
 - The admin Security & Audit console now reports RLS enablement, FORCE RLS, table ownership and application-role SUPERUSER/BYPASSRLS status. This is a release diagnostic, not automatic RLS policy provisioning; PostgreSQL RLS remains a required staging/production setup task.
 - CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
@@ -84,3 +84,6 @@ Yahoo Finance data may be delayed, incomplete, revised, rate-limited or unavaila
 The read-only database health check verifies more than `relrowsecurity` and `relforcerowsecurity`: it also inspects `pg_policies` for each registered owner-scoped table. A release-ready table must have tenant-scoped permissive policy coverage for SELECT, INSERT, UPDATE, and DELETE, with both `USING` and `WITH CHECK` expressions (where applicable) binding `owner_id` to `current_setting('app.current_owner_id', true)`. Broad permissive policies and missing CRUD coverage are reported as release blockers. This remains diagnostic only: it does not create policies, set per-transaction owner context, or change database privileges. Actual RLS rollout still requires a separately reviewed migration and integration tests using the restricted non-owner application role.
 
 - Forward-learning outcomes now persist their own tenant owner ID in SQLite and PostgreSQL; migrations backfill from parent signals, writes verify ownership, and history/summary joins enforce owner matching. Cross-owner regression coverage is included.
+
+
+- PostgreSQL schema DDL has been separated from the deployed runtime identity. The new out-of-band migration command requires a dedicated private `DATABASE_URL` plus explicit confirmation; the Streamlit admin console is now read-only for database diagnostics. RLS policy provisioning and transaction owner context are still not implemented.

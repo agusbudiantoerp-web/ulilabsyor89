@@ -13,10 +13,9 @@ CONFIRMATION_VARIABLE = "AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION"
 
 
 def run_schema_migrations() -> tuple[str, ...]:
-    database_url = (
-        os.getenv("DATABASE_URL")
-        or os.getenv("CLOUD_DATABASE_URL")
-    )
+    # Deliberately accept only the explicit migration URL. Do not fall back
+    # to a runtime/cloud URL that may have been inherited from the environment.
+    database_url = os.getenv("DATABASE_URL")
     if not database_url or not database_url.strip():
         raise RuntimeError("Set a private migration DATABASE_URL before running schema migrations.")
     if os.getenv(CONFIRMATION_VARIABLE) != "YES":
