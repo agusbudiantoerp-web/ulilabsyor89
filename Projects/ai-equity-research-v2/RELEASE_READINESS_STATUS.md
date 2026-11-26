@@ -6,8 +6,8 @@ Last updated: 2026-11-26
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest verified branch head: `eb2a8b1777cff3cf7affd7952b0cddcdf5b7e0a6` (RLS/runtime hardening and release-gate documentation).
-- Latest CI on that head: **772 passed, 0 failed**; Python module compilation and the complete test suite against an ephemeral PostgreSQL 16 service passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45822779180).
+- Latest verified branch head: `e67a54530ea8ff0813afc3152408f4a23215223f` (RLS/runtime hardening and corrected Preview migration guidance).
+- Latest CI on that head: **772 passed, 0 failed**; Python module compilation and the complete test suite against an ephemeral PostgreSQL 16 service passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45823801298).
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
