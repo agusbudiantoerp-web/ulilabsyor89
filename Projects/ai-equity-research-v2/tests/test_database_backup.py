@@ -100,7 +100,7 @@ def test_backup_manifest_verifier_rejects_path_traversal(tmp_path, unsafe_name):
     manifest.write_text(json.dumps({
         "backup_file": unsafe_name,
         "size_bytes": 0,
-        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "sha256": "0" * 64,
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="Nama file backup"):
         verify_backup_manifest(manifest)
@@ -116,7 +116,7 @@ def test_backup_manifest_verifier_rejects_hash_mismatch(tmp_path):
     manifest.write_text(json.dumps({
         "backup_file": backup.name,
         "size_bytes": backup.stat().st_size,
-        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "sha256": "0" * 64,
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="SHA-256"):
         verify_backup_manifest(manifest)
