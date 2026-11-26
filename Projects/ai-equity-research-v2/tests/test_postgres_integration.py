@@ -408,8 +408,8 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
     save_book(book_id, "RLS tenant A", pd.DataFrame([{
         "Market": "IDX", "Ticker": "BBCA", "Shares": 10, "Average Cost": 9000,
     }]), owner_id=owner_a)
-    assert any(row["id"] == book_id for row in list_books(owner_a))
-    assert all(row["id"] != book_id for row in list_books(owner_b))
+    assert any(row["id"] == book_id for row in list_books(owner_id=owner_a))
+    assert all(row["id"] != book_id for row in list_books(owner_id=owner_b))
 
     run_id = save_run(
         owner_id=owner_a, run_type="single_ticker", market="IDX",
