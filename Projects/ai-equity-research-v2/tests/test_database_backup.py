@@ -100,7 +100,7 @@ def test_backup_manifest_verifier_rejects_path_traversal(tmp_path, unsafe_name):
     manifest.write_text(json.dumps({
         "backup_file": unsafe_name,
         "size_bytes": 0,
-        "sha256": "0" * 64,
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="Nama file backup"):
         verify_backup_manifest(manifest)
@@ -308,7 +308,7 @@ def test_postgres_restore_requires_explicit_confirmation_and_empty_target(tmp_pa
         calls.append((command, env.copy(), timeout))
         if command[0].endswith("psql"):
             # Preflight sees an empty DB; postflight sees restored relations.
-            stdout = "0\\n" if len([x for x in calls if x[0][0].endswith("psql")]) == 1 else "14\\n"
+            stdout = "0\n" if len([x for x in calls if x[0][0].endswith("psql")]) == 1 else "14\n"
             return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
@@ -347,10 +347,10 @@ def test_postgres_restore_refuses_nonempty_target_before_running_pg_restore(tmp_
 
     def fake_run(command, **kwargs):
         calls.append(command)
-        return subprocess.CompletedProcess(command, 0, stdout="3\\n", stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="3\n", stderr="")
 
     monkeypatch.setattr(database_backup.subprocess, "run", fake_run)
-    with pytest.raises(RuntimeError, match="tidak kosong"):
+    with pytest.raises(RuntimeError, match="(?i)tidak kosong"):
         database_backup.restore_postgres_backup(manifest)
     assert len(calls) == 1
     assert calls[0][0].endswith("psql")
