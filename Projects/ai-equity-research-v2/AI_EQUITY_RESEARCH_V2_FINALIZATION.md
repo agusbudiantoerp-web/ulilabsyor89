@@ -70,7 +70,7 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 ## Current automated CI baseline
 
 - Latest feature-branch code head: `2a38a201a3d73b2c0c2cf8fd04a250aea5dfdda3`.
-- Latest full suite: **757 passed, 0 failed (before the latest NOT NULL schema hardening)**; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45771990434).
+- Latest full suite: **757 passed, 0 failed; fresh SQLite and PostgreSQL schemas enforce non-null outcome ownership**; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45773101971).
 - The admin Security & Audit console now reports RLS enablement, FORCE RLS, table ownership and application-role SUPERUSER/BYPASSRLS status. This is a release diagnostic, not automatic RLS policy provisioning; PostgreSQL RLS remains a required staging/production setup task.
 - CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
