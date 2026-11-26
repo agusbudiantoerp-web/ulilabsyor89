@@ -93,3 +93,9 @@ def test_dividend_entitlement_does_not_create_cash_ledger_events():
         pd.DataFrame(portfolio)["event_type"]
     )
     assert result["entitlements"].iloc[0]["status"] == "ESTIMATE_ONLY"
+
+
+def test_dividend_entitlement_does_not_assume_zero_without_position_history():
+    result = estimate_dividend_entitlements([], corporate_cycle())
+    assert result["entitlements"].empty
+    assert any("tidak ada posisi awal" in warning for warning in result["warnings"])
