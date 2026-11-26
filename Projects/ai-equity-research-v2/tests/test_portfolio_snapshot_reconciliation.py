@@ -123,5 +123,5 @@ def test_exception_report_marks_exact_matches_as_informational():
 
 
 def test_exception_classifier_rejects_invalid_detail_schema():
-    with pytest.raises(ValueError, match="kolom"):
+    with pytest.raises(ValueError, match="[Kk]olom"):
         classify_snapshot_exceptions(pd.DataFrame([{"status": "MATCH"}]))
