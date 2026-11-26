@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from portfolio_snapshot_reconciliation import reconcile_broker_snapshot
+from portfolio_snapshot_reconciliation import reconcile_broker_snapshot, classify_snapshot_exceptions
 
 
 def run(**overrides):
@@ -87,3 +87,41 @@ def test_empty_holdings_and_zero_cash_are_valid():
 def test_invalid_date_tolerance_is_rejected():
     with pytest.raises(ValueError, match="Date tolerance"):
         run(date_tolerance_days=1.5)
+
+
+def test_exception_classification_prioritizes_blockers_and_missing_holdings():
+    result = run(broker_currency="USD")
+    report = classify_snapshot_exceptions(result["details"])
+    details = report["details"]
+    assert set(details["priority"]) == {"BLOCKER"}
+    assert report["priority_counts"]["BLOCKER"] == len(details)
+    assert report["action_required_count"] == len(details)
+    assert report["read_only"] is True
+
+
+def test_exception_report_orders_critical_before_warnings_and_matches():
+    result = run(
+        broker_cash=900,
+        ledger_positions={"BBCA": 10, "TLKM": 5},
+        broker_positions={"BBCA": 9, "ASII": 2},
+    )
+    report = classify_snapshot_exceptions(result["details"])
+    details = report["details"]
+    assert details["priority"].tolist() == [
+        "CRITICAL", "CRITICAL", "WARNING", "WARNING"
+    ]
+    assert report["priority_counts"]["CRITICAL"] == 2
+    assert report["priority_counts"]["WARNING"] == 2
+    assert report["action_required_count"] == 4
+    assert details.iloc[0]["recommended_action"]
+
+
+def test_exception_report_marks_exact_matches_as_informational():
+    report = classify_snapshot_exceptions(run()["details"])
+    assert set(report["details"]["priority"]) == {"MATCHED"}
+    assert report["action_required_count"] == 0
+
+
+def test_exception_classifier_rejects_invalid_detail_schema():
+    with pytest.raises(ValueError, match="kolom"):
+        classify_snapshot_exceptions(pd.DataFrame([{"status": "MATCH"}]))
