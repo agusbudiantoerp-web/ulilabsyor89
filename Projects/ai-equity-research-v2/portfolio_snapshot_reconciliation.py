@@ -212,3 +212,41 @@ def classify_snapshot_exceptions(details: pd.DataFrame) -> dict:
         "action_required_count": int(result["priority"].isin(["BLOCKER", "CRITICAL", "WARNING", "REVIEW"]).sum()),
         "read_only": True,
     }
+
+
+def filter_portfolio_events_as_of(events: pd.DataFrame, as_of_date) -> dict:
+    """Return ledger events on/before a snapshot date and count excluded future rows.
+
+    Empty ledgers are valid and produce an empty, schema-complete event frame.
+    Invalid dates are rejected rather than silently omitted from a reconciliation.
+    """
+    if not isinstance(events, pd.DataFrame):
+        raise ValueError("Event ledger harus berupa DataFrame.")
+    required = {"date", "event_type", "amount"}
+    if events.empty and not required.issubset(events.columns):
+        frame = pd.DataFrame(columns=["date", "event_type", "amount", "ticker", "quantity", "price", "notes"])
+    else:
+        missing = required - set(events.columns)
+        if missing:
+            raise ValueError("Kolom event ledger tidak lengkap: " + ", ".join(sorted(missing)))
+        frame = events.copy()
+    cutoff = _calendar_date(as_of_date, "Tanggal cut-off ledger")
+    if frame.empty:
+        return {"events": frame, "excluded_future_events": 0, "as_of_date": cutoff.isoformat()}
+    parsed_dates = []
+    for value in frame["date"]:
+        if isinstance(value, (numbers.Number, bool)) or type(value).__name__ in {"bool_", "bool"}:
+            raise ValueError("Tanggal event ledger tidak valid.")
+        try:
+            parsed = pd.Timestamp(value)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError("Tanggal event ledger tidak valid.") from None
+        if pd.isna(parsed):
+            raise ValueError("Tanggal event ledger tidak valid.")
+        parsed_dates.append(parsed.date())
+    mask = pd.Series([value <= cutoff for value in parsed_dates], index=frame.index)
+    return {
+        "events": frame.loc[mask].copy(),
+        "excluded_future_events": int((~mask).sum()),
+        "as_of_date": cutoff.isoformat(),
+    }
