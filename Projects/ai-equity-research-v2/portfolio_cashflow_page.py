@@ -330,7 +330,12 @@ def render_portfolio_cashflow() -> None:
                     if len(parts) != 2 or not parts[0]:
                         raise ValueError(f"Baris holdings {line_no} harus TICKER,SHARES.")
                     broker_positions.append({"ticker": parts[0], "shares": float(parts[1])})
-                ledger_result = reconcile_portfolio_ledger(events, initial_cash=opening_cash, initial_positions=opening_positions)
+                event_dates = pd.to_datetime(events["date"], errors="coerce").dt.date
+                ledger_events = events.loc[event_dates <= ledger_date].copy()
+                excluded_future_events = int((event_dates > ledger_date).sum())
+                ledger_result = reconcile_portfolio_ledger(
+                    ledger_events, initial_cash=opening_cash, initial_positions=opening_positions
+                )
                 result = reconcile_broker_snapshot(
                     ledger_cash=ledger_result["cash_balance"], ledger_positions=ledger_result["positions"],
                     broker_cash=broker_cash, broker_positions=broker_positions,
@@ -342,6 +347,7 @@ def render_portfolio_cashflow() -> None:
                 st.session_state["snapshot_broker_summary"] = {
                     key: result[key] for key in ("status", "cash_difference", "matched_count", "exception_count", "warnings", "method")
                 }
+                st.session_state["snapshot_broker_excluded_future_events"] = excluded_future_events
             except Exception as exc:
                 st.error(f"Snapshot reconciliation gagal: {type(exc).__name__}: {exc}")
         summary = st.session_state.get("snapshot_broker_summary") or {}
@@ -355,6 +361,9 @@ def render_portfolio_cashflow() -> None:
                 st.metric("Selisih kas (broker − ledger)", f"{summary['cash_difference']:,.2f}")
             for warning in summary["warnings"]:
                 st.warning(warning)
+            excluded_count = int(st.session_state.get("snapshot_broker_excluded_future_events", 0))
+            if excluded_count:
+                st.info(f"{excluded_count} event setelah tanggal posisi ledger tidak disertakan dalam rekonstruksi.")
             if isinstance(details, pd.DataFrame):
                 st.dataframe(details, use_container_width=True, hide_index=True)
                 st.download_button("Unduh laporan snapshot CSV", safe_csv_bytes(details),
