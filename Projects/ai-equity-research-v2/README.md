@@ -14,7 +14,7 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 6. **Cash Flow & Return Ledger** — owner-scoped dividend/transaction events, cash/share reconciliation, TWR and XIRR.
 7. **Valuation Intelligence** — peer-relative multiples, currency/fiscal provenance, outlier flags and reverse DCF sensitivity.
 8. **Cross-Market & Monte Carlo** — IDR/USD FX-adjusted portfolio returns, Monte Carlo, historical and factor stress.
-9. **Corporate Actions Calendar** — source-attributed earnings/dividend/split events with status and stale/duplicate checks.
+9. **Corporate Actions Calendar** — source-attributed earnings/dividend/split events with status and stale/duplicate checks, including confirmed dividend declaration, ex-date, record date and pay date.
 10. **Investment Thesis** — owner-scoped, versioned bull/base/bear research theses linked to saved runs.
 11. **Thesis Review Inbox** — assigned version-specific reviewer decisions for portfolio managers/admins.
 12. **Security & Audit (admin only)** — server-managed OIDC role-map review, recent audit-event history, CSV export, on-demand hash-chain integrity verification and read-only PostgreSQL connectivity/schema/privilege diagnostics.
@@ -40,7 +40,8 @@ The original research, signal, portfolio and backtest menus also include these e
 - **Backtesting:** multi-asset long-only portfolio simulation with maximum concurrent positions, per-position weight caps, fee/slippage costs, and a lagged signal design: completed day-t signals can only earn returns beginning on day t+1. A price-only benchmark comparison is included when benchmark data overlaps. Single-ticker, walk-forward and multi-asset runs can be saved, reloaded and deleted within the authenticated owner account.
 - **Performance & Learning:** export a research pack to Excel and a concise PDF summary.
 - **Data provenance:** provider/source ticker, currency, adjustment basis, retrieval/cache age, latest bar and OHLCV quality checks. Yahoo Finance requests use bounded retries, TTL caching and immediate rate-limit handling.
-- **Cash-flow ledger:** persistent owner-scoped deposits, withdrawals, dividends, buys/sells, fees, taxes and split ratios; TWR valuation snapshots can be saved by portfolio ID.
+- **Cash-flow ledger:** persistent owner-scoped deposits, withdrawals, dividends, buys/sells, fees, taxes and split ratios; TWR valuation snapshots can be saved by portfolio ID. Dividend events represent cash actually received and should be entered on payment date, not declaration or ex-date.
+- **Dividend entitlement estimate:** pairs confirmed declaration/ex/record/pay dates and estimates gross entitlement from the trade-date portfolio ledger and confirmed gross dividend per share. It does not post cash automatically and excludes broker settlement corrections, withholding tax, fractional cash-in-lieu and FX. Opening positions must be present in the ledger or supplied as an initial-position snapshot; otherwise the estimate is withheld.
 - **Cross-market portfolio:** explicit IDR/USD base currency and FX alignment with stale-FX rejection. Daily close model only; no intraday synchronization.
 - **Valuation tools:** peer median/coverage and reverse DCF implied FCF growth with sensitivity.
 - **Research governance:** owner-scoped thesis version history, assigned PM/admin review, and thesis/review history plus market-data provenance included in the Excel research pack.
