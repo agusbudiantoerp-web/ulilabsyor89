@@ -11,6 +11,7 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 - Install dependencies from this directory with `python -m pip install -r requirements.txt`.
 - Run the app locally with `streamlit run app.py`.
 - The GitHub Actions workflow compiles the modules, audits resolved Python dependencies with `pip-audit`, and runs the full test suite against PostgreSQL 16.
+- Windows workstation setup and PowerShell commands: see `WINDOWS_DEVELOPER_SETUP.md`.
 
 ## Interface and visual system
 
