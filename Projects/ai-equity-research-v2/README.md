@@ -4,6 +4,14 @@ Integrated Streamlit research platform for Indonesian (IDX) and US equities. The
 
 Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, incomplete, revised, rate-limited, or unavailable. Verify material data against issuer filings and exchange disclosures.
 
+## Runtime and installation
+
+- Supported runtime baseline: **Python 3.11** (declared in `runtime.txt` and enforced by CI).
+- Python 3.11 is required by the patched Pillow release used to clear the current dependency vulnerability audit. Python 3.10 environments are no longer supported by this release candidate.
+- Install dependencies from this directory with `python -m pip install -r requirements.txt`.
+- Run the app locally with `streamlit run app.py`.
+- The GitHub Actions workflow compiles the modules, audits resolved Python dependencies with `pip-audit`, and runs the full test suite against PostgreSQL 16.
+
 ## Interface and visual system
 
 The workspace uses a responsive dark-fintech visual system with layered navy surfaces, subtle technical grid, cyan/blue/violet accents, high-contrast metric panels, consistent controls, selected-state navigation, and reusable page-specific hero headers. The shared styling and escaped hero renderer live in `ui_theme.py` and are applied by the authenticated app shell; page logic, access controls, audit behavior and financial calculations remain separate from presentation. Equity Research, Daily Signals, Portfolio & Risk, Backtesting, Performance & Learning, Cash Flow, Valuation, Cross-Market Simulation, Corporate Actions, Investment Thesis, Review Inbox and Security & Audit use a consistent visual hierarchy. The design adapts to narrow screens, respects reduced-motion preferences, and adds visible keyboard-focus indicators plus clear disabled-control states.
