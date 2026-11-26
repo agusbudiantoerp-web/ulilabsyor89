@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from portfolio_snapshot_reconciliation import reconcile_broker_snapshot, classify_snapshot_exceptions
+from portfolio_snapshot_reconciliation import (\n    reconcile_broker_snapshot, classify_snapshot_exceptions,\n    filter_portfolio_events_as_of,\n)
 
 
 def run(**overrides):
@@ -125,3 +125,27 @@ def test_exception_report_marks_exact_matches_as_informational():
 def test_exception_classifier_rejects_invalid_detail_schema():
     with pytest.raises(ValueError, match="[Kk]olom"):
         classify_snapshot_exceptions(pd.DataFrame([{"status": "MATCH"}]))
+
+
+
+def test_as_of_filter_accepts_empty_ledger_and_preserves_schema():
+    result = filter_portfolio_events_as_of(pd.DataFrame(), "2026-11-25")
+    assert result["events"].empty
+    assert {"date", "event_type", "amount"}.issubset(result["events"].columns)
+    assert result["excluded_future_events"] == 0
+
+
+def test_as_of_filter_excludes_future_events_and_counts_them():
+    events = pd.DataFrame([
+        {"date": "2026-11-24", "event_type": "DEPOSIT", "amount": 100},
+        {"date": "2026-11-26", "event_type": "DEPOSIT", "amount": 50},
+    ])
+    result = filter_portfolio_events_as_of(events, "2026-11-25")
+    assert result["events"]["amount"].tolist() == [100]
+    assert result["excluded_future_events"] == 1
+
+
+def test_as_of_filter_rejects_invalid_event_dates_instead_of_silently_dropping():
+    events = pd.DataFrame([{"date": "not-a-date", "event_type": "DEPOSIT", "amount": 100}])
+    with pytest.raises(ValueError, match="Tanggal event ledger"):
+        filter_portfolio_events_as_of(events, "2026-11-25")
