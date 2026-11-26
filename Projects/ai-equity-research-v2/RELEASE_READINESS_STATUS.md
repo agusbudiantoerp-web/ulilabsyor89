@@ -6,9 +6,10 @@ Last updated: 2026-11-26
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head at this readiness update: `e5cae55933725aba7ff864e079dd8fed0d4fbaca`.
-- Latest completed full CI code/test baseline: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2`; Python 3.10 compilation and PostgreSQL 16 integration passed. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762865322) · [push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762860086).
-- Latest branch head `e5cae55933725aba7ff864e079dd8fed0d4fbaca` passed PR CI: **751 passed, 0 failed**, Python module compilation and PostgreSQL 16 integration succeeded: [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768724692).
+- Latest branch head: `87b9e2424255360c7929c89d85ba5feef8cb85e5`.
+- Earlier automated baseline: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2` (historical run; superseded by the latest full suite).
+- Latest fully validated functional code revision: `e5cae55933725aba7ff864e079dd8fed0d4fbaca` — **751 passed, 0 failed**, Python module compilation and PostgreSQL 16 integration succeeded: [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768724692).
+- Two commits after that code revision update release documentation only. Latest branch head `87b9e2424255360c7929c89d85ba5feef8cb85e5` also passed full CI: **751 passed, 0 failed**, Python module compilation and PostgreSQL 16 integration succeeded: [latest PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768922612).
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
