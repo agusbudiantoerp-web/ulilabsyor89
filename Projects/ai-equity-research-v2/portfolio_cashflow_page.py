@@ -34,10 +34,10 @@ def render_portfolio_cashflow() -> None:
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
-    st.subheader("Portfolio Cash Flow, Dividend Ledger & Returns")
+    st.markdown("""<section class="aer-hero"><div class="aer-eyebrow">Portfolio Intelligence · Cash Flow Analytics</div><div class="aer-title">Portfolio Cash Flow & Returns</div><div class="aer-subtitle">Track capital movements, dividends, broker reconciliation, tax lots and performance attribution with a clear audit trail.</div><span class="aer-chip">LEDGER &nbsp;·&nbsp; TWR / XIRR &nbsp;·&nbsp; PERFORMANCE ATTRIBUTION</span></section>""", unsafe_allow_html=True)
     st.caption(
-        "Catat arus kas investor dan aktivitas investasi. Perhitungan TWR mengeluarkan "
-        "setoran/penarikan eksternal; XIRR mengukur return berbobot arus kas."
+        "Catat arus kas investor dan aktivitas investasi. TWR mengeluarkan setoran/penarikan eksternal; "
+        "XIRR mengukur return berbobot arus kas."
     )
     st.caption("Event transaksi disimpan permanen dan dibatasi berdasarkan identitas pengguna. Valuasi TWR masih dimasukkan pada sesi aktif.")
     st.info(
