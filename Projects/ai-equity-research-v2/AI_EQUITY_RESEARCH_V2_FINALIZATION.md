@@ -69,10 +69,9 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest full feature-branch test run: **751 passed, 0 failed**, on commit `e5cae55933725aba7ff864e079dd8fed0d4fbaca`.
-- Python 3.10 module compilation and the complete automated suite passed, including PostgreSQL integration tests against an ephemeral PostgreSQL 16 service.
-- [GitHub Actions PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762865322) · [GitHub Actions push run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762860086).
-- Latest feature branch head `e5cae55933725aba7ff864e079dd8fed0d4fbaca` passed PR CI, including Python module compilation and the complete automated/PostgreSQL integration suite: [PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768724692).
+- Latest feature-branch head: `87b9e2424255360c7929c89d85ba5feef8cb85e5`.
+- Latest full feature-branch test run: **751 passed, 0 failed**, Python 3.10 module compilation and PostgreSQL 16 integration passed: [GitHub Actions PR run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45768922612).
+- The fully validated functional code revision is `e5cae55933725aba7ff864e079dd8fed0d4fbaca` (751 passed); two later commits only update release documentation. The latest documentation head above also passed the complete CI suite.
 - CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
 ## Research limitations
