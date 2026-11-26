@@ -278,3 +278,98 @@ def test_postgres_backup_removes_partial_dump_when_validation_fails(tmp_path, mo
         database_backup.backup_postgres(tmp_path / "backups")
     assert list((tmp_path / "backups").glob("*.dump")) == []
     assert list((tmp_path / "backups").glob("*.manifest.json")) == []
+
+def test_postgres_restore_requires_explicit_confirmation_and_empty_target(tmp_path, monkeypatch):
+    import hashlib
+    import subprocess
+    import database_backup
+
+    archive = tmp_path / "preview.dump"
+    archive.write_bytes(b"verified-postgres-archive")
+    manifest = tmp_path / "preview.dump.manifest.json"
+    manifest.write_text(json.dumps({
+        "backend": "PostgreSQL",
+        "backup_file": archive.name,
+        "size_bytes": archive.stat().st_size,
+        "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "validation": "pg_restore --list: ok",
+    }), encoding="utf-8")
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://restore_user:secret@preview-db.example/restore_target?sslmode=require")
+    monkeypatch.delenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, raising=False)
+    with pytest.raises(RuntimeError, match="mengonfirmasi restore"):
+        database_backup.restore_postgres_backup(manifest)
+
+    monkeypatch.setenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, "YES")
+    monkeypatch.setattr(database_backup.shutil, "which", lambda name: f"/usr/bin/{name}")
+    calls = []
+
+    def fake_run(command, *, env, check, capture_output, text, timeout):
+        calls.append((command, env.copy(), timeout))
+        if command[0].endswith("psql"):
+            # Preflight sees an empty DB; postflight sees restored relations.
+            stdout = "0\\n" if len([x for x in calls if x[0][0].endswith("psql")]) == 1 else "14\\n"
+            return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(database_backup.subprocess, "run", fake_run)
+    result = database_backup.restore_postgres_backup(manifest)
+    assert result["restored_relations"] == 14
+    assert "post-restore relation check: ok" in result["validation"]
+    restore_call = next(call for call in calls if call[0][0].endswith("pg_restore"))
+    command, env, _ = restore_call
+    assert "--single-transaction" in command
+    assert "--no-owner" in command and "--no-privileges" in command
+    assert "secret" not in " ".join(command)
+    assert "DATABASE_URL" not in env
+    assert env["PGDATABASE"] == "restore_target"
+
+
+def test_postgres_restore_refuses_nonempty_target_before_running_pg_restore(tmp_path, monkeypatch):
+    import hashlib
+    import subprocess
+    import database_backup
+
+    archive = tmp_path / "preview.dump"
+    archive.write_bytes(b"verified-postgres-archive")
+    manifest = tmp_path / "preview.dump.manifest.json"
+    manifest.write_text(json.dumps({
+        "backend": "PostgreSQL",
+        "backup_file": archive.name,
+        "size_bytes": archive.stat().st_size,
+        "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "validation": "pg_restore --list: ok",
+    }), encoding="utf-8")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://restore_user:secret@preview-db.example/restore_target")
+    monkeypatch.setenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, "YES")
+    monkeypatch.setattr(database_backup.shutil, "which", lambda name: f"/usr/bin/{name}")
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="3\\n", stderr="")
+
+    monkeypatch.setattr(database_backup.subprocess, "run", fake_run)
+    with pytest.raises(RuntimeError, match="tidak kosong"):
+        database_backup.restore_postgres_backup(manifest)
+    assert len(calls) == 1
+    assert calls[0][0].endswith("psql")
+
+
+def test_postgres_restore_rejects_sqlite_manifest(tmp_path):
+    import pytest
+    from database_backup import restore_postgres_backup
+
+    artifact = tmp_path / "sqlite.sqlite3"
+    artifact.write_bytes(b"not postgres")
+    manifest = tmp_path / "sqlite.sqlite3.manifest.json"
+    manifest.write_text(json.dumps({
+        "backend": "SQLite",
+        "backup_file": artifact.name,
+        "size_bytes": artifact.stat().st_size,
+        "sha256": "0" * 64,
+        "validation": "PRAGMA integrity_check: ok",
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="backend PostgreSQL"):
+        restore_postgres_backup(manifest)
+
