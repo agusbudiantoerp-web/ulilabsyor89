@@ -26,16 +26,18 @@ def test_schema_migration_runs_each_initializer_only_after_confirmation(monkeypa
     names = (
         "daily_signal_storage", "portfolio_store", "research_run_store",
         "thesis_store", "corporate_event_store", "portfolio_event_store",
-        "portfolio_valuation_store",
+        "portfolio_valuation_store", "security_controls",
     )
     called = []
     for name in names:
         module = ModuleType(name)
-        module.initialize = lambda name=name: called.append(name)
+        initializer_name = "initialize_postgres_audit_schema" if name == "security_controls" else "initialize"
+        module = ModuleType(name)
+        setattr(module, initializer_name, lambda name=name: called.append(name))
         monkeypatch.setitem(__import__("sys").modules, name, module)
 
     completed = migration.run_schema_migrations()
-    assert len(completed) == 7
+    assert len(completed) == 8
     assert called == list(names)
 
 
@@ -49,10 +51,11 @@ def test_schema_init_permission_is_restored_after_success(monkeypatch):
     for name in (
         "daily_signal_storage", "portfolio_store", "research_run_store",
         "thesis_store", "corporate_event_store", "portfolio_event_store",
-        "portfolio_valuation_store",
+        "portfolio_valuation_store", "security_controls",
     ):
         module = ModuleType(name)
-        module.initialize = lambda: None
+        initializer_name = "initialize_postgres_audit_schema" if name == "security_controls" else "initialize"
+        setattr(module, initializer_name, lambda: None)
         monkeypatch.setitem(__import__("sys").modules, name, module)
 
     migration.run_schema_migrations()
@@ -70,10 +73,11 @@ def test_schema_init_permission_is_restored_after_failure(monkeypatch):
     for name in (
         "daily_signal_storage", "portfolio_store", "research_run_store",
         "thesis_store", "corporate_event_store", "portfolio_event_store",
-        "portfolio_valuation_store",
+        "portfolio_valuation_store", "security_controls",
     ):
         module = ModuleType(name)
-        module.initialize = lambda: None
+        initializer_name = "initialize_postgres_audit_schema" if name == "security_controls" else "initialize"
+        setattr(module, initializer_name, lambda: None)
         monkeypatch.setitem(__import__("sys").modules, name, module)
 
     import sys
