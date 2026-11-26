@@ -69,12 +69,11 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest completed full CI run: **470 passed, 0 failed, 0 skipped** on verified code commit `652fa7264778051913481693861fca02c8b5093a`.
-- Python compile step passed in the same run.
-- All PostgreSQL integration tests were included in the full suite using an ephemeral disposable PostgreSQL 16 database; this does not replace a separate Preview/staging verification.
-- [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45589467538).
-- The Node.js 20 deprecation warning from the previous workflow was absent after upgrading the actions.
-- Do not treat CI as proof of Preview or production readiness.
+- Latest completed full CI run for the current feature branch UI refresh: **719 passed, 0 failed, 0 skipped** on commit `e2dde2d556033a39ab3ecc1ce3eb660df130b43b`.
+- Python module compilation and the complete automated suite both passed.
+- PostgreSQL integration tests ran against the workflow's ephemeral PostgreSQL 16 service. This does not replace separate Preview/staging verification.
+- [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45762282574).
+- Do not treat CI as proof of Preview or production readiness; OIDC callbacks, live provider credentials, two-user isolation, and backup/restore still require the release-gate exercise.
 
 ## Research limitations
 
