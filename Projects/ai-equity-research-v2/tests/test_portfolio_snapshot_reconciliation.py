@@ -32,7 +32,8 @@ def test_cash_difference_is_reported_broker_minus_ledger():
 
 def test_missing_and_extra_holdings_are_reported():
     result = run(ledger_positions={"BBCA": 10}, broker_positions={"TLKM": 5})
-    statuses = dict(zip(result["details"]["ticker"], result["details"]["status"]))
+    holdings = result["details"].query("item_type == 'HOLDING'")
+    statuses = dict(zip(holdings["ticker"], holdings["status"]))
     assert statuses == {"BBCA": "MISSING_IN_BROKER", "TLKM": "MISSING_IN_LEDGER"}
 
 
