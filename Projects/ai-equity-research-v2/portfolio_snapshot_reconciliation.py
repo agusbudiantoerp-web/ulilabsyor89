@@ -119,6 +119,11 @@ def reconcile_broker_snapshot(
             })
     else:
         cash_diff = None
+        rows.append({
+            "item_type": "CASH", "ticker": "", "ledger_balance": cash_left,
+            "broker_balance": cash_right, "difference": None,
+            "status": "NOT_COMPARABLE", "currency": "",
+        })
         for ticker in sorted(set(internal) | set(broker)):
             rows.append({
                 "item_type": "HOLDING", "ticker": ticker,
