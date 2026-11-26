@@ -40,7 +40,7 @@ def _connect_sqlite(db_path: str | None = None):
     return db
 
 
-def _connect_postgres():
+def _connect_postgres(owner_id=None, actor_id=None):
     url = _database_url()
     if not url:
         raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
@@ -49,6 +49,9 @@ def _connect_postgres():
         from psycopg.rows import dict_row
     except ImportError as exc:
         raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
+    if owner_id is not None or actor_id is not None:
+        from postgres_rls import connect_with_owner_context
+        return connect_with_owner_context(url, owner_id, actor_id)
     return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
 
 
@@ -58,6 +61,8 @@ def connect(db_path: str | None = None):
 
 
 def initialize(db_path: str | None = None):
+    if backend_name(db_path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        return
     if backend_name(db_path) == "PostgreSQL":
         statements = [
             """CREATE TABLE IF NOT EXISTS scans (
@@ -196,7 +201,7 @@ def save_scan(scan: dict, db_path: str | None = None, owner_id: str | None = Non
 
     if backend_name(db_path) == "PostgreSQL":
         from psycopg.types.json import Jsonb
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(
                     "INSERT INTO scans(created_at,scanned,failed,owner_id,payload) VALUES(%s,%s,%s,%s,%s) RETURNING id",
@@ -250,7 +255,7 @@ def latest_scan(db_path: str | None = None, owner_id: str | None = None):
     if not owner: raise ValueError('Owner identity wajib diisi.')
     initialize(db_path)
     if backend_name(db_path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute("SELECT id,payload FROM scans WHERE owner_id=%s ORDER BY id DESC LIMIT 1", (owner,))
                 row = cur.fetchone()
@@ -292,7 +297,7 @@ def signal_history(limit: int = 100, db_path: str | None = None, owner_id: str |
         WHERE s.owner_id={placeholder} ORDER BY s.bar_date DESC,s.id DESC LIMIT {placeholder}
     """
     if backend_name(db_path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(query, (owner, limit))
                 rows = cur.fetchall()
@@ -320,7 +325,7 @@ def get_pending_outcomes(limit: int = 500, db_path: str | None = None, owner_id:
                    ARRAY(SELECT o.horizon FROM outcomes o WHERE o.signal_id=s.id AND o.owner_id=s.owner_id) AS recorded
             FROM signals s WHERE s.owner_id=%s ORDER BY s.bar_date DESC LIMIT %s
         """
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(sql, (owner, limit))
                 rows = cur.fetchall()
@@ -358,7 +363,7 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
         raise ValueError("Harga observasi harus finite dan positif.")
     initialize(db_path)
     if backend_name(db_path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute("SELECT close,bar_date FROM signals WHERE id=%s AND owner_id=%s", (signal_id, owner))
                 row = cur.fetchone()
@@ -416,7 +421,7 @@ def outcome_summary(db_path: str | None = None, owner_id: str | None = None):
         ORDER BY o.horizon
     """
     if backend_name(db_path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(query, (owner,))
                 records = [dict(row) for row in cur.fetchall()]

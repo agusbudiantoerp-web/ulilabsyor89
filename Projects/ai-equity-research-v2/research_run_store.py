@@ -69,7 +69,7 @@ def _connect_sqlite(path: str | None = None):
     return db
 
 
-def _connect_postgres():
+def _connect_postgres(owner_id=None, actor_id=None):
     url = _database_url()
     if not url:
         raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
@@ -78,10 +78,15 @@ def _connect_postgres():
         from psycopg.rows import dict_row
     except ImportError as exc:
         raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
+    if owner_id is not None or actor_id is not None:
+        from postgres_rls import connect_with_owner_context
+        return connect_with_owner_context(url, owner_id, actor_id)
     return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
 
 
 def initialize(path: str | None = None) -> None:
+    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        return
     if backend_name(path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
@@ -157,7 +162,7 @@ def save_run(
     initialize(path)
     if backend_name(path) == "PostgreSQL":
         from psycopg.types.json import Jsonb
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute("""
                     INSERT INTO research_runs(
@@ -198,7 +203,7 @@ def list_runs(owner_id: str, limit: int = 100, path: str | None = None) -> list[
         ORDER BY created_at DESC LIMIT {limit}
     """
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             rows = db.execute(query.format(owner="%s", limit="%s"), (owner, bounded)).fetchall()
     else:
         with _connect_sqlite(path) as db:
@@ -219,7 +224,7 @@ def get_run(owner_id: str, run_id: str, path: str | None = None) -> dict:
         raise ValueError("Owner identity wajib diisi.")
     initialize(path)
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             row = db.execute(
                 "SELECT * FROM research_runs WHERE id=%s AND owner_id=%s",
                 (str(run_id), owner),
@@ -250,7 +255,7 @@ def delete_run(owner_id: str, run_id: str, path: str | None = None) -> bool:
         raise ValueError("Owner identity wajib diisi.")
     initialize(path)
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(
                     "DELETE FROM research_runs WHERE id=%s AND owner_id=%s RETURNING id",

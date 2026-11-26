@@ -30,7 +30,7 @@ def backend_name(path: str | None = None) -> str:
     return "SQLite" if path is not None or not _database_url() else "PostgreSQL"
 
 
-def _connect_postgres():
+def _connect_postgres(owner_id=None, actor_id=None):
     url = _database_url()
     if not url:
         raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
@@ -39,6 +39,9 @@ def _connect_postgres():
         from psycopg.rows import dict_row
     except ImportError as exc:
         raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
+    if owner_id is not None or actor_id is not None:
+        from postgres_rls import connect_with_owner_context
+        return connect_with_owner_context(url, owner_id, actor_id)
     return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
 
 
@@ -52,6 +55,8 @@ def _connect(path: str | None = None):
 
 
 def initialize(path: str | None = None) -> None:
+    if backend_name(path) == "PostgreSQL" and os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        return
     if backend_name(path) == "PostgreSQL":
         with _connect_postgres() as db:
             with db.cursor() as cur:
@@ -162,7 +167,7 @@ def save_book(book_id: str, name: str, positions: pd.DataFrame,
     initialize(path)
     now = datetime.now(timezone.utc).isoformat()
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute("""
                     INSERT INTO portfolio_books(owner_id,id,name,updated_at)
@@ -217,7 +222,7 @@ def list_books(path: str | None = None, owner_id: str | None = None) -> list[dic
         raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(
                     "SELECT id,name,updated_at FROM portfolio_books WHERE owner_id=%s ORDER BY name",
@@ -238,7 +243,7 @@ def load_book(book_id: str, path: str | None = None, owner_id: str | None = None
         raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(
                     "SELECT owner_id FROM portfolio_books WHERE id=%s AND owner_id=%s",
@@ -288,7 +293,7 @@ def delete_book(book_id: str, path: str | None = None, owner_id: str | None = No
         raise ValueError("Owner portfolio wajib diisi.")
     initialize(path)
     if backend_name(path) == "PostgreSQL":
-        with _connect_postgres() as db:
+        with _connect_postgres(owner) as db:
             with db.cursor() as cur:
                 cur.execute(
                     "DELETE FROM portfolio_books WHERE id=%s AND owner_id=%s RETURNING id",
