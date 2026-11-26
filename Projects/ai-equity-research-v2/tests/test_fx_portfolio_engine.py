@@ -147,3 +147,27 @@ def test_mixed_currency_portfolio_rejects_numpy_boolean_weight():
         combine_mixed_currency_returns(
             {"AAA": closes}, {"AAA": "IDR"}, {"AAA": np.bool_(True)}
         )
+
+
+
+def test_same_currency_portfolio_does_not_require_fx_series():
+    from fx_portfolio_engine import portfolio_requires_fx
+
+    assert portfolio_requires_fx({"BBCA": "IDR", "BMRI": "IDR"}, "IDR") is False
+    assert portfolio_requires_fx({"NVDA": "USD", "MSFT": "USD"}, "USD") is False
+    assert portfolio_requires_fx({"BBCA": "IDR", "NVDA": "USD"}, "IDR") is True
+
+
+def test_same_currency_portfolio_combines_without_fx_series():
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-06"])
+    bbca = pd.Series([100.0, 105.0, 103.0], index=dates)
+    bmri = pd.Series([200.0, 202.0, 206.0], index=dates)
+    result = combine_mixed_currency_returns(
+        {"BBCA": bbca, "BMRI": bmri},
+        {"BBCA": "IDR", "BMRI": "IDR"},
+        {"BBCA": 0.5, "BMRI": 0.5},
+        base_currency="IDR",
+    )
+    assert result["base_currency"] == "IDR"
+    assert result["asset_returns"].loc[dates[1], "BBCA"] == pytest.approx(0.05)
+    assert result["asset_returns"].loc[dates[1], "BMRI"] == pytest.approx(0.01)
