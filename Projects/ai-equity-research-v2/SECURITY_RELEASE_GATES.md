@@ -13,7 +13,7 @@
 - Login/logout and application activity are audit-logged. The audit console is admin-only; audit history is intentionally system-wide rather than tenant-private.
 - Audit writes are serialized in PostgreSQL and SQLite. A SHA-256 hash chain can detect accidental or partial tampering, but it is not WORM storage and cannot resist a privileged database administrator rewriting the entire chain.
 - Audit payloads reject common credential-like keys recursively. Excel/CSV exports escape formula-like untrusted text; dynamic PDF text is escaped.
-- The admin console exposes the server-managed role map, permission matrix, audit history/export, hash-chain verification, storage routing, confirmed idempotent PostgreSQL schema preparation and read-only database/table/privilege diagnostics.
+- The admin console exposes the server-managed role map, permission matrix, audit history/export, hash-chain verification, storage routing and read-only database/table/privilege diagnostics. It does not execute schema or RLS migrations through the runtime connection.
 - SQLite backup integrity checks and PostgreSQL custom-format logical backup support are provided by `database_backup.py`, with SHA-256 manifests.
 
 ## Explicit boundaries (not represented as completed application features)
@@ -45,14 +45,14 @@
 
 ## PostgreSQL RLS policy diagnostics
 
-The read-only database health check verifies more than `relrowsecurity` and `relforcerowsecurity`: it also inspects `pg_policies` for each registered owner-scoped table. A release-ready table must have tenant-scoped permissive policy coverage for SELECT, INSERT, UPDATE, and DELETE, with both `USING` and `WITH CHECK` expressions (where applicable) binding `owner_id` to `current_setting('app.current_owner_id', true)`. Broad permissive policies and missing CRUD coverage are reported as release blockers. This remains diagnostic only: it does not create policies, set per-transaction owner context, or change database privileges. Actual RLS rollout still requires a separately reviewed migration and integration tests using the restricted non-owner application role.
+The read-only database health check verifies RLS enablement and FORCE RLS, tenant/reviewer policy coverage, runtime-role attributes and ownership, and required CRUD grants. The separate `postgres_rls_migration.py` migration installs these policies and restricted grants; CI exercises the migration against PostgreSQL 16 using a restricted non-owner role, including context-free reads/writes and transaction-local context reset. The diagnostic is read-only and does not repair a misconfigured live database. Preview must be migrated and checked independently before release.
 
 
 ## Forward-outcome tenant ownership migration
 
-The daily-learning `outcomes` table now stores its own non-null `owner_id`. Existing PostgreSQL rows are backfilled from their parent signal before the column is made NOT NULL; SQLite migration backfills the same relationship and assigns only orphaned legacy rows to `legacy-unassigned`. Outcome writes verify the signal under the requesting owner and persist that owner on insert/upsert. Summary and history joins also require matching owner IDs. Automated coverage verifies that another owner cannot write or read the outcome. This closes the table-level ownership gap; it does not replace PostgreSQL RLS or staging two-user acceptance tests.
+The daily-learning `outcomes` table stores its own non-null `owner_id`, backfilled from its parent signal. Outcome writes verify the signal under the requesting owner and persist that owner; summary/history joins constrain matching owner IDs. Automated coverage verifies cross-owner rejection. The RLS migration additionally forces tenant policies on this table; Preview acceptance remains required.
 
 
 ## Separate schema migration and runtime identities
 
-Do not run PostgreSQL DDL through the Streamlit runtime connection. Use `postgres_schema_migration.py` from a trusted administrator workstation with an explicit one-time confirmation and a dedicated migration principal. Configure the deployed application's `DATABASE_URL` only with a separate restricted non-owner runtime role. The admin console schema-initialization button has been removed; it now provides this operational warning and retains only read-only health diagnostics. The migration script creates/migrates the application's tables but does not enable RLS or create tenant policies. Those require a separately reviewed transaction-context implementation and staging validation.
+The Streamlit runtime does not execute PostgreSQL DDL. Run `postgres_schema_migration.py` from a trusted administrator workstation with a private migration connection and explicit confirmation to create/migrate application and audit tables. Then run `postgres_rls_migration.py` with the administrator connection, `AI_EQUITY_RESEARCH_RUNTIME_ROLE` naming a dedicated restricted non-owner role, and `AI_EQUITY_RESEARCH_CONFIRM_RLS_MIGRATION=YES`. Configure Streamlit with only the restricted runtime connection. Never store the migration/admin connection in Streamlit Secrets. CI validates both migrations, but live Preview rollout, two-identity OIDC acceptance, backup/restore and independent security review remain outstanding.
