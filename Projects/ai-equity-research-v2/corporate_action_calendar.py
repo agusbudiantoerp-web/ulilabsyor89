@@ -77,7 +77,11 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         frame["currency"] = ""
     if "split_ratio" not in frame:
         frame["split_ratio"] = None
-    for column in ("amount", "split_ratio"):
+    if "rights_ratio" not in frame:
+        frame["rights_ratio"] = None
+    if "subscription_price" not in frame:
+        frame["subscription_price"] = None
+    for column in ("amount", "split_ratio", "rights_ratio", "subscription_price"):
         raw_values = frame[column]
         if raw_values.map(_is_boolean).any():
             raise ValueError(f"{column} harus berupa angka, bukan boolean.")
@@ -86,7 +90,7 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         if supplied_invalid.any():
             raise ValueError(f"{column} harus berupa angka valid jika diisi.")
         frame[column] = converted
-    for column in ("amount", "split_ratio"):
+    for column in ("amount", "split_ratio", "rights_ratio", "subscription_price"):
         supplied = frame[column].notna()
         if supplied.any() and not all(math.isfinite(float(value)) for value in frame.loc[supplied, column]):
             raise ValueError(f"{column} harus berupa angka finite.")
@@ -94,6 +98,14 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         raise ValueError("Amount tidak boleh negatif dan split ratio harus positif.")
     if frame.loc[frame["event_type"].eq("STOCK_SPLIT"), "split_ratio"].isna().any():
         raise ValueError("Split ratio wajib untuk event STOCK_SPLIT.")
+    rights_rows = frame["event_type"].eq("RIGHTS_ISSUE")
+    if rights_rows.any():
+        if frame.loc[rights_rows, "rights_ratio"].isna().any() or frame.loc[rights_rows, "rights_ratio"].le(0).any():
+            raise ValueError("Rights ratio wajib dan harus lebih besar dari 0 untuk RIGHTS_ISSUE.")
+        if frame.loc[rights_rows, "subscription_price"].isna().any() or frame.loc[rights_rows, "subscription_price"].le(0).any():
+            raise ValueError("Subscription price wajib dan harus lebih besar dari 0 untuk RIGHTS_ISSUE.")
+        if frame.loc[rights_rows, "currency"].fillna("").astype(str).str.strip().eq("").any():
+            raise ValueError("Currency wajib untuk RIGHTS_ISSUE.")
     reference = pd.Timestamp(as_of or datetime.now(timezone.utc))
     if reference.tzinfo is None:
         reference = reference.tz_localize("UTC")
@@ -108,7 +120,7 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
     frame["status_is_confirmed"] = frame["status"].eq("CONFIRMED")
     frame["status_is_cancelled"] = frame["status"].eq("CANCELLED")
     frame["conflicting_duplicate"] = False
-    for field in ("amount", "currency", "split_ratio"):
+    for field in ("amount", "currency", "split_ratio", "rights_ratio", "subscription_price"):
         if field not in frame.columns:
             continue
         conflict = frame.groupby(duplicate_keys, dropna=False)[field].transform(
