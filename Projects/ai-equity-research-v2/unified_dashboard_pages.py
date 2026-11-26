@@ -6,6 +6,8 @@ import math
 import pandas as pd
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from daily_signal_service import (
     run_daily_scan, get_dashboard_data, format_report, refresh_forward_outcomes,
 )
@@ -79,7 +81,7 @@ def _show_scan(scan: dict) -> None:
 
 def render_daily_signal() -> None:
     require_permission(st.session_state.get("_auth_role"), "run_analysis")
-    st.header("Daily Stock Signal & Advanced Screener")
+    render_page_hero("AI SIGNAL CENTER", "Daily Stock Signal & Advanced Screener", "Market regime, technical signals and explainable stock scoring to prioritize research candidates.", "IDX / US  ·  SCREENER  ·  SIGNAL QUALITY")
     st.caption("Data harian Yahoo Finance; hasil adalah kandidat riset, bukan harga live atau instruksi transaksi.")
     daily_tab, advanced_tab = st.tabs(["Daily Signal", "Advanced Screener + AI Stock Scoring"])
     with daily_tab:
@@ -231,7 +233,7 @@ def render_daily_signal() -> None:
 
 def render_portfolio_risk() -> None:
     require_permission(st.session_state.get("_auth_role"), "manage_portfolio")
-    st.header("Portfolio & Risk Management")
+    render_page_hero("PORTFOLIO COMMAND CENTER", "Portfolio & Risk Management", "Monitor portfolio exposures, concentration, volatility, drawdown, correlations and allocation scenarios.", "EXPOSURE  ·  RISK  ·  ALLOCATION")
     st.caption("Analisis posisi, konsentrasi, korelasi, risiko per mata uang, dan skenario harga. Tidak mengirim order.")
     if "portfolio_input" not in st.session_state:
         st.session_state["portfolio_input"] = pd.DataFrame([{"Market":"IDX","Ticker":"TPIA","Shares":0.0,"Average Cost":0.0}])
@@ -467,7 +469,7 @@ def render_portfolio_risk() -> None:
 
 def render_backtesting() -> None:
     require_permission(st.session_state.get("_auth_role"), "run_analysis")
-    st.header("Advanced Backtesting")
+    render_page_hero("STRATEGY LAB", "Advanced Backtesting", "Evaluate systematic strategies with transaction costs, walk-forward validation and multi-asset simulation.", "BACKTEST  ·  WALK-FORWARD  ·  MULTI-ASSET")
     st.caption("Simulasi historis dengan fee, slippage, risk sizing, dan evaluasi walk-forward kronologis.")
     single_tab,wf_tab = st.tabs(["Single ticker backtest","Walk-forward out-of-sample"])
     with single_tab:
@@ -608,7 +610,7 @@ def render_backtesting() -> None:
 
 def render_performance_dashboard() -> None:
     require_permission(st.session_state.get("_auth_role"), "view_dashboard")
-    st.header("Performance & Learning Dashboard")
+    render_page_hero("PERFORMANCE INTELLIGENCE", "Performance & Learning Dashboard", "Review saved research signals and observed forward outcomes with transparent coverage and evaluation context.", "SIGNAL HISTORY  ·  OUTCOMES  ·  LEARNING")
     st.caption("Histori scan, kualitas sinyal, dan forward return aktual setelah 1/3/5/10/20 sesi perdagangan.")
     backend=backend_name()
     if backend=="PostgreSQL":
