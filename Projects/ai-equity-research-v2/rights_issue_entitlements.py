@@ -29,6 +29,7 @@ def estimate_rights_issue_entitlements(portfolio_events, corporate_events, *, in
         return {"entitlements": pd.DataFrame(), "warnings": ["Corporate action calendar belum memiliki event."], "method": "No estimate."}
 
     rows = []
+    processed = set()
     rights_events = events.loc[events["event_type"].eq("RIGHTS_ISSUE")]
     for _, event in rights_events.iterrows():
         ticker = str(event["ticker"]).upper()
@@ -45,6 +46,10 @@ def estimate_rights_issue_entitlements(portfolio_events, corporate_events, *, in
         if pd.isna(ratio) or pd.isna(price) or float(ratio) <= 0 or float(price) <= 0 or not currency:
             warnings.append(f"{ticker}: HMETD memerlukan rasio hak, harga pelaksanaan, dan mata uang yang valid.")
             continue
+        duplicate_key = (ticker, record_date, float(ratio), float(price), currency)
+        if duplicate_key in processed:
+            continue
+        processed.add(duplicate_key)
         shares = estimate_shares_at_date(portfolio_events, ticker, record_date, initial_positions)
         if shares is None:
             warnings.append(f"{ticker}: posisi pada record date tidak dapat dihitung karena tidak ada posisi awal atau histori BUY/SELL/SPLIT.")
