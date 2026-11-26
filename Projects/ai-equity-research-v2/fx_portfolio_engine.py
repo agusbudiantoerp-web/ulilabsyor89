@@ -72,7 +72,7 @@ def convert_asset_returns_to_base_currency(
     valuation_dates=None,
     max_price_gap_days: int = 7,
 ) -> pd.DataFrame:
-    """Return local, FX and base-currency daily returns on asset trading dates.
+    """Return local, FX and base-currency daily returns on requested valuation dates.
 
     USDIDR is IDR per USD. For an IDR asset in a USD base portfolio, FX
     conversion uses the reciprocal USDIDR rate.
@@ -158,7 +158,7 @@ def combine_mixed_currency_returns(
     max_fx_gap_days: int = 3,
     max_price_gap_days: int = 7,
 ) -> dict:
-    """Combine fixed target weights on union dates; closed markets earn zero that day."""
+    """Combine fixed target weights on union trading dates with explicit stale-price FX marking."""
     if not all(isinstance(value, Mapping) for value in (asset_closes, asset_currencies, weights)):
         raise ValueError("Close, currencies dan weights harus berupa mapping.")
     raw_maps = (asset_closes, asset_currencies, weights)
@@ -176,6 +176,10 @@ def combine_mixed_currency_returns(
         raise ValueError("Minimal satu aset diperlukan.")
     if set(symbols) != set(currency_map) or set(symbols) != set(weight_map):
         raise ValueError("Set ticker pada close, currency dan weights harus sama setelah normalisasi.")
+    close_map = {
+        symbol: _clean_close(close_map[symbol], f"asset {symbol}")
+        for symbol in symbols
+    }
     clean_weights = {}
     for symbol in symbols:
         raw_weight = weight_map[symbol]
