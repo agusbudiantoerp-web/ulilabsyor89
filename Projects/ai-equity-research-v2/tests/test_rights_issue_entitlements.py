@@ -78,3 +78,9 @@ def test_rights_issue_estimate_does_not_create_cash_or_share_ledger_events():
     estimate_rights_issue_entitlements(portfolio, [rights_event()])
     pd.testing.assert_frame_equal(pd.DataFrame(portfolio), before)
     assert "RIGHTS_SUBSCRIPTION" not in set(pd.DataFrame(portfolio)["event_type"])
+
+
+def test_rights_issue_collapses_identical_duplicate_event_rows():
+    portfolio = [{"date": "2026-12-01", "event_type": "BUY", "amount": 100000, "ticker": "BBCA", "quantity": 1000, "price": 100}]
+    result = estimate_rights_issue_entitlements(portfolio, [rights_event(), rights_event()])
+    assert len(result["entitlements"]) == 1
