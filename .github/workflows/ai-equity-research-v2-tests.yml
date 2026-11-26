@@ -53,6 +53,12 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: Projects/ai-equity-research-v2/requirements.txt
+      - name: Install PostgreSQL client utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          pg_dump --version
+          pg_restore --version
       - name: Install project dependencies
         run: |
           python -m pip install --upgrade pip
