@@ -1,5 +1,7 @@
 
 import streamlit as st
+
+from ui_theme import render_page_hero
 from engine import analyze_equity, calculate_dcf, dcf_sensitivity, build_research_summary
 from multistage_adapter import calculate_multistage_dcf
 from reports import make_excel_report, make_pdf_report
@@ -29,6 +31,7 @@ def _audit_equity_export(fmt: str, ticker: str) -> None:
 
 def render_equity_research():
     require_permission(st.session_state.get("_auth_role"), "run_analysis")
+    render_page_hero("RESEARCH TERMINAL", "Equity Research & Valuation", "Fundamental analysis, DCF, Multi-Stage DCF, scenario valuation and sensitivity tools for IDX and US equities.", "FUNDAMENTALS  ·  DCF  ·  SCENARIOS")
     
     with st.sidebar:
         st.header("Research settings")
