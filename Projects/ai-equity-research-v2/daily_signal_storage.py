@@ -393,9 +393,9 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
         if not math.isfinite(ret):
             raise ValueError("Forward return melampaui rentang numerik yang didukung.")
         db.execute("""
-            INSERT OR REPLACE INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
-            VALUES(?,?,?,?,?)
-        """, (signal_id, horizon, observed.isoformat(), observed_close, ret))
+            INSERT OR REPLACE INTO outcomes(signal_id,horizon,observed_date,close,return_pct,owner_id)
+            VALUES(?,?,?,?,?,?)
+        """, (signal_id, horizon, observed.isoformat(), observed_close, ret, owner))
         return ret
 
 
