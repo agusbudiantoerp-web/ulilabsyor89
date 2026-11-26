@@ -116,7 +116,7 @@ def test_backup_manifest_verifier_rejects_hash_mismatch(tmp_path):
     manifest.write_text(json.dumps({
         "backup_file": backup.name,
         "size_bytes": backup.stat().st_size,
-        "sha256": "0" * 64,
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="SHA-256"):
         verify_backup_manifest(manifest)
