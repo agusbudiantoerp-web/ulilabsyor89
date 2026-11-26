@@ -36,6 +36,7 @@ def run_schema_migrations() -> tuple[str, ...]:
         from corporate_event_store import initialize as initialize_corporate_events
         from portfolio_event_store import initialize as initialize_portfolio_events
         from portfolio_valuation_store import initialize as initialize_portfolio_valuations
+        from security_controls import initialize_postgres_audit_schema
 
         migrations = (
             ("daily signals and learning outcomes", initialize_daily_signals),
@@ -50,6 +51,8 @@ def run_schema_migrations() -> tuple[str, ...]:
         for label, initialize in migrations:
             initialize()
             completed.append(label)
+        initialize_postgres_audit_schema()
+        completed.append("audit log and hash-chain lock")
         return tuple(completed)
     finally:
         if previous_schema_flag is None:

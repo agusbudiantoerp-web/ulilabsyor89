@@ -403,6 +403,19 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
     diagnostics = check_postgres_health()
     assert diagnostics["rls_issues"] == []
 
+    # The restricted runtime identity can append/read audit events, but the
+    # schema itself was provisioned earlier by the dedicated migration role.
+    audit_id = record_audit_event(
+        "issuer|runtime-audit-test", "admin", "RUNTIME_AUDIT_TEST",
+        "integration_test", details={"schema": "preprovisioned"},
+    )
+    assert audit_id > 0
+    assert verify_audit_chain()["valid"] is True
+    assert any(
+        row["action"] == "RUNTIME_AUDIT_TEST"
+        for row in list_audit_events(limit=100)
+    )
+
     suffix = uuid.uuid4().hex[:8]
     owner_a, owner_b, reviewer = f"tenant-a-{suffix}", f"tenant-b-{suffix}", f"reviewer-{suffix}"
     with psycopg.connect(runtime_url) as raw:

@@ -109,29 +109,44 @@ def _connect_postgres():
         from psycopg.rows import dict_row
     except ImportError as exc:
         raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
-    db = psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
-    with db.cursor() as cur:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS audit_events (
-                id BIGSERIAL PRIMARY KEY,
-                occurred_at TEXT NOT NULL,
-                actor_id TEXT NOT NULL,
-                actor_role TEXT NOT NULL,
-                action TEXT NOT NULL,
-                resource_type TEXT NOT NULL,
-                resource_id TEXT NOT NULL,
-                details_json TEXT NOT NULL,
-                previous_hash TEXT NOT NULL,
-                event_hash TEXT NOT NULL UNIQUE
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS audit_chain_lock (
-                id INTEGER PRIMARY KEY CHECK (id=1)
-            )
-        """)
-        cur.execute("INSERT INTO audit_chain_lock(id) VALUES(1) ON CONFLICT(id) DO NOTHING")
-    return db
+    # Runtime connections must never execute DDL or bootstrap schema rows.
+    # The dedicated administrator migration provisions both audit tables.
+    return psycopg.connect(url, row_factory=dict_row, connect_timeout=15)
+
+
+def initialize_postgres_audit_schema() -> None:
+    """Create audit tables using the explicitly enabled administrator migration only."""
+    if os.getenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT") != "YES":
+        raise RuntimeError("Audit schema initialization is restricted to the explicit migration command.")
+    url = _database_url()
+    if not url:
+        raise RuntimeError("DATABASE_URL belum dikonfigurasi.")
+    try:
+        import psycopg
+    except ImportError as exc:
+        raise RuntimeError("Driver PostgreSQL belum terpasang. Instal psycopg[binary].") from exc
+    with psycopg.connect(url, connect_timeout=15) as db:
+        with db.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id BIGSERIAL PRIMARY KEY,
+                    occurred_at TEXT NOT NULL,
+                    actor_id TEXT NOT NULL,
+                    actor_role TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    resource_type TEXT NOT NULL,
+                    resource_id TEXT NOT NULL,
+                    details_json TEXT NOT NULL,
+                    previous_hash TEXT NOT NULL,
+                    event_hash TEXT NOT NULL UNIQUE
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS audit_chain_lock (
+                    id INTEGER PRIMARY KEY CHECK (id=1)
+                )
+            """)
+            cur.execute("INSERT INTO audit_chain_lock(id) VALUES(1) ON CONFLICT(id) DO NOTHING")
 
 
 def _connect(path: str | None = None):
