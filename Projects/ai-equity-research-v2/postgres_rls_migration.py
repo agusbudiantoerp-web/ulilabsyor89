@@ -68,7 +68,7 @@ def apply_rls_policies() -> tuple[str, ...]:
 
             cursor.execute(
                 "SELECT r.rolname FROM pg_roles r WHERE r.rolname <> %s "
-                "AND pg_has_role(%s::name, r.oid, 'USAGE') ORDER BY r.rolname LIMIT 1",
+                "AND pg_has_role(%s::name, r.oid, 'MEMBER') ORDER BY r.rolname LIMIT 1",
                 (runtime_role, runtime_role),
             )
             inherited = cursor.fetchone()
@@ -103,7 +103,7 @@ def apply_rls_policies() -> tuple[str, ...]:
                 if table_owner == runtime_role:
                     raise RuntimeError(f"Runtime role owns table {table}.")
                 cursor.execute(
-                    "SELECT pg_has_role(%s::name, %s::name, 'USAGE')",
+                    "SELECT pg_has_role(%s::name, %s::name, 'MEMBER')",
                     (runtime_role, table_owner),
                 )
                 if cursor.fetchone()[0]:

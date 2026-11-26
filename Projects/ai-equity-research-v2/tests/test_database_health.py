@@ -139,7 +139,7 @@ def test_database_health_rejects_inherited_postgres_roles(monkeypatch):
     result = check_postgres_health({"DATABASE_URL": "postgresql://private"})
     assert result["ok"] is False
     assert any(
-        "mewarisi hak akses role PostgreSQL lain" in item["reason"]
+        "memiliki keanggotaan role PostgreSQL lain" in item["reason"]
         for item in result["rls_issues"]
     )
 

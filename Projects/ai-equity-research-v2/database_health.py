@@ -134,7 +134,7 @@ def check_postgres_health(secrets: Any = None) -> dict:
                 cursor.execute(
                     "SELECT r.rolname FROM pg_roles r "
                     "WHERE r.rolname <> current_user "
-                    "AND pg_has_role(current_user, r.oid, 'USAGE') "
+                    "AND pg_has_role(current_user, r.oid, 'MEMBER') "
                     "ORDER BY r.rolname"
                 )
                 inherited_roles = [row[0] for row in cursor.fetchall()]
@@ -155,7 +155,7 @@ def check_postgres_health(secrets: Any = None) -> dict:
         if inherited_roles:
             rls_issues.append({
                 "scope": "application_role",
-                "reason": "Role aplikasi mewarisi hak akses role PostgreSQL lain: " + ", ".join(inherited_roles) + ".",
+                "reason": "Role aplikasi memiliki keanggotaan role PostgreSQL lain: " + ", ".join(inherited_roles) + ".",
             })
         if application_role["superuser"] or application_role["bypass_rls"]:
             rls_issues.append({
