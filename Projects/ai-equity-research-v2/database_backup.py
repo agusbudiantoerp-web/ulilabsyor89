@@ -370,7 +370,8 @@ def restore_postgres_backup(manifest_path: str | Path) -> dict:
 
     subprocess.run(
         [
-            pg_restore, "--exit-on-error", "--single-transaction",
+            pg_restore, "--dbname", env["PGDATABASE"],
+            "--exit-on-error", "--single-transaction",
             "--no-owner", "--no-privileges", backup_path,
         ],
         env=env, check=True, capture_output=True, text=True, timeout=1800,
