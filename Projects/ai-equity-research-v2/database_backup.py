@@ -108,6 +108,22 @@ def _postgres_environment(database_url: str, base_env: dict[str, str] | None = N
     return env
 
 
+
+def _postgres_database_identity(database_url: str) -> str:
+    """Return a stable non-secret fingerprint for the PostgreSQL host/port/database."""
+    parsed = urlsplit(str(database_url).strip())
+    if parsed.scheme not in {"postgres", "postgresql"} or not parsed.hostname:
+        raise ValueError("DATABASE_URL harus berupa URL PostgreSQL yang valid.")
+    try:
+        port = parsed.port or 5432
+    except ValueError as exc:
+        raise ValueError("Port PostgreSQL pada DATABASE_URL tidak valid.") from exc
+    database = unquote(parsed.path.lstrip("/"))
+    if not database:
+        raise ValueError("DATABASE_URL harus menyertakan nama database.")
+    identity = parsed.hostname.lower() + "|" + str(port) + "|" + database
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
 def verify_backup_manifest(manifest_path: str | Path) -> dict:
     """Verify backup artifact identity, size and SHA-256 against its manifest."""
     manifest_file = Path(manifest_path)
@@ -286,6 +302,9 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
             backup_path, "PostgreSQL", "DATABASE_URL (value redacted)",
             "pg_restore --list: ok",
         )
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_data["source_identity_sha256"] = _postgres_database_identity(database_url)
+        manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
         return {"backup": str(backup_path), "manifest": str(manifest_path), "validation": "ok"}
     except Exception:
         backup_path.unlink(missing_ok=True)
@@ -314,6 +333,12 @@ def restore_postgres_backup(manifest_path: str | Path) -> dict:
     target_url = os.getenv("DATABASE_URL")
     if not target_url:
         raise RuntimeError("Set DATABASE_URL privat ke database PostgreSQL tujuan yang disposable.")
+    source_identity = manifest.get("source_identity_sha256")
+    if not isinstance(source_identity, str) or len(source_identity) != 64:
+        raise ValueError("Manifest tidak memiliki fingerprint sumber PostgreSQL; buat backup baru dengan versi tool ini.")
+    target_identity = _postgres_database_identity(target_url)
+    if target_identity == source_identity:
+        raise RuntimeError("Database tujuan sama dengan database sumber backup; restore dibatalkan.")
     pg_restore = shutil.which("pg_restore")
     psql = shutil.which("psql")
     if not pg_restore or not psql:
