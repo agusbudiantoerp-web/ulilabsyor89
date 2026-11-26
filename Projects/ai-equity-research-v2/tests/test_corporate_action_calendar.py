@@ -137,3 +137,32 @@ def test_calendar_does_not_flag_identical_duplicate_details_as_conflicting():
     result = normalize_corporate_events([event, event])
     assert result["events"]["duplicate_event"].all()
     assert not result["events"]["conflicting_duplicate"].any()
+
+
+def test_calendar_validates_and_preserves_rights_issue_terms():
+    event = base_event(
+        event_type="RIGHTS_ISSUE", rights_ratio=0.5,
+        subscription_price=1250, currency="IDR",
+    )
+    row = normalize_corporate_events([event])["events"].iloc[0]
+    assert row["rights_ratio"] == pytest.approx(0.5)
+    assert row["subscription_price"] == pytest.approx(1250)
+
+
+@pytest.mark.parametrize("changes", [
+    {"rights_ratio": 0}, {"rights_ratio": -0.5},
+    {"subscription_price": 0}, {"subscription_price": -1},
+    {"currency": ""},
+])
+def test_calendar_rejects_incomplete_or_invalid_rights_issue_terms(changes):
+    event = base_event(event_type="RIGHTS_ISSUE", rights_ratio=0.5, subscription_price=100, currency="IDR")
+    event.update(changes)
+    with pytest.raises(ValueError):
+        normalize_corporate_events([event])
+
+
+def test_calendar_flags_conflicting_rights_issue_ratio_or_subscription_price():
+    first = base_event(event_type="RIGHTS_ISSUE", rights_ratio=0.5, subscription_price=100, currency="IDR")
+    second = dict(first, rights_ratio=0.25)
+    result = normalize_corporate_events([first, second])
+    assert result["events"]["conflicting_duplicate"].all()
