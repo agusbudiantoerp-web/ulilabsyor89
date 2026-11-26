@@ -166,3 +166,10 @@ def test_calendar_flags_conflicting_rights_issue_ratio_or_subscription_price():
     second = dict(first, rights_ratio=0.25)
     result = normalize_corporate_events([first, second])
     assert result["events"]["conflicting_duplicate"].all()
+
+def test_calendar_normalizes_currency_codes_before_duplicate_comparison():
+    first = base_event(event_type="RIGHTS_ISSUE", rights_ratio=0.5, subscription_price=100, currency="idr")
+    second = dict(first, currency="IDR")
+    result = normalize_corporate_events([first, second])
+    assert result["events"]["currency"].eq("IDR").all()
+    assert not result["events"]["conflicting_duplicate"].any()
