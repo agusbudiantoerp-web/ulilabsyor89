@@ -48,6 +48,20 @@ def portfolio_requires_fx(asset_currencies: Mapping[str, str], base_currency: st
     )
 
 
+def _clean_valuation_dates(values) -> pd.DatetimeIndex:
+    try:
+        dates = pd.DatetimeIndex(pd.to_datetime(values, errors="coerce"))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Tanggal valuasi tidak valid.") from exc
+    if dates.empty or dates.isna().any():
+        raise ValueError("Tanggal valuasi kosong atau tidak valid.")
+    if dates.tz is not None:
+        dates = dates.tz_localize(None)
+    if dates.has_duplicates:
+        raise ValueError("Tanggal valuasi duplikat.")
+    return dates.sort_values()
+
+
 def convert_asset_returns_to_base_currency(
     local_close: pd.Series,
     asset_currency: str,
@@ -55,6 +69,8 @@ def convert_asset_returns_to_base_currency(
     base_currency: str = "IDR",
     *,
     max_fx_gap_days: int = 3,
+    valuation_dates=None,
+    max_price_gap_days: int = 7,
 ) -> pd.DataFrame:
     """Return local, FX and base-currency daily returns on asset trading dates.
 
@@ -71,10 +87,28 @@ def convert_asset_returns_to_base_currency(
         or not 0 <= max_fx_gap_days <= 30
     ):
         raise ValueError("max_fx_gap_days harus integer 0–30.")
+    if (
+        isinstance(max_price_gap_days, bool)
+        or not isinstance(max_price_gap_days, numbers.Integral)
+        or not 0 <= max_price_gap_days <= 30
+    ):
+        raise ValueError("max_price_gap_days harus integer 0–30.")
     asset = _clean_close(local_close, "asset")
+    dates = asset.index if valuation_dates is None else _clean_valuation_dates(valuation_dates)
+    valuation_frame = pd.DataFrame({"date": dates})
     asset_frame = pd.DataFrame({"date": asset.index, "local_close": asset.values})
+    merged = pd.merge_asof(
+        valuation_frame.sort_values("date"), asset_frame.sort_values("date"),
+        on="date", direction="backward",
+        tolerance=pd.Timedelta(days=int(max_price_gap_days)),
+    )
+    if merged["local_close"].isna().any():
+        missing_dates = merged.loc[merged["local_close"].isna(), "date"].dt.date.astype(str).tolist()
+        raise ValueError(
+            "Cakupan harga tidak tersedia dalam toleransi "
+            f"{max_price_gap_days} hari untuk tanggal: {', '.join(missing_dates[:5])}"
+        )
     if currency == base:
-        merged = asset_frame.copy()
         merged["usd_idr"] = float("nan")
         fx_factor = pd.Series(1.0, index=merged.index)
     else:
@@ -83,7 +117,7 @@ def convert_asset_returns_to_base_currency(
         fx = _clean_close(usd_idr_close, "USD/IDR")
         fx_frame = pd.DataFrame({"date": fx.index, "usd_idr": fx.values})
         merged = pd.merge_asof(
-            asset_frame.sort_values("date"), fx_frame.sort_values("date"),
+            merged.sort_values("date"), fx_frame.sort_values("date"),
             on="date", direction="backward",
             tolerance=pd.Timedelta(days=int(max_fx_gap_days)),
         )
@@ -122,6 +156,7 @@ def combine_mixed_currency_returns(
     base_currency: str = "IDR",
     *,
     max_fx_gap_days: int = 3,
+    max_price_gap_days: int = 7,
 ) -> dict:
     """Combine fixed target weights on union dates; closed markets earn zero that day."""
     if not all(isinstance(value, Mapping) for value in (asset_closes, asset_currencies, weights)):
@@ -158,19 +193,36 @@ def combine_mixed_currency_returns(
     requires_fx = any(str(currency_map[symbol]).upper().strip() != str(base_currency).upper().strip() for symbol in symbols)
     if requires_fx and usd_idr_close is None:
         raise ValueError("Data USD/IDR wajib untuk portfolio lintas mata uang.")
+    if (
+        isinstance(max_price_gap_days, bool)
+        or not isinstance(max_price_gap_days, numbers.Integral)
+        or not 0 <= max_price_gap_days <= 30
+    ):
+        raise ValueError("max_price_gap_days harus integer 0–30.")
+    first_common_date = max(close_map[symbol].index.min() for symbol in symbols)
+    last_common_date = min(close_map[symbol].index.max() for symbol in symbols)
+    if first_common_date > last_common_date:
+        raise ValueError("Seri harga aset tidak memiliki rentang tanggal yang saling tumpang tindih.")
+    dates = sorted(set().union(*(
+        {date for date in close_map[symbol].index if first_common_date <= date <= last_common_date}
+        for symbol in symbols
+    )))
+    if not dates:
+        raise ValueError("Tidak ada tanggal valuasi bersama untuk portfolio.")
+    valuation_dates = pd.DatetimeIndex(dates, name="date")
     converted = {
         symbol: convert_asset_returns_to_base_currency(
             close_map[symbol], currency_map[symbol], usd_idr_close,
             base_currency, max_fx_gap_days=max_fx_gap_days,
+            valuation_dates=valuation_dates, max_price_gap_days=max_price_gap_days,
         )
         for symbol in symbols
     }
-    dates = sorted(set().union(*(set(frame.index) for frame in converted.values())))
-    returns = pd.DataFrame(index=pd.DatetimeIndex(dates, name="date"))
-    fx_contribution = pd.DataFrame(index=returns.index)
+    returns = pd.DataFrame(index=valuation_dates)
+    fx_contribution = pd.DataFrame(index=valuation_dates)
     for symbol, frame in converted.items():
-        returns[symbol] = frame["base_return"].reindex(returns.index).fillna(0.0)
-        fx_contribution[symbol] = frame["fx_contribution_pct"].reindex(returns.index).fillna(0.0)
+        returns[symbol] = frame["base_return"].fillna(0.0).to_numpy()
+        fx_contribution[symbol] = frame["fx_contribution_pct"].fillna(0.0).to_numpy()
     weighted = returns.mul(pd.Series(clean_weights), axis=1)
     portfolio_return = weighted.sum(axis=1)
     equity = (1.0 + portfolio_return).cumprod()
@@ -190,8 +242,9 @@ def combine_mixed_currency_returns(
         "curve": curve,
         "total_return_pct": (float(equity.iloc[-1]) - 1.0) * 100.0,
         "method": (
-            "Fixed target weights; local-market closed dates contribute zero return; "
-            "FX uses backward as-of alignment with explicit maximum calendar-day tolerance. "
-            "No cross-market same-day look-ahead."
+            "Fixed target weights on the union of asset trading dates within the common history window. "
+            "Local closes are carried backward only within the explicit price-age tolerance, so foreign "
+            "assets retain FX-only returns when their local market is closed. FX uses backward as-of "
+            "alignment with an explicit age limit; no future price or FX observations are used."
         ),
     }
