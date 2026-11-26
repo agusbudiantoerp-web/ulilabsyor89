@@ -1,8 +1,8 @@
-# Security, Audit and Multi-User Release Gates
+# Security, Audit and Multi User Release Gates
 
 ## Implemented application controls
 
-- Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, derives the principal from the verified issuer-bound immutable `iss|sub`, and denies access when login or role mapping is missing.
+  Streamlit-native OIDC login is integrated in the application entry point. The app requires exactly one configured provider, derives the principal from the verified issuer-bound immutable `iss|sub`, and denies access when login or role mapping is missing.
 - Server-managed roles are `viewer`, `analyst`, `portfolio_manager` and `admin`. `portfolio_manager` and `admin` can review assigned investment thesis versions; `analyst`, `portfolio_manager` and `admin` can author their own theses. Role mapping is maintained in private Streamlit Secrets; the browser console is read-only.
 - Server-side page gates protect research, daily signals, portfolio/risk, backtesting, performance and the admin-only Security & Audit console. Selected portfolio-management, report-export and other sensitive operations also enforce permissions at their execution points.
 - Session state is cleared when the authenticated principal changes in a reused Streamlit session.

@@ -2,7 +2,7 @@
 
 ## Existing V2 capabilities retained
 
-- Research Engine, DCF, Multi-Stage DCF, sensitivity and scenario analysis.
+  Research Engine, DCF, Multi Stage DCF, sensitivity and scenario analysis.
 - Daily Stock Signal, local Telegram adapter, Ollama commentary and Windows scheduler.
 - Excel/PDF research reports and local SQLite storage.
 - Telegram allowlist remains fail-closed: an empty allowlist authorizes nobody.

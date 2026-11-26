@@ -1,6 +1,6 @@
-# AI Equity Research V2 — Final Multi-User Release Test Plan
+# AI Equity Research V2 — Final Multi User Release Test Plan
 
-This plan is intentionally separate from feature development. Run it only after the development branch is declared feature-complete. Do not merge PR #4 or deploy the development branch to the production Streamlit app until all required gates pass.
+This plan is intentionally separate from feature development. Run it only after the development branch is declared feature complete. Do not merge PR #4 or deploy the development branch to the production Streamlit app until all required gates pass.
 
 ## 1. Preview OIDC setup
 
