@@ -27,7 +27,7 @@ def render_corporate_action_calendar() -> None:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
     st.subheader("Corporate Actions & Event Calendar")
-    st.caption("Catat event earnings, dividen, ex-date, pay-date, stock split dan rights issue dengan sumber dan status yang jelas.")
+    st.caption("Catat event earnings, deklarasi dividen, ex-date, record date, pay date, stock split dan rights issue dengan sumber dan status yang jelas.")
     st.warning("Event tidak diambil dari feed exchange/issuer secara otomatis. Masukkan data yang telah diverifikasi; kalender ini bukan daftar komprehensif.")
     st.markdown("**Impor event secara massal dari CSV**")
     uploaded = st.file_uploader(
