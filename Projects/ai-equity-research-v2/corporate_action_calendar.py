@@ -75,6 +75,7 @@ def normalize_corporate_events(events, *, as_of=None, stale_after_days=30) -> di
         frame["amount"] = None
     if "currency" not in frame:
         frame["currency"] = ""
+    frame["currency"] = frame["currency"].fillna("").astype(str).str.strip().str.upper()
     if "split_ratio" not in frame:
         frame["split_ratio"] = None
     if "rights_ratio" not in frame:
