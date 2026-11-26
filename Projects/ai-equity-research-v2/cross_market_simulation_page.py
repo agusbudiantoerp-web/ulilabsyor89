@@ -90,6 +90,7 @@ def render_cross_market_simulation() -> None:
                         result = combine_mixed_currency_returns(
                             closes, currencies, weights, fx, base,
                             max_fx_gap_days=int(max_gap),
+                            max_price_gap_days=int(max_price_gap),
                         )
                         st.session_state["cross_market_fx_result"] = result
                         st.session_state["cross_market_price_closes"] = closes
