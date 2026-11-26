@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -61,7 +62,10 @@ def test_postgres_backup_restore_round_trip_against_real_postgres(tmp_path, monk
 
         monkeypatch.setenv("DATABASE_URL", target_url)
         monkeypatch.setenv(database_backup.POSTGRES_RESTORE_CONFIRMATION, "YES")
-        restored = database_backup.restore_postgres_backup(backup["manifest"])
+        try:
+            restored = database_backup.restore_postgres_backup(backup["manifest"])
+        except subprocess.CalledProcessError as exc:
+            pytest.fail("pg_restore failed during real integration restore: " + str(exc.stderr))
         assert restored["restored_relations"] > 0
 
         with psycopg.connect(target_url) as recovered:
