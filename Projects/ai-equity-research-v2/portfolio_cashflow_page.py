@@ -23,7 +23,7 @@ def _audit_cashflow(owner, role, action, resource_type, resource_id, details):
     try:
         record_audit_event(owner, role, action, resource_type, resource_id, details=details)
     except Exception as exc:
-        st.warning(f"Data tersimpan, tetapi audit event gagal dicatat ({type(exc).__name__}).")
+        st.warning(f"Aktivitas selesai, tetapi audit event gagal dicatat ({type(exc).__name__}).")
 
 
 def render_portfolio_cashflow() -> None:
@@ -147,6 +147,11 @@ def render_portfolio_cashflow() -> None:
             value=1, key="portfolio_broker_date_tolerance",
         )
         if st.button("Bandingkan dengan internal ledger", key="portfolio_broker_reconcile"):
+            for stale_key in (
+                "portfolio_broker_import_preview", "portfolio_broker_import_diagnostics",
+                "portfolio_broker_reconciliation_details", "portfolio_broker_reconciliation_metrics",
+            ):
+                st.session_state.pop(stale_key, None)
             try:
                 if broker_file is None:
                     raise ValueError("Unggah broker statement CSV terlebih dahulu.")
@@ -170,6 +175,21 @@ def render_portfolio_cashflow() -> None:
                         "unexpected_in_broker_count", "status_counts",
                     )
                 }
+                _audit_cashflow(
+                    owner, role, "BROKER_STATEMENT_RECONCILIATION",
+                    "portfolio_broker_statement", "cashflow_ledger",
+                    {
+                        "internal_event_count": int(broker_result["internal_event_count"]),
+                        "broker_event_count": int(broker_result["broker_event_count"]),
+                        "matched_count": int(broker_result["matched_count"]),
+                        "mismatch_count": int(broker_result["mismatch_count"]),
+                        "missing_in_broker_count": int(broker_result["missing_in_broker_count"]),
+                        "unexpected_in_broker_count": int(broker_result["unexpected_in_broker_count"]),
+                        "date_tolerance_days": int(date_tolerance),
+                        "source_row_count": int(imported["row_count"]),
+                        "source_delimiter": str(imported["delimiter"]),
+                    },
+                )
             except Exception as exc:
                 st.error(f"Rekonsiliasi broker gagal: {type(exc).__name__}: {exc}")
         import_preview = st.session_state.get("portfolio_broker_import_preview")
@@ -200,6 +220,11 @@ def render_portfolio_cashflow() -> None:
                     safe_csv_bytes(broker_details),
                     file_name="broker_statement_reconciliation.csv", mime="text/csv",
                     key="portfolio_broker_reconciliation_download",
+                    on_click=lambda: _audit_cashflow(
+                        owner, role, "BROKER_RECONCILIATION_EXPORT",
+                        "portfolio_broker_reconciliation", "cashflow_ledger",
+                        {"format": "csv", "row_count": len(broker_details)},
+                    ),
                 )
 
     if not events.empty:
@@ -367,6 +392,29 @@ def render_portfolio_cashflow() -> None:
                 st.session_state["snapshot_broker_summary"]["priority_counts"] = exception_report["priority_counts"]
                 st.session_state["snapshot_broker_summary"]["action_required_count"] = exception_report["action_required_count"]
                 st.session_state["snapshot_broker_excluded_future_events"] = excluded_future_events
+                _audit_cashflow(
+                    owner, role, "BROKER_SNAPSHOT_RECONCILIATION",
+                    "portfolio_broker_snapshot", "cashflow_ledger",
+                    {
+                        "status": str(result["status"]),
+                        "comparable": bool(result["comparable"]),
+                        "ledger_currency": str(result["ledger_currency"]),
+                        "broker_currency": str(result["broker_currency"]),
+                        "ledger_as_of_date": str(result["ledger_as_of_date"]),
+                        "broker_as_of_date": str(result["broker_as_of_date"]),
+                        "date_difference_days": int(result["date_difference_days"]),
+                        "ledger_event_count": int(ledger_result["event_count"]),
+                        "excluded_future_event_count": excluded_future_events,
+                        "matched_count": int(result["matched_count"]),
+                        "exception_count": int(result["exception_count"]),
+                        "priority_counts": {
+                            str(key): int(value)
+                            for key, value in exception_report["priority_counts"].items()
+                        },
+                        "action_required_count": int(exception_report["action_required_count"]),
+                        "read_only": True,
+                    },
+                )
             except Exception as exc:
                 st.error(f"Snapshot reconciliation gagal: {type(exc).__name__}: {exc}")
         summary = st.session_state.get("snapshot_broker_summary") or {}
@@ -407,8 +455,21 @@ def render_portfolio_cashflow() -> None:
                 )
                 visible_details = details if priority_filter == "Semua" else details.loc[details["priority"] == priority_filter]
                 st.dataframe(visible_details, use_container_width=True, hide_index=True)
-                st.download_button("Unduh laporan snapshot CSV", safe_csv_bytes(details),
-                    file_name="broker_snapshot_exception_report.csv", mime="text/csv", key="snapshot_broker_download")
+                st.download_button(
+                    "Unduh laporan snapshot CSV", safe_csv_bytes(visible_details),
+                    file_name="broker_snapshot_exception_report.csv", mime="text/csv",
+                    key="snapshot_broker_download",
+                    on_click=lambda: _audit_cashflow(
+                        owner, role, "BROKER_SNAPSHOT_EXCEPTION_EXPORT",
+                        "portfolio_broker_snapshot_report", "cashflow_ledger",
+                        {
+                            "format": "csv", "filter": priority_filter,
+                            "row_count": len(visible_details), "status": str(summary["status"]),
+                            "ledger_as_of_date": str(summary["ledger_as_of_date"]),
+                            "broker_as_of_date": str(summary["broker_as_of_date"]),
+                        },
+                    ),
+                )
                 st.caption("Urutan laporan: blocker → critical → warning → matched. Rekomendasi adalah panduan pemeriksaan, bukan instruksi koreksi otomatis.")
             st.caption(summary["method"])
 
