@@ -151,11 +151,44 @@ def apply_rls_policies() -> tuple[str, ...]:
                     sql.SQL("GRANT {} ON TABLE {} TO {}").format(grants, table_ident, role_ident)
                 )
 
-            cursor.execute(
-                sql.SQL("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {} TO {}").format(
-                    schema_ident, role_ident
+            # Grant sequence access only for serial/identity columns on tables
+            # that the runtime role may insert into. Never expose unrelated
+            # administrator or extension sequences in the same schema.
+            for table, privileges in REQUIRED_GRANTS.items():
+                if "INSERT" not in privileges:
+                    continue
+                cursor.execute(
+                    """
+                    SELECT sequence_namespace.nspname, sequence_class.relname
+                    FROM pg_class AS table_class
+                    JOIN pg_namespace AS table_namespace
+                      ON table_namespace.oid = table_class.relnamespace
+                    JOIN pg_attribute AS id_attribute
+                      ON id_attribute.attrelid = table_class.oid
+                     AND id_attribute.attname = 'id'
+                     AND NOT id_attribute.attisdropped
+                    JOIN pg_depend AS dependency
+                      ON dependency.refobjid = table_class.oid
+                     AND dependency.refobjsubid = id_attribute.attnum
+                     AND dependency.deptype IN ('a', 'i')
+                    JOIN pg_class AS sequence_class
+                      ON sequence_class.oid = dependency.objid
+                     AND sequence_class.relkind = 'S'
+                    JOIN pg_namespace AS sequence_namespace
+                      ON sequence_namespace.oid = sequence_class.relnamespace
+                    WHERE table_namespace.nspname = %s
+                      AND table_class.relname = %s
+                    """,
+                    (schema, table),
                 )
-            )
+                sequence = cursor.fetchone()
+                if sequence:
+                    sequence_ident = sql.Identifier(sequence[0], sequence[1])
+                    cursor.execute(
+                        sql.SQL("GRANT USAGE, SELECT ON SEQUENCE {} TO {}").format(
+                            sequence_ident, role_ident
+                        )
+                    )
 
             for table in OWNER_SCOPED_TABLES:
                 table_ident = sql.Identifier(schema, table)
