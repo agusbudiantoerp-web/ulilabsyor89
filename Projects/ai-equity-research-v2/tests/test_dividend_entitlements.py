@@ -66,11 +66,13 @@ def test_dividend_entitlement_requires_confirmed_record_date_and_pay_date():
 
 def test_dividend_entitlement_skips_conflicting_ex_date_duplicates():
     events = corporate_cycle()
+    events[1]["currency"] = "IDR"
     conflicting = dict(events[1])
     conflicting["currency"] = "USD"
     events.append(conflicting)
     result = estimate_dividend_entitlements([], events)
     assert result["entitlements"].empty
+    assert any("EX_DIVIDEND CONFIRMED" in warning for warning in result["warnings"])
     assert any("bertentangan" in warning.lower() for warning in result["warnings"])
 
 
