@@ -6,10 +6,9 @@ Last updated: 2026-11-26
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head: `d51b19a9c4f17839808e24a7858ac209f0d6a3e8` (schema/runtime credential separation).
-- Earlier automated baseline: **720 passed, 0 failed, 0 skipped** on commit `05454ef5bbecd78a6d69c824f763cf60b7bbc7a2` (historical run; superseded).
-- Previous full baseline: **751 passed, 0 failed** on `87b9e2424255360c7929c89d85ba5feef8cb85e5`.
-- Latest code head `d51b19a9c4f17839808e24a7858ac209f0d6a3e8`: **761 passed, 0 failed**; Python 3.10 compilation and the full suite against an ephemeral PostgreSQL 16 service passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45775398277).
+- Latest verified branch head: `eb2a8b1777cff3cf7affd7952b0cddcdf5b7e0a6` (RLS/runtime hardening and release-gate documentation).
+- Latest CI on that head: **772 passed, 0 failed**; Python module compilation and the complete test suite against an ephemeral PostgreSQL 16 service passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45822779180).
+- The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
