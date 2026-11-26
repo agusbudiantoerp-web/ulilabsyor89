@@ -51,7 +51,7 @@ def render_cross_market_simulation() -> None:
                 "cross_market_asset_currencies", "cross_market_usdidr_close",
                 "cross_market_monte_carlo_result", "cross_market_regime_monte_carlo_result",
                 "cross_market_transaction_replay_result", "cross_market_block_bootstrap_result", "cross_market_stress_result",
-                "cross_market_factor_stress_result",
+                "cross_market_factor_stress_result", "cross_market_fx_errors",
             ):
                 st.session_state.pop(stale_key, None)
             idx_symbols = list(dict.fromkeys(x.strip().upper() for x in idx_raw.split(",") if x.strip()))
@@ -323,6 +323,7 @@ def render_cross_market_simulation() -> None:
             value="", key="transaction_aware_initial_positions",
         )
         if st.button("Jalankan transaction-aware replay", key="transaction_aware_replay_run"):
+            st.session_state.pop("cross_market_transaction_replay_result", None)
             try:
                 if uploaded_ledger is None:
                     raise ValueError("Unggah CSV event ledger terlebih dahulu.")
