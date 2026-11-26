@@ -1,19 +1,18 @@
 # AI Equity Research V2 — Release Readiness
 
-Last updated: 2026-11-26
+Last updated: 2026-11-27
 
 ## Current engineering state
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head at the time of this update: `a154413ba4194b71d4853cddf9dbb5f82e54b944` (Preview operator runbook and release documentation; documentation-only).
-- Latest branch-head CI verification: **success** on commit `a154413ba4194b71d4853cddf9dbb5f82e54b944`; Python 3.10 module compilation and the complete automated/PostgreSQL integration job both completed successfully: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45827459261).
-- Latest code-bearing full-suite baseline: **772 passed, 0 failed** on commit `e67a54530ea8ff0813afc3152408f4a23215223f`, including PostgreSQL 16 integration: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45823801298). Subsequent changes through `a154413` are documentation-only.
+- Latest code-bearing baseline includes the PostgreSQL backup/restore implementation, source-endpoint fingerprint guard, restore safety tests, and CI dependency auditing. The current branch-head CI is being run against the latest documentation and workflow updates; use the PR checks for the authoritative result.
+- The prior complete test baseline was **772 passed, 0 failed** on commit `e67a54530ea8ff0813afc3152408f4a23215223f`, including PostgreSQL 16 integration: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45823801298). A later complete run on commit `34226bf383da0896458ee7ba0e797dc2ab24f1c9` passed **775 tests** before the additional source-target restore guard and dependency audit were added: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45907884025).
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
-- CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets.
+- CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets. CI also runs `pip-audit` against the resolved Python requirements; Dependabot is configured for weekly Python and GitHub Actions updates on the development branch.
 - GitHub Actions now uses `actions/checkout@v7.0.1` and `actions/setup-python@v7.1.0`; the prior Node.js 20 deprecation warning no longer appears in the completed run. Concurrency cancels superseded runs on the same branch/ref.
-- Backup manifests can be independently verified against artifact size and SHA-256, with POSIX/Windows path-traversal checks. SQLite restore now verifies the manifest and database integrity before and after copying, publishes atomically, and refuses to overwrite an existing target unless `--overwrite` is explicitly supplied. PostgreSQL restore is not automated; its custom-format dump is structurally checked with `pg_restore --list`.
+- Backup manifests can be independently verified against artifact size and SHA-256, with POSIX/Windows path-traversal checks. SQLite restore verifies the manifest and database integrity before and after copying, publishes atomically, and refuses to overwrite an existing target unless `--overwrite` is explicitly supplied. PostgreSQL custom-format backup and restore are implemented: the archive is checked with `pg_restore --list`; the manifest stores a non-secret source endpoint fingerprint; restore refuses a matching source endpoint and any destination containing user relations; and `pg_restore` runs in one transaction with owner/ACL restoration disabled, followed by a relation-count check. PostgreSQL roles are cluster-level and are not included in the archive; a recovery on another cluster requires recreating/verifying the restricted runtime role and rerunning RLS migration before the app can use it. This is a logical restore drill, not PITR.
 - Excel/CSV exports neutralize formula-like text after whitespace and Unicode BOM prefixes; scenario worksheet names are sanitized and de-duplicated.
 - No production deployment, secret rotation, production database mutation or live broker connection was performed.
 
