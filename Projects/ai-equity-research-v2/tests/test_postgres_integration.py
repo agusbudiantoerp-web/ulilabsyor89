@@ -5,7 +5,7 @@ import uuid
 import pandas as pd
 import pytest
 
-from daily_signal_storage import record_outcome, save_scan, signal_history
+from daily_signal_storage import outcome_summary, record_outcome, save_scan, signal_history
 from portfolio_store import delete_book, list_books, load_book, save_book
 from research_run_store import delete_run, get_run, list_runs, save_run
 from thesis_store import (create_thesis, delete_thesis, get_thesis, list_theses,
@@ -134,6 +134,24 @@ def test_postgres_learning_records_are_owner_scoped(postgres_test_database):
                 alice_signal["id"], 1, "2026-01-05", 9100,
                 owner_id=owner_b,
             )
+
+        # Persisted outcomes carry their own owner key and cannot leak through
+        # owner-scoped summaries, even when the same symbol/date exists twice.
+        record_outcome(
+            alice_signal["id"], 1, "2026-01-05", 9100,
+            owner_id=owner_a,
+        )
+        alice_summary = outcome_summary(owner_id=owner_a)
+        assert len(alice_summary) == 3
+        assert all(item["observations"] == 1 for item in alice_summary)
+        assert outcome_summary(owner_id=owner_b) == []
+        import psycopg
+        with psycopg.connect(postgres_test_database) as db:
+            persisted_owner = db.execute(
+                "SELECT owner_id FROM outcomes WHERE signal_id=%s AND horizon=1",
+                (alice_signal["id"],),
+            ).fetchone()[0]
+        assert persisted_owner == owner_a
     finally:
         import psycopg
         with psycopg.connect(postgres_test_database) as db:
