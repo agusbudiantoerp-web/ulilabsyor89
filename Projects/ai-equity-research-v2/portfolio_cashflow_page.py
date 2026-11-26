@@ -8,7 +8,7 @@ import streamlit as st
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_tax_lots import calculate_tax_lots
 from portfolio_reconciliation import reconcile_broker_statement
-from portfolio_snapshot_reconciliation import reconcile_broker_snapshot, classify_snapshot_exceptions
+from portfolio_snapshot_reconciliation import (\n    reconcile_broker_snapshot, classify_snapshot_exceptions,\n    filter_portfolio_events_as_of,\n)
 from broker_statement_import import normalize_broker_statement
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
