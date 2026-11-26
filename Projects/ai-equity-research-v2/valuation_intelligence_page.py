@@ -4,6 +4,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from security_controls import require_permission
 
 from market_engine import resolve_market_ticker
@@ -50,7 +52,7 @@ def _peer_record(symbol: str, market: str) -> dict:
 
 def render_valuation_intelligence() -> None:
     require_permission(st.session_state.get("_auth_role"), "run_analysis")
-    st.subheader("Relative Valuation & Reverse DCF")
+    render_page_hero("VALUATION INTELLIGENCE", "Relative Valuation & Reverse DCF", "Compare peer multiples and examine market-implied cash-flow growth with fiscal-period and currency context.", "PEER MULTIPLES  ·  REVERSE DCF")
     st.caption("Peer multiples dan market-implied FCF growth. Periksa mata uang, periode fiskal, dan definisi metrik sebelum membandingkan.")
     with st.expander("Peer valuation comparison", expanded=True):
         c1, c2 = st.columns(2)
