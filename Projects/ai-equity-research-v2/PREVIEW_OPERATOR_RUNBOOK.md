@@ -162,9 +162,22 @@ Remove-Item Env:DATABASE_URL
 Remove-Item Env:AI_EQUITY_RESEARCH_CONFIRM_POSTGRES_RESTORE
 ```
 
-Expected result: archive SHA-256/size validation succeeds, `pg_restore` completes in a single transaction with owner/ACL restoration disabled, and a post-restore query confirms application relations exist. Preserve the backup and manifest together. This verifies a logical restore into a separate disposable database; it is not a point-in-time recovery test or proof of provider-level disaster recovery. 
+Expected result: archive SHA-256/size validation succeeds, the manifest includes a non-secret source-database fingerprint, `pg_restore` completes in a single transaction with owner/ACL restoration disabled, and a post-restore query confirms application relations exist. The restore tool refuses a target whose host/port/database fingerprint matches the backup source, and it refuses a target containing user relations. Preserve the backup and manifest together. This verifies a logical restore into a separate disposable database; it is not a point-in-time recovery test or proof of provider-level disaster recovery.
 
-After the archive restore, treat the recovery database as not yet application-ready: because the archive is produced with `--no-owner --no-privileges`, rerun the explicit RLS migration against the restored database using its migration/admin identity and the same restricted runtime role name. Then connect with the runtime role and repeat the read-only Security & Audit checks, including RLS/FORCE RLS, grants, owner isolation and reviewer policies. Do not point the Preview app at the recovery database until those checks pass.
+After the archive restore, treat the recovery database as not yet application-ready. PostgreSQL roles are cluster-level objects and are not included in a normal database archive. On a different PostgreSQL cluster, recreate or verify the restricted runtime role before rerunning the RLS migration. For example, using the migration administrator in `psql`:
+
+```sql
+DO $
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ai_equity_preview_runtime') THEN
+    CREATE ROLE ai_equity_preview_runtime LOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
+  END IF;
+END
+$;
+\password ai_equity_preview_runtime
+```
+
+Then rerun `postgres_rls_migration.py` against the recovery database using its migration/admin identity, with `AI_EQUITY_RESEARCH_RUNTIME_ROLE=ai_equity_preview_runtime` and explicit confirmation. Because the archive is produced with `--no-owner --no-privileges`, verify table ownership and grants are repaired by the migration. Connect with the restricted runtime role and repeat the read-only Security & Audit checks, including RLS/FORCE RLS, grants, owner isolation and reviewer policies. Do not point the Preview app at the recovery database until those checks pass.
 
 Record the test date, app commit, test account labels (not emails), expected result and observed result in the release acceptance record. Do not record credentials or tokens.
 
