@@ -384,8 +384,12 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
 
     with psycopg.connect(postgres_test_database) as admin:
         exists = admin.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (runtime_role,)).fetchone()
-        statement = "ALTER ROLE {} LOGIN PASSWORD %s NOSUPERUSER NOBYPASSRLS" if exists else "CREATE ROLE {} LOGIN PASSWORD %s NOSUPERUSER NOBYPASSRLS"
-        admin.execute(sql.SQL(statement).format(sql.Identifier(runtime_role)), (runtime_password,))
+        statement = "ALTER ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOBYPASSRLS" if exists else "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOBYPASSRLS"
+        admin.execute(
+            sql.SQL(statement).format(
+                sql.Identifier(runtime_role), sql.Literal(runtime_password)
+            )
+        )
 
     monkeypatch.setenv("AI_EQUITY_RESEARCH_CONFIRM_RLS_MIGRATION", "YES")
     monkeypatch.setenv("AI_EQUITY_RESEARCH_RUNTIME_ROLE", runtime_role)
