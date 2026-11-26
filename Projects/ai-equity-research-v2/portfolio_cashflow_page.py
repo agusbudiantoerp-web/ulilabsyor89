@@ -8,6 +8,7 @@ import streamlit as st
 from portfolio_cashflow import calculate_twr, calculate_xirr, cash_flow_ledger, reconcile_portfolio_ledger
 from portfolio_tax_lots import calculate_tax_lots
 from portfolio_reconciliation import reconcile_broker_statement
+from portfolio_snapshot_reconciliation import reconcile_broker_snapshot
 from broker_statement_import import normalize_broker_statement
 from portfolio_event_store import create_event, delete_event, list_events
 from portfolio_valuation_store import save_valuations, list_valuations, delete_valuations
@@ -293,6 +294,73 @@ def render_portfolio_cashflow() -> None:
                 st.error(f"Rekonsiliasi gagal: {type(exc).__name__}: {exc}")
 
     st.divider()
+    with st.expander("Bandingkan saldo akhir dengan snapshot broker", expanded=False):
+        st.caption("Read-only: membandingkan saldo hasil ledger dengan snapshot broker; tidak mengubah transaksi tersimpan.")
+        c1, c2 = st.columns(2)
+        broker_cash = c1.number_input("Saldo kas broker", min_value=0.0, value=0.0, key="snapshot_broker_cash")
+        broker_currency = c2.selectbox("Mata uang broker", ["IDR", "USD"], key="snapshot_broker_currency")
+        broker_date = st.date_input("Tanggal cut-off broker", key="snapshot_broker_date")
+        holdings_raw = st.text_area(
+            "Holdings broker (TICKER,SHARES per baris)", value="BBCA,100\nTLKM,50",
+            key="snapshot_broker_holdings", help="Masukkan jumlah saham, bukan nilai pasar.",
+        )
+        opening_cash = st.number_input("Saldo kas awal ledger", min_value=0.0, value=0.0, key="snapshot_ledger_opening_cash")
+        opening_raw = st.text_input("Saldo saham awal ledger (TICKER:jumlah, pisahkan koma)", key="snapshot_ledger_opening_positions")
+        ledger_date = st.date_input("Tanggal posisi ledger", key="snapshot_ledger_date")
+        ledger_currency = st.selectbox("Mata uang ledger", ["IDR", "USD"], key="snapshot_ledger_currency")
+        cash_tol = st.number_input("Toleransi selisih kas", min_value=0.0, value=0.0, key="snapshot_cash_tolerance")
+        share_tol = st.number_input("Toleransi selisih saham", min_value=0.0, value=0.00000001, format="%.8f", key="snapshot_share_tolerance")
+        date_tol = st.number_input("Toleransi beda tanggal (hari)", min_value=0, max_value=30, value=0, key="snapshot_date_tolerance")
+        if st.button("Bandingkan snapshot broker", key="snapshot_broker_compare"):
+            try:
+                opening_positions = {}
+                for item in opening_raw.split(",") if opening_raw.strip() else []:
+                    parts = item.strip().split(":")
+                    if len(parts) != 2 or not parts[0].strip():
+                        raise ValueError("Format saldo saham awal harus TICKER:jumlah.")
+                    symbol, quantity = parts[0].strip().upper(), float(parts[1])
+                    if symbol in opening_positions or not math.isfinite(quantity) or quantity < 0:
+                        raise ValueError(f"Saldo awal {symbol} duplikat atau tidak valid.")
+                    opening_positions[symbol] = quantity
+                broker_positions = []
+                for line_no, line in enumerate(holdings_raw.splitlines(), 1):
+                    if not line.strip():
+                        continue
+                    parts = [part.strip() for part in line.split(",")]
+                    if len(parts) != 2 or not parts[0]:
+                        raise ValueError(f"Baris holdings {line_no} harus TICKER,SHARES.")
+                    broker_positions.append({"ticker": parts[0], "shares": float(parts[1])})
+                ledger_result = reconcile_portfolio_ledger(events, initial_cash=opening_cash, initial_positions=opening_positions)
+                result = reconcile_broker_snapshot(
+                    ledger_cash=ledger_result["cash_balance"], ledger_positions=ledger_result["positions"],
+                    broker_cash=broker_cash, broker_positions=broker_positions,
+                    ledger_currency=ledger_currency, broker_currency=broker_currency,
+                    ledger_as_of_date=ledger_date, broker_as_of_date=broker_date,
+                    cash_tolerance=cash_tol, shares_tolerance=share_tol, date_tolerance_days=int(date_tol),
+                )
+                st.session_state["snapshot_broker_details"] = result["details"].copy()
+                st.session_state["snapshot_broker_summary"] = {
+                    key: result[key] for key in ("status", "cash_difference", "matched_count", "exception_count", "warnings", "method")
+                }
+            except Exception as exc:
+                st.error(f"Snapshot reconciliation gagal: {type(exc).__name__}: {exc}")
+        summary = st.session_state.get("snapshot_broker_summary") or {}
+        details = st.session_state.get("snapshot_broker_details")
+        if summary:
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Status", summary["status"])
+            m2.metric("Baris cocok", summary["matched_count"])
+            m3.metric("Pengecualian", summary["exception_count"])
+            if summary["cash_difference"] is not None:
+                st.metric("Selisih kas (broker − ledger)", f"{summary['cash_difference']:,.2f}")
+            for warning in summary["warnings"]:
+                st.warning(warning)
+            if isinstance(details, pd.DataFrame):
+                st.dataframe(details, use_container_width=True, hide_index=True)
+                st.download_button("Unduh laporan snapshot CSV", safe_csv_bytes(details),
+                    file_name="broker_snapshot_reconciliation.csv", mime="text/csv", key="snapshot_broker_download")
+            st.caption(summary["method"])
+
     st.markdown("**Time-Weighted Return (TWR)**")
     st.caption(
         "Masukkan valuasi akhir setiap periode. External flow positif untuk setoran "
