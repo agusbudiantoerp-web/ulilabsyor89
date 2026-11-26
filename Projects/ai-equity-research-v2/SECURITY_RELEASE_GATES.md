@@ -41,3 +41,8 @@
 - Do not expose local SQLite files or database connection strings through downloads.
 - Do not merge the development branch or deploy it to the public Streamlit app until the complete test suite and release gates pass.
 - The system is research support only; it does not place broker orders or replace human review.
+
+
+## PostgreSQL RLS policy diagnostics
+
+The read-only database health check verifies more than `relrowsecurity` and `relforcerowsecurity`: it also inspects `pg_policies` for each registered owner-scoped table. A release-ready table must have tenant-scoped permissive policy coverage for SELECT, INSERT, UPDATE, and DELETE, with both `USING` and `WITH CHECK` expressions (where applicable) binding `owner_id` to `current_setting('app.current_owner_id', true)`. Broad permissive policies and missing CRUD coverage are reported as release blockers. This remains diagnostic only: it does not create policies, set per-transaction owner context, or change database privileges. Actual RLS rollout still requires a separately reviewed migration and integration tests using the restricted non-owner application role.
