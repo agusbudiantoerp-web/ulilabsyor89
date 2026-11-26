@@ -357,6 +357,7 @@ def test_postgres_restore_refuses_nonempty_target_before_running_pg_restore(tmp_
 
 
 def test_postgres_restore_rejects_sqlite_manifest(tmp_path):
+    import hashlib
     import pytest
     from database_backup import restore_postgres_backup
 
@@ -367,7 +368,7 @@ def test_postgres_restore_rejects_sqlite_manifest(tmp_path):
         "backend": "SQLite",
         "backup_file": artifact.name,
         "size_bytes": artifact.stat().st_size,
-        "sha256": "0" * 64,
+        "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "validation": "PRAGMA integrity_check: ok",
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="backend PostgreSQL"):
