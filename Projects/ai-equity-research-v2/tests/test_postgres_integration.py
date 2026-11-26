@@ -386,8 +386,16 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
     monkeypatch.setenv("DATABASE_URL", postgres_test_database)
     monkeypatch.setenv("AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION", "YES")
     run_schema_migrations()
+    suffix = uuid.uuid4().hex[:8]
 
     with psycopg.connect(postgres_test_database) as admin:
+        schema_name = admin.execute("SELECT current_schema()").fetchone()[0]
+        private_sequence = f"private_admin_sequence_{suffix}"
+        admin.execute(
+            sql.SQL("CREATE SEQUENCE {}").format(
+                sql.Identifier(schema_name, private_sequence)
+            )
+        )
         exists = admin.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (runtime_role,)).fetchone()
         statement = "ALTER ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOBYPASSRLS" if exists else "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOBYPASSRLS"
         admin.execute(
@@ -408,6 +416,14 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
     diagnostics = check_postgres_health()
     assert diagnostics["rls_issues"] == []
 
+    # Runtime grants are limited to sequences backing application inserts;
+    # unrelated administrator-owned sequences in the same schema stay private.
+    with psycopg.connect(runtime_url) as raw:
+        assert raw.execute(
+            "SELECT has_sequence_privilege(current_user, %s, 'USAGE')",
+            (f"{schema_name}.{private_sequence}",),
+        ).fetchone()[0] is False
+
     # The restricted runtime identity can append/read audit events, but the
     # schema itself was provisioned earlier by the dedicated migration role.
     audit_id = record_audit_event(
@@ -421,7 +437,6 @@ def test_postgres_rls_runtime_role_enforces_tenant_and_reviewer_context(postgres
         for row in list_audit_events(limit=100)
     )
 
-    suffix = uuid.uuid4().hex[:8]
     owner_a, owner_b, reviewer = f"tenant-a-{suffix}", f"tenant-b-{suffix}", f"reviewer-{suffix}"
     with psycopg.connect(runtime_url) as raw:
         assert raw.execute("SELECT count(*) FROM portfolio_books").fetchone()[0] == 0
