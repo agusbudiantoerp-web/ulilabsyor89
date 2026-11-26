@@ -87,6 +87,14 @@ def initialize(db_path: str | None = None):
                     cur.execute(statement)
                 cur.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'")
                 cur.execute("ALTER TABLE signals ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT 'legacy-unassigned'")
+                cur.execute("ALTER TABLE outcomes ADD COLUMN IF NOT EXISTS owner_id TEXT")
+                cur.execute("""
+                    UPDATE outcomes o SET owner_id=s.owner_id
+                    FROM signals s
+                    WHERE s.id=o.signal_id AND o.owner_id IS NULL
+                """)
+                cur.execute("ALTER TABLE outcomes ALTER COLUMN owner_id SET NOT NULL")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_owner_signal ON outcomes(owner_id,signal_id,horizon)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_scans_owner_id ON scans(owner_id,id DESC)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_signals_owner_date ON signals(owner_id,bar_date DESC)")
                 cur.execute("ALTER TABLE signals DROP CONSTRAINT IF EXISTS signals_market_ticker_bar_date_key")
@@ -164,6 +172,16 @@ def initialize(db_path: str | None = None):
                 FROM signals_legacy
             """)
             db.execute("DROP TABLE signals_legacy")
+        outcome_columns = {row["name"] for row in db.execute("PRAGMA table_info(outcomes)").fetchall()}
+        if "owner_id" not in outcome_columns:
+            db.execute("ALTER TABLE outcomes ADD COLUMN owner_id TEXT")
+            db.execute("""
+                UPDATE outcomes SET owner_id=(
+                    SELECT signals.owner_id FROM signals WHERE signals.id=outcomes.signal_id
+                ) WHERE owner_id IS NULL
+            """)
+            db.execute("UPDATE outcomes SET owner_id='legacy-unassigned' WHERE owner_id IS NULL")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_outcomes_owner_signal ON outcomes(owner_id,signal_id,horizon)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_scans_owner_id ON scans(owner_id,id DESC)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_signals_owner_date ON signals(owner_id,bar_date DESC)")
 
@@ -266,11 +284,11 @@ def signal_history(limit: int = 100, db_path: str | None = None, owner_id: str |
           o10.return_pct AS outcome_10d_return_pct,
           o20.return_pct AS outcome_20d_return_pct
         FROM signals s
-        LEFT JOIN outcomes o1 ON o1.signal_id=s.id AND o1.horizon=1
-        LEFT JOIN outcomes o3 ON o3.signal_id=s.id AND o3.horizon=3
-        LEFT JOIN outcomes o5 ON o5.signal_id=s.id AND o5.horizon=5
-        LEFT JOIN outcomes o10 ON o10.signal_id=s.id AND o10.horizon=10
-        LEFT JOIN outcomes o20 ON o20.signal_id=s.id AND o20.horizon=20
+        LEFT JOIN outcomes o1 ON o1.signal_id=s.id AND o1.owner_id=s.owner_id AND o1.horizon=1
+        LEFT JOIN outcomes o3 ON o3.signal_id=s.id AND o3.owner_id=s.owner_id AND o3.horizon=3
+        LEFT JOIN outcomes o5 ON o5.signal_id=s.id AND o5.owner_id=s.owner_id AND o5.horizon=5
+        LEFT JOIN outcomes o10 ON o10.signal_id=s.id AND o10.owner_id=s.owner_id AND o10.horizon=10
+        LEFT JOIN outcomes o20 ON o20.signal_id=s.id AND o20.owner_id=s.owner_id AND o20.horizon=20
         WHERE s.owner_id={placeholder} ORDER BY s.bar_date DESC,s.id DESC LIMIT {placeholder}
     """
     if backend_name(db_path) == "PostgreSQL":
@@ -299,7 +317,7 @@ def get_pending_outcomes(limit: int = 500, db_path: str | None = None, owner_id:
     if backend_name(db_path) == "PostgreSQL":
         sql = """
             SELECT s.id,s.market,s.ticker,s.bar_date,s.close,
-                   ARRAY(SELECT o.horizon FROM outcomes o WHERE o.signal_id=s.id) AS recorded
+                   ARRAY(SELECT o.horizon FROM outcomes o WHERE o.signal_id=s.id AND o.owner_id=s.owner_id) AS recorded
             FROM signals s WHERE s.owner_id=%s ORDER BY s.bar_date DESC LIMIT %s
         """
         with _connect_postgres() as db:
@@ -310,7 +328,7 @@ def get_pending_outcomes(limit: int = 500, db_path: str | None = None, owner_id:
         with _connect_sqlite(db_path) as db:
             rows = db.execute("""
                 SELECT s.id,s.market,s.ticker,s.bar_date,s.close,GROUP_CONCAT(o.horizon) AS recorded
-                FROM signals s LEFT JOIN outcomes o ON o.signal_id=s.id
+                FROM signals s LEFT JOIN outcomes o ON o.signal_id=s.id AND o.owner_id=s.owner_id
                 WHERE s.owner_id=? GROUP BY s.id ORDER BY s.bar_date DESC LIMIT ?
             """, (owner, limit)).fetchall()
     pending = []
@@ -355,11 +373,12 @@ def record_outcome(signal_id: int, horizon: int, observed_date: str, close: floa
                 if not math.isfinite(ret):
                     raise ValueError("Forward return melampaui rentang numerik yang didukung.")
                 cur.execute("""
-                    INSERT INTO outcomes(signal_id,horizon,observed_date,close,return_pct)
-                    VALUES(%s,%s,%s,%s,%s)
+                    INSERT INTO outcomes(signal_id,horizon,observed_date,close,return_pct,owner_id)
+                    VALUES(%s,%s,%s,%s,%s,%s)
                     ON CONFLICT(signal_id,horizon) DO UPDATE SET
-                    observed_date=EXCLUDED.observed_date,close=EXCLUDED.close,return_pct=EXCLUDED.return_pct
-                """, (signal_id, horizon, observed.isoformat(), observed_close, ret))
+                    observed_date=EXCLUDED.observed_date,close=EXCLUDED.close,return_pct=EXCLUDED.return_pct,
+                    owner_id=EXCLUDED.owner_id
+                """, (signal_id, horizon, observed.isoformat(), observed_close, ret, owner))
         return ret
     with _connect_sqlite(db_path) as db:
         row = db.execute("SELECT close,bar_date FROM signals WHERE id=? AND owner_id=?", (signal_id, owner)).fetchone()
@@ -392,7 +411,7 @@ def outcome_summary(db_path: str | None = None, owner_id: str | None = None):
     query = """
         SELECT o.horizon, o.return_pct, s.signal, s.score, s.payload
         FROM outcomes o
-        JOIN signals s ON s.id=o.signal_id
+        JOIN signals s ON s.id=o.signal_id AND s.owner_id=o.owner_id
         WHERE o.return_pct IS NOT NULL AND s.owner_id=%s
         ORDER BY o.horizon
     """
