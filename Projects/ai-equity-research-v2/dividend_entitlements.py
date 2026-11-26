@@ -33,6 +33,8 @@ def _positions_at_record_date(portfolio_events, ticker, record_date, initial_pos
             raise ValueError("Initial positions harus berupa angka finite dan non-negatif.") from None
         if not math.isfinite(shares) or shares < 0:
             raise ValueError("Initial positions harus berupa angka finite dan non-negatif.")
+        if symbol in positions:
+            raise ValueError("Ticker initial_positions duplikat setelah normalisasi.")
         positions[symbol] = shares
     ledger = ledger.loc[
         ledger["ticker"].eq(ticker) & ledger["date"].le(pd.Timestamp(record_date))
@@ -108,6 +110,13 @@ def estimate_dividend_entitlements(
                 continue
             selected = {}
             previous_date = pd.Timestamp(declaration["event_date"])
+            next_declarations = declarations.loc[
+                declarations["event_date"].gt(previous_date)
+                & declarations["status"].eq("CONFIRMED"), "event_date"
+            ]
+            next_declaration_date = (
+                pd.Timestamp(next_declarations.min()) if not next_declarations.empty else None
+            )
             incomplete = False
             for kind in ("EX_DIVIDEND", "RECORD_DATE", "PAY_DATE"):
                 candidates = milestones[kind]
@@ -124,6 +133,17 @@ def estimate_dividend_entitlements(
                     incomplete = True
                     break
                 chosen = candidates.iloc[0]
+                if (
+                    kind == "EX_DIVIDEND"
+                    and next_declaration_date is not None
+                    and pd.Timestamp(chosen["event_date"]) > next_declaration_date
+                ):
+                    warnings.append(
+                        f"{ticker}: siklus dividen {declaration['event_date'].date()} ambigu; "
+                        "deklarasi berikutnya muncul sebelum ex-date terkonfirmasi."
+                    )
+                    incomplete = True
+                    break
                 selected[kind] = chosen
                 used[kind].add(chosen.name)
                 previous_date = pd.Timestamp(chosen["event_date"])
