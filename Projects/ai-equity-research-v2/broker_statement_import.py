@@ -96,9 +96,12 @@ def normalize_broker_statement(source, *, locale: str = "auto") -> dict:
                 sample = payload[:8192].decode("cp1252")
             except UnicodeDecodeError as exc:
                 raise ValueError("Encoding CSV tidak didukung; simpan sebagai UTF-8.") from exc
-        try:
-            delimiter = csv.Sniffer().sniff(sample, delimiters=",;\\t|").delimiter
-        except csv.Error:
+        # Detect from the header row only: decimal commas in data rows can
+        # otherwise trick Sniffer into treating a semicolon CSV as one column.
+        header_line = next((line for line in sample.splitlines() if line.strip()), "")
+        delimiter_counts = {candidate: header_line.count(candidate) for candidate in (",", ";", "\\t", "|")}
+        delimiter = max(delimiter_counts, key=delimiter_counts.get)
+        if delimiter_counts[delimiter] == 0:
             delimiter = ","
         try:
             frame = pd.read_csv(io.BytesIO(payload), sep=delimiter, dtype=object, encoding="utf-8-sig")
@@ -126,7 +129,10 @@ def normalize_broker_statement(source, *, locale: str = "auto") -> dict:
         if event_type is None:
             raise ValueError(f"Jenis transaksi baris {row_number + 2} tidak dikenali: {raw_type!r}.")
         date_value = str(row[mapping["date"]]).strip()
-        parsed_date = pd.to_datetime(date_value, errors="coerce", dayfirst=True)
+        if re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", date_value):
+            parsed_date = pd.to_datetime(date_value, format="%Y-%m-%d", errors="coerce")
+        else:
+            parsed_date = pd.to_datetime(date_value, errors="coerce", dayfirst=True)
         if pd.isna(parsed_date):
             raise ValueError(f"Tanggal baris {row_number + 2} tidak valid: {date_value!r}.")
         amount = abs(_number(row[mapping["amount"]], locale))
