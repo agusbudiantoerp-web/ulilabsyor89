@@ -6,6 +6,14 @@ import time
 from typing import Any
 
 
+OWNER_SCOPED_TABLES = {
+    "scans", "signals", "outcomes", "portfolio_books", "portfolio_positions",
+    "research_runs", "research_theses", "research_thesis_versions",
+    "research_thesis_reviews", "corporate_events", "portfolio_cashflow_events",
+    "portfolio_valuations",
+}
+
+
 REQUIRED_TABLES = {
     "scans": ("SELECT", "INSERT", "UPDATE"),
     "signals": ("SELECT", "INSERT"),
@@ -65,6 +73,8 @@ def check_postgres_health(secrets: Any = None) -> dict:
             "message": "DATABASE_URL belum dikonfigurasi.",
             "missing_tables": sorted(required_tables),
             "privilege_issues": [],
+            "rls_issues": [],
+            "application_role": None,
             "latency_ms": None,
         }
 
@@ -101,22 +111,69 @@ def check_postgres_health(secrets: Any = None) -> dict:
                                 "privilege": privilege,
                             })
 
+                cursor.execute(
+                    "SELECT current_user, r.rolsuper, r.rolbypassrls "
+                    "FROM pg_roles r WHERE r.rolname=current_user"
+                )
+                role_row = cursor.fetchone()
+                application_role = {
+                    "name": role_row[0],
+                    "superuser": bool(role_row[1]),
+                    "bypass_rls": bool(role_row[2]),
+                } if role_row else {"name": None, "superuser": True, "bypass_rls": True}
+
+                cursor.execute(
+                    "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity, "
+                    "pg_get_userbyid(c.relowner), current_user "
+                    "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+                    "WHERE n.nspname=current_schema() AND c.relkind='r' "
+                    "AND c.relname = ANY(%s)",
+                    (sorted(OWNER_SCOPED_TABLES & existing),),
+                )
+                rls_rows = cursor.fetchall()
+
         missing = sorted(set(required_tables) - existing)
+        rls_issues = []
+        if application_role["superuser"] or application_role["bypass_rls"]:
+            rls_issues.append({
+                "scope": "application_role",
+                "reason": "Role aplikasi memiliki SUPERUSER atau BYPASSRLS.",
+            })
+        rls_found = {row[0] for row in rls_rows}
+        for table in sorted(OWNER_SCOPED_TABLES & existing):
+            if table not in rls_found:
+                rls_issues.append({"scope": table, "reason": "Status RLS tidak dapat diverifikasi."})
+                continue
+            _, enabled, forced, table_owner, current_user = next(
+                row for row in rls_rows if row[0] == table
+            )
+            if not enabled:
+                rls_issues.append({"scope": table, "reason": "ROW LEVEL SECURITY belum aktif."})
+            elif not forced:
+                rls_issues.append({"scope": table, "reason": "FORCE ROW LEVEL SECURITY belum aktif."})
+            if table_owner == current_user:
+                rls_issues.append({
+                    "scope": table,
+                    "reason": "Role aplikasi adalah pemilik tabel dan dapat mengubah kebijakan RLS.",
+                })
+
         elapsed = round((time.perf_counter() - started) * 1000, 1)
         return {
             "configured": True,
             "connected": True,
-            "ok": not missing and not privilege_issues,
+            "ok": not missing and not privilege_issues and not rls_issues,
             "database": database,
             "schema": schema,
             "server_version": version,
             "missing_tables": missing,
             "privilege_issues": privilege_issues,
+            "rls_issues": rls_issues,
+            "application_role": application_role,
             "latency_ms": elapsed,
             "message": (
-                "Koneksi, tabel dan hak akses dasar terverifikasi."
-                if not missing and not privilege_issues
-                else "Koneksi berhasil, tetapi skema atau hak akses belum lengkap."
+                "Koneksi, tabel, hak akses dan isolasi RLS terverifikasi."
+                if not missing and not privilege_issues and not rls_issues
+                else "Koneksi berhasil, tetapi skema, hak akses, atau isolasi RLS belum memenuhi syarat."
             ),
         }
     except Exception as exc:
@@ -127,6 +184,8 @@ def check_postgres_health(secrets: Any = None) -> dict:
             "message": f"Koneksi PostgreSQL gagal: {type(exc).__name__}. Detail koneksi disembunyikan.",
             "missing_tables": sorted(required_tables),
             "privilege_issues": [],
+            "rls_issues": [],
+            "application_role": None,
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
 
