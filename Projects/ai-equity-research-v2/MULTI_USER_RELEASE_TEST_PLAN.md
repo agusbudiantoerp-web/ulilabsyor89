@@ -13,10 +13,11 @@ This plan is intentionally separate from feature development. Run it only after 
 ## 2. PostgreSQL setup and direct verification
 
 - Configure `DATABASE_URL` only in the Preview app's private Streamlit Secrets.
-- Sign in as the designated administrator.
-- Open **Security & Audit (Admin)**.
-- If the database is new, confirm the administrator-only **Siapkan skema PostgreSQL** action. This runs the application's idempotent schema initializers and records an audit event.
-- Run **Uji koneksi, skema & hak akses PostgreSQL**. Confirm the connection, required tables and least-privilege grants pass.
+- Provision the Preview database using a dedicated migration/DDL principal from a trusted administrator workstation. Set `DATABASE_URL` privately to that migration connection and set `AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION=YES`; run `python postgres_schema_migration.py` from this project folder. The script refuses to run without both settings and never prints the connection string.
+- After schema creation, provision a separate runtime role that is not a table owner, is not SUPERUSER/BYPASSRLS, and has only the required table privileges. Apply reviewed grants and (once the transaction owner-context implementation is complete) tenant RLS policies. Do not use the migration principal as the app runtime identity.
+- Configure the Preview Streamlit app's `DATABASE_URL` with the runtime role only.
+- Sign in as the designated administrator and open **Security & Audit (Admin)**.
+- Run **Uji koneksi, skema & hak akses PostgreSQL**. Confirm the connection, required tables, least-privilege grants, and actual RLS policy coverage pass. A failure is a release blocker; the diagnostic is read-only.
 - Confirm the console identifies PostgreSQL for cloud-backed signals, portfolio books and research runs. Audit storage may intentionally use SQLite only when an explicit `audit_db_path` override is configured.
 - Do not use production database credentials for Preview validation.
 - Optional automated PostgreSQL storage integration tests are available in `tests/test_postgres_integration.py`. Set `AI_EQUITY_RESEARCH_TEST_DATABASE_URL` only to a disposable test database; the tests create and delete uniquely identified test records and must never target production.

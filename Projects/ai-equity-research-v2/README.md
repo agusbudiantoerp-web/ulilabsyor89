@@ -100,6 +100,20 @@ Streamlit Cloud uses PostgreSQL when `DATABASE_URL` is configured in App setting
 
 See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for configuration and storage details.
 
+## PostgreSQL schema migration (administrator workstation)
+
+Schema creation is deliberately separated from the Streamlit runtime. Use a dedicated, private migration/DDL connection only from a trusted administrator workstation:
+
+~~~powershell
+$env:DATABASE_URL = "YOUR_PRIVATE_MIGRATION_CONNECTION"
+$env:AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION = "YES"
+python .\postgres_schema_migration.py
+Remove-Item Env:DATABASE_URL
+Remove-Item Env:AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION
+~~~
+
+The script refuses to run unless both the connection and explicit confirmation are present. It never prints the connection string. After migration, configure Streamlit Secrets with a separate restricted runtime role that does not own tables and has no SUPERUSER/BYPASSRLS. Never place the migration connection in Streamlit Secrets. This schema script does not install tenant RLS policies or certify tenant isolation; RLS remains a separate reviewed release gate.
+
 ## Database backup utility
 
 `database_backup.py` creates integrity-checked local SQLite backups and custom-format PostgreSQL logical backups. It writes SHA-256 manifests and never prints or stores the database URL in the manifest. See [CLOUD_PERFORMANCE_DATABASE.md](CLOUD_PERFORMANCE_DATABASE.md) for commands and staging-first recovery guidance. Keep generated `backups/` artifacts private; the directory is excluded from Git.

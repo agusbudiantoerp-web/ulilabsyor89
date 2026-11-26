@@ -11,7 +11,7 @@ from ui_theme import render_page_hero
 from daily_signal_storage import backend_name as signal_backend_name
 from portfolio_store import backend_name as portfolio_backend_name
 from research_run_store import backend_name as research_backend_name
-from database_health import check_postgres_health, initialize_required_postgres_schema
+from database_health import check_postgres_health
 from report_export_utils import safe_csv_bytes
 from security_controls import (
     ROLE_PERMISSIONS,
@@ -123,34 +123,13 @@ def render_security_audit(identity: dict, secrets) -> None:
         "Indikator backend di atas membaca konfigurasi. Gunakan pemeriksaan berikut untuk "
         "menguji koneksi PostgreSQL, tabel wajib, dan hak akses tanpa menulis data."
     )
-    st.caption("Jika database baru dibuat, administrator dapat menjalankan migrasi skema idempoten terlebih dahulu.")
-    confirm_schema = st.checkbox(
-        "Saya menyetujui pembuatan/migrasi tabel aplikasi pada PostgreSQL yang dikonfigurasi.",
-        key="confirm_postgres_schema_initialize",
+    st.info(
+        "Pembuatan/migrasi tabel tidak dijalankan dari proses aplikasi. "
+        "Jalankan postgres_schema_migration.py secara manual dari workstation administrator "
+        "menggunakan kredensial migrasi/DDL terpisah. Setelah itu, konfigurasi DATABASE_URL "
+        "aplikasi dengan role runtime non-owner yang hanya memiliki grant minimum, lalu "
+        "jalankan pemeriksaan read-only di bawah. Jangan gunakan role migrasi sebagai role runtime."
     )
-    if st.button(
-        "Siapkan skema PostgreSQL",
-        key="initialize_postgres_schema",
-        disabled=not confirm_schema,
-    ):
-        try:
-            prepared = initialize_required_postgres_schema(
-                secrets, actor_id=actor_id, actor_role=actor_role,
-                audit_path=audit_path_value,
-            )
-            if prepared.get("ok"):
-                st.success("Skema PostgreSQL berhasil disiapkan dan pemeriksaan dasar lulus.")
-            else:
-                st.warning("Skema telah diproses, tetapi masih ada tabel, hak akses, atau kebijakan RLS yang perlu diperiksa.")
-                if prepared.get("missing_tables"):
-                    st.write("Tabel belum tersedia:", ", ".join(prepared["missing_tables"]))
-                if prepared.get("privilege_issues"):
-                    st.dataframe(pd.DataFrame(prepared["privilege_issues"]), use_container_width=True, hide_index=True)
-                if prepared.get("rls_issues"):
-                    st.error("Isolasi database belum memenuhi syarat produksi. Aktifkan RLS + FORCE RLS dan gunakan role aplikasi non-owner tanpa SUPERUSER/BYPASSRLS.")
-                    st.dataframe(pd.DataFrame(prepared["rls_issues"]), use_container_width=True, hide_index=True)
-        except Exception as exc:
-            st.error(f"Inisialisasi skema gagal: {type(exc).__name__}. Detail koneksi disembunyikan.")
     if st.button("Uji koneksi, skema & hak akses PostgreSQL", key="database_health_check"):
         health = check_postgres_health(secrets)
         if health.get("connected") and health.get("ok"):

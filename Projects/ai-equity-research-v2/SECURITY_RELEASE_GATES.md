@@ -51,3 +51,8 @@ The read-only database health check verifies more than `relrowsecurity` and `rel
 ## Forward-outcome tenant ownership migration
 
 The daily-learning `outcomes` table now stores its own non-null `owner_id`. Existing PostgreSQL rows are backfilled from their parent signal before the column is made NOT NULL; SQLite migration backfills the same relationship and assigns only orphaned legacy rows to `legacy-unassigned`. Outcome writes verify the signal under the requesting owner and persist that owner on insert/upsert. Summary and history joins also require matching owner IDs. Automated coverage verifies that another owner cannot write or read the outcome. This closes the table-level ownership gap; it does not replace PostgreSQL RLS or staging two-user acceptance tests.
+
+
+## Separate schema migration and runtime identities
+
+Do not run PostgreSQL DDL through the Streamlit runtime connection. Use `postgres_schema_migration.py` from a trusted administrator workstation with an explicit one-time confirmation and a dedicated migration principal. Configure the deployed application's `DATABASE_URL` only with a separate restricted non-owner runtime role. The admin console schema-initialization button has been removed; it now provides this operational warning and retains only read-only health diagnostics. The migration script creates/migrates the application's tables but does not enable RLS or create tenant policies. Those require a separately reviewed transaction-context implementation and staging validation.

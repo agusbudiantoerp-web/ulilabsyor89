@@ -65,3 +65,8 @@ The read-only database health check verifies more than `relrowsecurity` and `rel
 ## Forward-outcome ownership hardening
 
 The `outcomes` table now has a persisted, non-null `owner_id`, backfilled from its parent signal during PostgreSQL/SQLite initialization. Outcome writes validate ownership and persist the owner; reads and aggregates constrain joins by owner. A regression test covers cross-owner write rejection, persisted owner identity and cross-owner summary isolation. This is application-level ownership enforcement; PostgreSQL RLS remains unconfigured and is still a release gate.
+
+
+## Migration/runtime credential separation
+
+The Streamlit admin console no longer executes schema DDL using the application's runtime database URL. Schema migrations must be run out-of-band using `postgres_schema_migration.py` and a dedicated migration principal from a trusted administrator workstation. The app receives only a restricted non-owner runtime connection. This avoids creating tables owned by the runtime role and preserves least-privilege separation. The script does not install RLS policies; database-native tenant isolation remains unconfigured until the owner-context lifecycle is implemented and verified in staging.

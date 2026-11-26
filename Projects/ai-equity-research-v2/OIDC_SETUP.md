@@ -110,7 +110,7 @@ Initially keep the Google OAuth consent screen in Testing and add only approved 
 
 ## 6. Administrator console
 
-The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, the server-side permission matrix, recent audit events, CSV export, hash-chain verification, storage routing, a confirmed PostgreSQL schema-preparation action and read-only connectivity/schema/privilege diagnostics. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
+The admin-only **Security & Audit** menu displays the configured OIDC principal-to-role mapping, the server-side permission matrix, recent audit events, CSV export, hash-chain verification, storage routing and read-only PostgreSQL connectivity/schema/privilege/RLS diagnostics. Schema migration is intentionally performed outside the app using a separate administrator DDL connection; the runtime application role must never own the tables. Role assignments are still changed in Streamlit Secrets under `[auth_roles]`; the browser console is read-only. Storage indicators report configuration routing only and do not prove database connectivity or backup health.
 
 ## 7. Security and release limitations
 
