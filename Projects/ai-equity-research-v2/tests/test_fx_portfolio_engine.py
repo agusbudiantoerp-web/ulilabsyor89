@@ -171,3 +171,41 @@ def test_same_currency_portfolio_combines_without_fx_series():
     assert result["base_currency"] == "IDR"
     assert result["asset_returns"].loc[dates[1], "BBCA"] == pytest.approx(0.05)
     assert result["asset_returns"].loc[dates[1], "BMRI"] == pytest.approx(0.01)
+
+
+
+def test_usd_asset_retains_fx_only_return_when_local_market_is_closed():
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-06"])
+    fx = pd.Series([15000.0, 16500.0, 16500.0], index=dates)
+    idx_close = pd.Series([100.0, 101.0], index=dates[[0, 2]])
+    us_close = pd.Series([100.0, 100.0, 100.0], index=dates)
+    result = combine_mixed_currency_returns(
+        {"IDX": idx_close, "US": us_close},
+        {"IDX": "IDR", "US": "USD"},
+        {"IDX": 0.5, "US": 0.5}, fx, "IDR",
+    )
+    assert result["asset_returns"].loc[dates[1], "IDX"] == pytest.approx(0.0)
+    assert result["asset_returns"].loc[dates[1], "US"] == pytest.approx(0.10)
+    assert result["asset_fx_contribution_pct"].loc[dates[1], "US"] == pytest.approx(10.0)
+
+
+def test_mixed_currency_portfolio_rejects_disjoint_asset_history():
+    dates_a = pd.to_datetime(["2026-01-01", "2026-01-02"])
+    dates_b = pd.to_datetime(["2026-02-01", "2026-02-02"])
+    with pytest.raises(ValueError, match="tidak memiliki rentang tanggal"):
+        combine_mixed_currency_returns(
+            {"A": pd.Series([100.0, 101.0], index=dates_a),
+             "B": pd.Series([100.0, 101.0], index=dates_b)},
+            {"A": "IDR", "B": "IDR"}, {"A": 0.5, "B": 0.5},
+        )
+
+
+@pytest.mark.parametrize("gap", [-1, 1.5, float("inf"), "3", True, 31])
+def test_cross_currency_portfolio_rejects_invalid_price_gap_tolerance(gap):
+    dates = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    close = pd.Series([100.0, 101.0], index=dates)
+    with pytest.raises(ValueError, match="max_price_gap_days"):
+        combine_mixed_currency_returns(
+            {"A": close}, {"A": "IDR"}, {"A": 1.0},
+            max_price_gap_days=gap,
+        )
