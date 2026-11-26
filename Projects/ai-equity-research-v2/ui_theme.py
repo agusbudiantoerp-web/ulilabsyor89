@@ -114,7 +114,7 @@ def apply_workspace_theme() -> None:
           box-shadow: 0 18px 46px rgba(0,0,0,.20), inset 0 1px rgba(255,255,255,.04);
           margin: 0 0 20px 0;
         }
-        .aer-hero:after {
+        .aer-page-hero { margin-bottom: 16px; }\n        .aer-page-hero .aer-title { font-size: clamp(1.35rem, 2.25vw, 1.9rem); }\n        .aer-page-hero .aer-subtitle { max-width: 980px; }\n        .aer-hero:after {
           content: ""; position: absolute; width: 250px; height: 250px; right: -65px; top: -120px;
           border: 1px solid rgba(67,217,255,.22); border-radius: 50%;
           box-shadow: 0 0 0 24px rgba(67,217,255,.035), 0 0 0 50px rgba(167,139,250,.025);
@@ -141,5 +141,25 @@ def apply_workspace_theme() -> None:
         }
         </style>
         """,
+        unsafe_allow_html=True,
+    )
+
+
+
+def render_page_hero(eyebrow: str, title: str, subtitle: str, chips: str) -> None:
+    """Render a consistent, escaped hero header for a workspace page."""
+    from html import escape
+
+    safe_eyebrow = escape(str(eyebrow))
+    safe_title = escape(str(title))
+    safe_subtitle = escape(str(subtitle))
+    safe_chips = escape(str(chips))
+    st.markdown(
+        f"""<section class="aer-hero aer-page-hero">
+        <div class="aer-eyebrow">{safe_eyebrow}</div>
+        <div class="aer-title">{safe_title}</div>
+        <div class="aer-subtitle">{safe_subtitle}</div>
+        <span class="aer-chip">{safe_chips}</span>
+        </section>""",
         unsafe_allow_html=True,
     )
