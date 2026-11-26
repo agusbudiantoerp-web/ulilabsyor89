@@ -8,6 +8,8 @@ from corporate_action_calendar import normalize_corporate_events
 from corporate_event_store import create_event, create_events, delete_event, list_events
 from security_controls import record_audit_event, require_permission
 from report_export_utils import safe_csv_bytes
+from portfolio_event_store import list_events as list_portfolio_events
+from dividend_entitlements import estimate_dividend_entitlements
 
 
 def _audit_corporate_event(owner, role, action, event_id, details):
@@ -54,7 +56,7 @@ def render_corporate_action_calendar() -> None:
         c1, c2, c3 = st.columns(3)
         ticker = c1.text_input("Ticker")
         event_type = c2.selectbox(
-            "Event type", ["EARNINGS", "DIVIDEND_DECLARATION", "EX_DIVIDEND",
+            "Event type", ["EARNINGS", "DIVIDEND_DECLARATION", "EX_DIVIDEND", "RECORD_DATE",
                            "PAY_DATE", "STOCK_SPLIT", "RIGHTS_ISSUE", "OTHER"]
         )
         event_date = c3.date_input("Tanggal event")
@@ -63,7 +65,7 @@ def render_corporate_action_calendar() -> None:
         source = c5.text_input("Sumber (issuer / BEI / provider)")
         retrieved = c6.date_input("Tanggal data diperoleh")
         c7, c8, c9 = st.columns(3)
-        amount = c7.number_input("Nominal dividen (opsional)", min_value=0.0, value=0.0)
+        amount = c7.number_input("Nominal dividen bruto per saham (opsional)", min_value=0.0, value=0.0, help="Untuk DIVIDEND_DECLARATION isi DPS bruto; untuk event lain gunakan nominal yang relevan atau kosongkan.")
         currency = c8.text_input("Mata uang")
         split_ratio = c9.number_input("Rasio split (opsional)", min_value=0.0, value=0.0)
         source_url = st.text_input("URL dokumen sumber")
@@ -93,6 +95,22 @@ def render_corporate_action_calendar() -> None:
         for warning in result["warnings"]:
             st.warning(warning)
         st.caption(result["coverage_note"])
+        st.markdown("**Estimasi hak dividen (tidak membuat arus kas)**")
+        try:
+            portfolio_rows = list_portfolio_events(owner)
+            entitlement_result = estimate_dividend_entitlements(
+                portfolio_rows, stored_events
+            )
+            entitlements = entitlement_result["entitlements"]
+            if entitlements.empty:
+                st.caption("Belum ada siklus dividen lengkap dengan deklarasi, ex-date, record date, dan pay date yang seluruhnya CONFIRMED.")
+            else:
+                st.dataframe(entitlements, use_container_width=True, hide_index=True)
+                st.caption(entitlement_result["method"])
+            for warning in entitlement_result["warnings"]:
+                st.warning(warning)
+        except Exception as exc:
+            st.error(f"Estimasi hak dividen tidak dapat dihitung ({type(exc).__name__}): {exc}")
         st.download_button(
             "Unduh corporate actions CSV",
             safe_csv_bytes(result["events"]),
