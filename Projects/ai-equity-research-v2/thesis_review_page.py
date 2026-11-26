@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from security_controls import record_audit_event, require_permission
 from thesis_store import decide_review, get_review_for_reviewer, list_reviews_for_reviewer
 
@@ -14,7 +16,7 @@ def render_thesis_reviews() -> None:
     if not reviewer:
         st.error("Identitas reviewer terverifikasi tidak tersedia.")
         return
-    st.subheader("Investment Thesis Review Inbox")
+    render_page_hero("REVIEW WORKFLOW", "Investment Thesis Review Inbox", "Review assigned thesis versions, record decisions and preserve an attributable approval trail.", "ASSIGNED REVIEWS  ·  DECISIONS  ·  AUDIT TRAIL")
     st.caption("Hanya permintaan review yang secara eksplisit ditugaskan kepada akun ini yang dapat dibuka.")
     try:
         reviews = list_reviews_for_reviewer(reviewer)
