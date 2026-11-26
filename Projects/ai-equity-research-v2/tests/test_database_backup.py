@@ -321,6 +321,7 @@ def test_postgres_restore_requires_explicit_confirmation_and_empty_target(tmp_pa
     assert "post-restore relation check: ok" in result["validation"]
     restore_call = next(call for call in calls if call[0][0].endswith("pg_restore"))
     command, env, _ = restore_call
+    assert command[command.index("--dbname") + 1] == "restore_target"
     assert "--single-transaction" in command
     assert "--no-owner" in command and "--no-privileges" in command
     assert "secret" not in " ".join(command)
