@@ -135,7 +135,33 @@ Use two separate Google test accounts, A and B, plus an assigned reviewer where 
 - [ ] Role-gated pages and direct operation paths reject unauthorized roles.
 - [ ] Audit console and audit export are admin-only; audit chain verification succeeds.
 - [ ] Logout/account switching does not retain the prior principal's session data.
-- [ ] Backup is created and restored into a separate disposable database; restored data passes integrity checks.
+- [ ] Backup is created, its SHA-256 manifest is verified, and the PostgreSQL archive is restored into a separate empty disposable database; the restore command completes and the post-restore relation check passes.
+
+### PostgreSQL backup and restore drill
+
+Run these commands from the trusted workstation. The backup connection may use the approved Preview backup identity. The restore target must be a separate, empty disposable database; use a migration/admin identity with sufficient CREATE privileges. Never point either command at production.
+
+Create and verify the archive:
+
+```powershell
+$env:DATABASE_URL = "YOUR_PRIVATE_PREVIEW_BACKUP_POSTGRES_URL"
+python database_backup.py postgres --output-dir backups
+# Copy the printed manifest path, then:
+python database_backup.py verify --manifest "backups\YOUR_BACKUP.dump.manifest.json"
+Remove-Item Env:DATABASE_URL
+```
+
+Restore to a separate empty Preview recovery database (the tool refuses a destination that already contains user relations and never drops existing objects):
+
+```powershell
+$env:DATABASE_URL = "YOUR_PRIVATE_EMPTY_PREVIEW_RESTORE_DATABASE_URL"
+$env:AI_EQUITY_RESEARCH_CONFIRM_POSTGRES_RESTORE = "YES"
+python database_backup.py restore-postgres --manifest "backups\YOUR_BACKUP.dump.manifest.json"
+Remove-Item Env:DATABASE_URL
+Remove-Item Env:AI_EQUITY_RESEARCH_CONFIRM_POSTGRES_RESTORE
+```
+
+Expected result: archive SHA-256/size validation succeeds, `pg_restore` completes in a single transaction with owner/ACL restoration disabled, and a post-restore query confirms application relations exist. Preserve the backup and manifest together. This verifies a logical restore into a separate disposable database; it is not a point-in-time recovery test or proof of provider-level disaster recovery.
 
 Record the test date, app commit, test account labels (not emails), expected result and observed result in the release acceptance record. Do not record credentials or tokens.
 
