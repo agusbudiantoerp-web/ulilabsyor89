@@ -1,7 +1,10 @@
 import pandas as pd
 import pytest
 
-from portfolio_snapshot_reconciliation import (\n    reconcile_broker_snapshot, classify_snapshot_exceptions,\n    filter_portfolio_events_as_of,\n)
+from portfolio_snapshot_reconciliation import (
+    reconcile_broker_snapshot, classify_snapshot_exceptions,
+    filter_portfolio_events_as_of,
+)
 
 
 def run(**overrides):
