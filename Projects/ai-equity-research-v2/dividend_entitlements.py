@@ -12,7 +12,7 @@ from corporate_action_calendar import normalize_corporate_events
 from portfolio_cashflow import normalize_events
 
 
-def _positions_at_record_date(portfolio_events, ticker, record_date, initial_positions):
+def estimate_shares_at_date(portfolio_events, ticker, record_date, initial_positions=None):
     if isinstance(portfolio_events, pd.DataFrame):
         raw = portfolio_events.copy()
     else:
@@ -150,7 +150,7 @@ def estimate_dividend_entitlements(
             if incomplete:
                 continue
             record_date = pd.Timestamp(selected["RECORD_DATE"]["event_date"])
-            shares = _positions_at_record_date(
+            shares = estimate_shares_at_date(
                 portfolio_events, ticker, record_date, initial_positions
             )
             if shares is None:
