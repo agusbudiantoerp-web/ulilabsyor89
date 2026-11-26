@@ -255,6 +255,8 @@ def test_postgres_backup_uses_private_libpq_environment_and_redacted_manifest(tm
     manifest_text = Path(result["manifest"]).read_text(encoding="utf-8")
     assert "DATABASE_URL (value redacted)" in manifest_text
     assert "s3cr@t" not in manifest_text
+    manifest_data = json.loads(manifest_text)
+    assert manifest_data["source_identity_sha256"] == database_backup._postgres_database_identity(database_url)
     assert database_backup.verify_backup_manifest(result["manifest"])["sha256"] == hashlib.sha256(
         Path(result["backup"]).read_bytes()
     ).hexdigest()
