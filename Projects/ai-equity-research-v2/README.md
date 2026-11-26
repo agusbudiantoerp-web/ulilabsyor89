@@ -4,6 +4,10 @@ Integrated Streamlit research platform for Indonesian (IDX) and US equities. The
 
 Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, incomplete, revised, rate-limited, or unavailable. Verify material data against issuer filings and exchange disclosures.
 
+## Interface and visual system
+
+The workspace uses a responsive dark-fintech visual system with layered navy surfaces, subtle technical grid, cyan/blue/violet accents, high-contrast metric panels, consistent controls, and a compact hero header. The shared styling lives in `ui_theme.py` and is applied by the authenticated app shell; page logic, access controls, audit behavior and financial calculations remain separate from presentation. The Cash Flow & Return Ledger includes a matching portfolio-intelligence hero. The design adapts to narrow screens and respects reduced-motion preferences.
+
 ## Main workspace menus
 
 1. **Equity Research** — company financials, valuation, DCF, Multi-Stage DCF, sensitivity and scenarios.
