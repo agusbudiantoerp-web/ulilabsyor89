@@ -292,16 +292,100 @@ def backup_postgres(output_dir: str | Path = "backups") -> dict:
         raise
 
 
+
+POSTGRES_RESTORE_CONFIRMATION = "AI_EQUITY_RESEARCH_CONFIRM_POSTGRES_RESTORE"
+
+
+def restore_postgres_backup(manifest_path: str | Path) -> dict:
+    """Restore a verified PostgreSQL archive into an explicitly confirmed empty database.
+
+    The destination is supplied only through DATABASE_URL and translated to
+    libpq environment variables, so credentials never appear in process args.
+    Existing user relations cause a hard stop; the restore never drops objects.
+    """
+    verified = verify_backup_manifest(manifest_path)
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    if verified.get("backend") != "PostgreSQL":
+        raise ValueError("Restore PostgreSQL hanya menerima backup dengan backend PostgreSQL.")
+    if manifest.get("validation") != "pg_restore --list: ok":
+        raise ValueError("Manifest tidak menyatakan archive lolos pemeriksaan pg_restore --list.")
+    if os.getenv(POSTGRES_RESTORE_CONFIRMATION) != "YES":
+        raise RuntimeError(f"Set {POSTGRES_RESTORE_CONFIRMATION}=YES untuk mengonfirmasi restore PostgreSQL.")
+    target_url = os.getenv("DATABASE_URL")
+    if not target_url:
+        raise RuntimeError("Set DATABASE_URL privat ke database PostgreSQL tujuan yang disposable.")
+    pg_restore = shutil.which("pg_restore")
+    psql = shutil.which("psql")
+    if not pg_restore or not psql:
+        raise RuntimeError("pg_restore dan psql harus tersedia pada PATH.")
+    env = _postgres_environment(target_url)
+    backup_path = verified["backup"]
+    # Count user relations before restore. This rejects a populated destination
+    # rather than attempting destructive cleanup or merging unrelated data.
+    relation_count_sql = (
+        "SELECT count(*) FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid=c.relnamespace "
+        "WHERE n.nspname NOT IN ('pg_catalog','information_schema') "
+        "AND c.relkind IN ('r','p','v','m','S','f')"
+    )
+    preflight = subprocess.run(
+        [psql, "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", relation_count_sql],
+        env=env, check=True, capture_output=True, text=True, timeout=120,
+    )
+    try:
+        existing_relations = int(preflight.stdout.strip())
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Tidak dapat memastikan database tujuan kosong; restore dibatalkan.") from exc
+    if existing_relations != 0:
+        raise RuntimeError(
+            "Database tujuan tidak kosong (relasi non-sistem ditemukan). "
+            "Gunakan database Preview disposable yang benar-benar kosong."
+        )
+
+    subprocess.run(
+        [
+            pg_restore, "--exit-on-error", "--single-transaction",
+            "--no-owner", "--no-privileges", backup_path,
+        ],
+        env=env, check=True, capture_output=True, text=True, timeout=1800,
+    )
+    postflight = subprocess.run(
+        [psql, "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", relation_count_sql],
+        env=env, check=True, capture_output=True, text=True, timeout=120,
+    )
+    try:
+        restored_relations = int(postflight.stdout.strip())
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Restore selesai tetapi verifikasi relasi pasca-restore tidak terbaca.") from exc
+    if restored_relations <= 0:
+        raise RuntimeError("Restore tidak menghasilkan relasi aplikasi; verifikasi pasca-restore gagal.")
+    return {
+        "restored_database": env.get("PGDATABASE", "(database configured)"),
+        "source_backup": backup_path,
+        "restored_relations": restored_relations,
+        "validation": "pg_restore exit code 0; post-restore relation check: ok",
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create verified AI Equity Research database backups.")
-    parser.add_argument("backend", choices=("local", "sqlite", "postgres", "verify", "restore-sqlite"))
+    parser.add_argument("backend", choices=("local", "sqlite", "postgres", "verify", "restore-sqlite", "restore-postgres"))
     parser.add_argument("--source", help="SQLite database path; required for backend=sqlite.")
-    parser.add_argument("--manifest", help="Backup manifest path; required for verify/restore-sqlite.")
+    parser.add_argument("--manifest", help="Backup manifest path; required for verify/restore operations.")
     parser.add_argument("--target", help="SQLite restore target path; required for backend=restore-sqlite.")
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing SQLite restore target.")
     parser.add_argument("--output-dir", default="backups")
     args = parser.parse_args()
 
+    if args.backend == "restore-postgres":
+        if not args.manifest:
+            parser.error("--manifest is required when backend=restore-postgres")
+        result = restore_postgres_backup(args.manifest)
+        print(f"Restored database: {result['restored_database']}")
+        print(f"Source backup: {result['source_backup']}")
+        print(f"Restored relations: {result['restored_relations']}")
+        print(f"Validation: {result['validation']}")
+        return 0
     if args.backend == "restore-sqlite":
         if not args.manifest or not args.target:
             parser.error("--manifest and --target are required when backend=restore-sqlite")
