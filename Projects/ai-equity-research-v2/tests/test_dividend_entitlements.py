@@ -71,7 +71,7 @@ def test_dividend_entitlement_skips_conflicting_ex_date_duplicates():
     events.append(conflicting)
     result = estimate_dividend_entitlements([], events)
     assert result["entitlements"].empty
-    assert any("EX_DIVIDEND CONFIRMED" in warning for warning in result["warnings"])
+    assert any("bertentangan" in warning.lower() for warning in result["warnings"])
 
 
 def test_dividend_entitlement_rejects_negative_position_from_ledger():
