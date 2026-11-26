@@ -53,6 +53,18 @@ def apply_workspace_theme() -> None:
         }
         [data-testid="stSidebar"] > div:first-child { border-right: 0; }
         [data-testid="stSidebar"] h1 { color: var(--aer-cyan) !important; }
+        [data-testid="stSidebar"] [role="radiogroup"] { gap: 5px; }
+        [data-testid="stSidebar"] [role="radiogroup"] label {
+          border: 1px solid transparent; border-radius: 10px; padding: 7px 10px;
+          transition: background .16s ease, border-color .16s ease;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label:hover {
+          background: rgba(67, 217, 255, .07); border-color: var(--aer-line);
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+          background: linear-gradient(100deg, rgba(67, 217, 255, .14), rgba(102, 140, 255, .10));
+          border-color: rgba(67, 217, 255, .30);
+        }
         [data-testid="stMetric"] {
           background: linear-gradient(145deg, rgba(19, 39, 62, .92), rgba(12, 25, 43, .88));
           border: 1px solid var(--aer-line); border-radius: 16px;
@@ -106,6 +118,12 @@ def apply_workspace_theme() -> None:
           border: 1px solid var(--aer-line); border-radius: 13px; overflow: hidden;
         }
         [data-testid="stAlert"] { border-radius: 13px; }
+        [data-testid="stProgressBar"] > div > div { background: linear-gradient(90deg, var(--aer-cyan), var(--aer-violet)); }
+        [data-testid="stStatusWidget"] { border-color: var(--aer-line); }
+        [data-testid="stPlotlyChart"], [data-testid="stVegaLiteChart"] {
+          border: 1px solid rgba(91, 170, 220, .14); border-radius: 15px;
+          background: rgba(10, 21, 37, .45); padding: 5px;
+        }
         hr { border-color: var(--aer-line) !important; }
         .aer-hero {
           position: relative; overflow: hidden; padding: 25px 28px;
@@ -114,7 +132,10 @@ def apply_workspace_theme() -> None:
           box-shadow: 0 18px 46px rgba(0,0,0,.20), inset 0 1px rgba(255,255,255,.04);
           margin: 0 0 20px 0;
         }
-        .aer-page-hero { margin-bottom: 16px; }\n        .aer-page-hero .aer-title { font-size: clamp(1.35rem, 2.25vw, 1.9rem); }\n        .aer-page-hero .aer-subtitle { max-width: 980px; }\n        .aer-hero:after {
+        .aer-page-hero { margin-bottom: 16px; }
+        .aer-page-hero .aer-title { font-size: clamp(1.35rem, 2.25vw, 1.9rem); }
+        .aer-page-hero .aer-subtitle { max-width: 980px; }
+        .aer-hero:after {
           content: ""; position: absolute; width: 250px; height: 250px; right: -65px; top: -120px;
           border: 1px solid rgba(67,217,255,.22); border-radius: 50%;
           box-shadow: 0 0 0 24px rgba(67,217,255,.035), 0 0 0 50px rgba(167,139,250,.025);
