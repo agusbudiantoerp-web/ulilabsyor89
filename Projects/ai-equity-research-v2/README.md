@@ -6,7 +6,7 @@ Yahoo Finance is a third-party source. Prices and fundamentals may be delayed, i
 
 ## Interface and visual system
 
-The workspace uses a responsive dark-fintech visual system with layered navy surfaces, subtle technical grid, cyan/blue/violet accents, high-contrast metric panels, consistent controls, and a compact hero header. The shared styling lives in `ui_theme.py` and is applied by the authenticated app shell; page logic, access controls, audit behavior and financial calculations remain separate from presentation. The Cash Flow & Return Ledger includes a matching portfolio-intelligence hero. The design adapts to narrow screens and respects reduced-motion preferences.
+The workspace uses a responsive dark-fintech visual system with layered navy surfaces, subtle technical grid, cyan/blue/violet accents, high-contrast metric panels, consistent controls, selected-state navigation, and reusable page-specific hero headers. The shared styling and escaped hero renderer live in `ui_theme.py` and are applied by the authenticated app shell; page logic, access controls, audit behavior and financial calculations remain separate from presentation. Equity Research, Daily Signals, Portfolio & Risk, Backtesting, Performance & Learning, Cash Flow, Valuation, Cross-Market Simulation, Corporate Actions, Investment Thesis, Review Inbox and Security & Audit use a consistent visual hierarchy. The design adapts to narrow screens and respects reduced-motion preferences.
 
 ## Main workspace menus
 
