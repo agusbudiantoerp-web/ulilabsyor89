@@ -104,6 +104,18 @@ def apply_workspace_theme() -> None:
           border-color: var(--aer-cyan); color: white;
           transform: translateY(-1px); box-shadow: 0 8px 24px rgba(67, 217, 255, .19);
         }
+        .stButton > button:focus-visible, .stDownloadButton > button:focus-visible,
+        [data-testid="stFormSubmitButton"] button:focus-visible,
+        button[data-baseweb="tab"]:focus-visible,
+        [data-testid="stSidebar"] input:focus-visible {
+          outline: 2px solid var(--aer-cyan) !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 0 5px rgba(67, 217, 255, .14) !important;
+        }
+        .stButton > button:disabled, .stDownloadButton > button:disabled {
+          opacity: .48; cursor: not-allowed; transform: none; box-shadow: none;
+        }
+        ::selection { background: rgba(67, 217, 255, .28); color: #fff; }
         [data-testid="stBaseButton-secondary"] {
           background: rgba(17, 34, 56, .88) !important;
           border-color: var(--aer-line) !important;
