@@ -24,30 +24,38 @@ def run_schema_migrations() -> tuple[str, ...]:
         )
 
     # Only this explicit administrator command enables PostgreSQL DDL initializers.
+    # Restore the process environment even on failure so a long-lived caller
+    # cannot accidentally leave runtime schema initialization enabled.
+    previous_schema_flag = os.environ.get("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT")
     os.environ["AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT"] = "YES"
+    try:
+        from daily_signal_storage import initialize as initialize_daily_signals
+        from portfolio_store import initialize as initialize_portfolios
+        from research_run_store import initialize as initialize_research_runs
+        from thesis_store import initialize as initialize_theses
+        from corporate_event_store import initialize as initialize_corporate_events
+        from portfolio_event_store import initialize as initialize_portfolio_events
+        from portfolio_valuation_store import initialize as initialize_portfolio_valuations
 
-    from daily_signal_storage import initialize as initialize_daily_signals
-    from portfolio_store import initialize as initialize_portfolios
-    from research_run_store import initialize as initialize_research_runs
-    from thesis_store import initialize as initialize_theses
-    from corporate_event_store import initialize as initialize_corporate_events
-    from portfolio_event_store import initialize as initialize_portfolio_events
-    from portfolio_valuation_store import initialize as initialize_portfolio_valuations
-
-    migrations = (
-        ("daily signals and learning outcomes", initialize_daily_signals),
-        ("portfolio books", initialize_portfolios),
-        ("research runs", initialize_research_runs),
-        ("investment theses", initialize_theses),
-        ("corporate events", initialize_corporate_events),
-        ("portfolio cash-flow events", initialize_portfolio_events),
-        ("portfolio valuation snapshots", initialize_portfolio_valuations),
-    )
-    completed = []
-    for label, initialize in migrations:
-        initialize()
-        completed.append(label)
-    return tuple(completed)
+        migrations = (
+            ("daily signals and learning outcomes", initialize_daily_signals),
+            ("portfolio books", initialize_portfolios),
+            ("research runs", initialize_research_runs),
+            ("investment theses", initialize_theses),
+            ("corporate events", initialize_corporate_events),
+            ("portfolio cash-flow events", initialize_portfolio_events),
+            ("portfolio valuation snapshots", initialize_portfolio_valuations),
+        )
+        completed = []
+        for label, initialize in migrations:
+            initialize()
+            completed.append(label)
+        return tuple(completed)
+    finally:
+        if previous_schema_flag is None:
+            os.environ.pop("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT", None)
+        else:
+            os.environ["AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT"] = previous_schema_flag
 
 
 def main() -> int:

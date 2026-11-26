@@ -37,3 +37,49 @@ def test_schema_migration_runs_each_initializer_only_after_confirmation(monkeypa
     completed = migration.run_schema_migrations()
     assert len(completed) == 7
     assert called == list(names)
+
+
+
+def test_schema_init_permission_is_restored_after_success(monkeypatch):
+    from types import ModuleType
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://private")
+    monkeypatch.setenv(migration.CONFIRMATION_VARIABLE, "YES")
+    monkeypatch.setenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT", "NO")
+    for name in (
+        "daily_signal_storage", "portfolio_store", "research_run_store",
+        "thesis_store", "corporate_event_store", "portfolio_event_store",
+        "portfolio_valuation_store",
+    ):
+        module = ModuleType(name)
+        module.initialize = lambda: None
+        monkeypatch.setitem(__import__("sys").modules, name, module)
+
+    migration.run_schema_migrations()
+    assert __import__("os").environ["AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT"] == "NO"
+
+
+def test_schema_init_permission_is_restored_after_failure(monkeypatch):
+    from types import ModuleType
+
+    import os
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://private")
+    monkeypatch.setenv(migration.CONFIRMATION_VARIABLE, "YES")
+    monkeypatch.delenv("AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT", raising=False)
+    for name in (
+        "daily_signal_storage", "portfolio_store", "research_run_store",
+        "thesis_store", "corporate_event_store", "portfolio_event_store",
+        "portfolio_valuation_store",
+    ):
+        module = ModuleType(name)
+        module.initialize = lambda: None
+        monkeypatch.setitem(__import__("sys").modules, name, module)
+
+    import sys
+    sys.modules["portfolio_store"].initialize = lambda: (_ for _ in ()).throw(
+        RuntimeError("simulated migration failure")
+    )
+    with pytest.raises(RuntimeError, match="simulated migration failure"):
+        migration.run_schema_migrations()
+    assert "AI_EQUITY_RESEARCH_ALLOW_SCHEMA_INIT" not in os.environ
