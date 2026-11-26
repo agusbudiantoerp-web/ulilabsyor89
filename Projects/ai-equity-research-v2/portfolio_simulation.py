@@ -6,6 +6,18 @@ import numpy as np
 import pandas as pd
 
 
+def _finite_scenario_number(value, label: str) -> float:
+    if isinstance(value, (bool, np.bool_)):
+        raise ValueError(f"{label} harus berupa angka, bukan boolean.")
+    try:
+        result = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{label} harus berupa angka finite.") from exc
+    if not math.isfinite(result):
+        raise ValueError(f"{label} harus berupa angka finite.")
+    return result
+
+
 def run_portfolio_monte_carlo(
     historical_returns: pd.DataFrame,
     weights: dict[str, float],
@@ -97,11 +109,13 @@ def run_historical_stress_scenarios(
         raise ValueError("Return historis kosong.")
     if set(weights) != set(returns.columns) or set(shocks) != set(returns.columns):
         raise ValueError("Kolom return, weights dan shocks harus sama.")
-    weight = {key: float(value) for key, value in weights.items()}
-    shock = {key: float(value) for key, value in shocks.items()}
-    if any(not math.isfinite(v) or v < 0 for v in weight.values()) or sum(weight.values()) > 1.000001:
+    if not isinstance(weights, dict) or not isinstance(shocks, dict):
+        raise ValueError("Weights dan shocks harus berupa dictionary.")
+    weight = {key: _finite_scenario_number(value, f"Bobot {key}") for key, value in weights.items()}
+    shock = {key: _finite_scenario_number(value, f"Shock {key}") for key, value in shocks.items()}
+    if any(v < 0 for v in weight.values()) or sum(weight.values()) > 1.000001:
         raise ValueError("Bobot harus valid dan total maksimal 100%.")
-    if any(not math.isfinite(v) or v < -1 or v > 5 for v in shock.values()):
+    if any(v < -1 or v > 5 for v in shock.values()):
         raise ValueError("Shock harus berada antara -100% dan +500%.")
     contributions = {key: weight[key] * shock[key] for key in weights}
     return {
@@ -120,15 +134,23 @@ def run_factor_stress_scenario(
     """Apply user-supplied factor betas and shocks; no exposure is inferred."""
     if not weights or set(weights) != set(factor_exposures):
         raise ValueError("Ticker pada weights dan factor exposures harus sama dan tidak kosong.")
-    clean_weights = {ticker: float(value) for ticker, value in weights.items()}
-    if any(not math.isfinite(value) or value < 0 for value in clean_weights.values()):
+    if not isinstance(weights, dict) or not isinstance(factor_exposures, dict) or not isinstance(factor_shocks, dict):
+        raise ValueError("Weights, factor exposures dan factor shocks harus berupa dictionary.")
+    clean_weights = {
+        ticker: _finite_scenario_number(value, f"Bobot {ticker}")
+        for ticker, value in weights.items()
+    }
+    if any(value < 0 for value in clean_weights.values()):
         raise ValueError("Bobot harus finite dan tidak negatif.")
     if sum(clean_weights.values()) > 1.000001 or sum(clean_weights.values()) <= 0:
         raise ValueError("Total bobot harus di atas 0 dan maksimal 100%.")
     if not factor_shocks:
         raise ValueError("Minimal satu factor shock diperlukan.")
-    shocks = {str(key): float(value) for key, value in factor_shocks.items()}
-    if any(not math.isfinite(value) or value < -1 or value > 5 for value in shocks.values()):
+    shocks = {
+        str(key): _finite_scenario_number(value, f"Factor shock {key}")
+        for key, value in factor_shocks.items()
+    }
+    if any(value < -1 or value > 5 for value in shocks.values()):
         raise ValueError("Factor shock harus berada antara -100% dan +500% dalam satuan desimal.")
     asset_impacts = {}
     factor_contributions = {factor: 0.0 for factor in shocks}
@@ -137,9 +159,9 @@ def run_factor_stress_scenario(
             raise ValueError(f"Exposure {ticker} harus berupa dictionary.")
         impact = 0.0
         for factor, shock in shocks.items():
-            beta = float(exposures.get(factor, 0.0))
-            if not math.isfinite(beta):
-                raise ValueError(f"Beta {factor} untuk {ticker} harus finite.")
+            beta = _finite_scenario_number(
+                exposures.get(factor, 0.0), f"Beta {factor} untuk {ticker}"
+            )
             component = beta * shock
             impact += component
             factor_contributions[factor] += clean_weights[ticker] * component
