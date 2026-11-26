@@ -387,11 +387,27 @@ def decide_review(reviewer_id, review_id, decision, comments="", *, path=None):
     now = datetime.now(timezone.utc).isoformat()
     initialize(path)
     if path is None and _database_url():
-        with _pg(actor_id=reviewer_id) as db:
+        with _pg(actor_id=reviewer) as db:
             with db.cursor() as cur:
+                # Reviewer access is read-only at the RLS layer. Resolve the
+                # assigned tenant first, then switch this transaction to that
+                # owner context before applying the narrowly scoped decision.
+                cur.execute(
+                    "SELECT owner_id FROM research_thesis_reviews "
+                    "WHERE id=%s AND reviewer_id=%s AND status='PENDING'",
+                    (review_id, reviewer),
+                )
+                assigned = cur.fetchone()
+                if not assigned:
+                    raise KeyError("Review tidak ditemukan, bukan milik reviewer ini, atau sudah diputuskan.")
+                tenant_owner = str(assigned["owner_id"])
+                cur.execute(
+                    "SELECT set_config('app.current_owner_id', %s, true)",
+                    (tenant_owner,),
+                )
                 cur.execute("""UPDATE research_thesis_reviews SET status=%s,comments=%s,updated_at=%s
-                    WHERE id=%s AND reviewer_id=%s AND status='PENDING' RETURNING id""",
-                    (outcome, str(comments or ""), now, review_id, reviewer))
+                    WHERE id=%s AND owner_id=%s AND reviewer_id=%s AND status='PENDING' RETURNING id""",
+                    (outcome, str(comments or ""), now, review_id, tenant_owner, reviewer))
                 if not cur.fetchone():
                     raise KeyError("Review tidak ditemukan, bukan milik reviewer ini, atau sudah diputuskan.")
     else:
