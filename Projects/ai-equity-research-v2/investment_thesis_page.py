@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 
 import streamlit as st
 
+from ui_theme import render_page_hero
+
 from security_controls import record_audit_event, require_permission
 from thesis_store import (create_thesis, get_thesis, list_theses, update_thesis,
                           request_review, list_reviews_for_thesis)
@@ -28,7 +30,7 @@ def render_investment_thesis() -> None:
     if not owner:
         st.error("Identitas pengguna terverifikasi tidak tersedia.")
         return
-    st.subheader("Investment Thesis & Review Workflow")
+    render_page_hero("INVESTMENT GOVERNANCE", "Investment Thesis & Review Workflow", "Build versioned bull/base/bear theses with catalysts, risks, invalidation criteria and accountable ownership.", "THESIS  ·  VERSION HISTORY  ·  GOVERNANCE")
     st.caption("Simpan tesis bull/base/bear, katalis, risiko, invalidation, target dan riwayat versi.")
     try:
         theses = list_theses(owner)
