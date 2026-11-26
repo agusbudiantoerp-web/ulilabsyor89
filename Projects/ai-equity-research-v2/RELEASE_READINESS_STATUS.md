@@ -6,9 +6,9 @@ Last updated: 2026-11-27
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest validated code-bearing commit: `453b051eb29b22f63edb7cd1465c7a6c6d9996f3` (PostgreSQL source-target restore guard, Python 3.11 runtime, patched dependency floors and pandas 2.x compatibility).
-- Latest push CI on that commit: **success** — Python 3.11 dependency installation, `pip-audit` reported **no known vulnerabilities**, module compilation passed, and the complete suite passed **777 tests** including PostgreSQL 16 integration: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45908776130). The matching PR check is also running for the same commit.
-- The prior Python 3.10 audit identified Pillow and SoupSieve CVEs. Pillow 13 requires Python 3.11, so the project runtime and CI were moved to Python 3.11; requirements now require patched Pillow/SoupSieve and cap pandas below 3.0 to preserve validated date/type semantics.
+- Latest validated code-bearing commit: `7abe492e11dc294bc2907f38986ffcf1eb56b82e` (Python 3.11 runtime, patched dependency floors, pandas 2.x compatibility, PostgreSQL source-target restore guard, and real PostgreSQL backup/restore round-trip integration test).
+- Latest push CI on that commit: **success** — PostgreSQL 16.16 client/server, Python 3.11, dependency audit reported **No known vulnerabilities found**, module compilation passed, and the complete suite passed **778 tests** including an actual `pg_dump` → `pg_restore` round-trip into a separate disposable database: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45909821159).
+- The initial dependency audit found Pillow and SoupSieve CVEs in the original Python 3.10 resolution. The project runtime and CI now use Python 3.11 with patched Pillow/SoupSieve minimums; pandas is constrained below 3.0 to preserve validated date/type semantics.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
 - CI provisions an isolated PostgreSQL 16 service for automated and PostgreSQL integration tests. Database credentials are ephemeral test-only values, not production secrets. CI also runs `pip-audit` against the resolved Python requirements; Dependabot is configured for weekly Python and GitHub Actions updates on the development branch.
