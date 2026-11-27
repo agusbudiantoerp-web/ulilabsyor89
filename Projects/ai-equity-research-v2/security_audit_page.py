@@ -118,19 +118,36 @@ def render_security_audit(identity: dict, secrets) -> None:
         "SQLite" if audit_path else ("PostgreSQL" if database_url_configured else "SQLite"),
     )
     if not database_url_configured:
-        st.warning("DATABASE_URL belum dikonfigurasi. Penyimpanan cloud menggunakan fallback SQLite dan dapat bersifat sementara.")
+        st.warning(
+            "POSTGRESQL BELUM TERHUBUNG — seluruh backend yang belum dikonfigurasi "
+            "masih menggunakan fallback SQLite dan datanya dapat bersifat sementara."
+        )
+
+    st.subheader("Pemeriksaan PostgreSQL (read-only)")
+    if not database_url_configured:
+        st.info(
+            "Tombol pemeriksaan belum dapat dijalankan karena DATABASE_URL belum ada. "
+            "Langkah berikutnya: siapkan database PostgreSQL khusus Preview, jalankan "
+            "migrasi skema dan RLS dari workstation tepercaya dengan akun administrator "
+            "terpisah, lalu masukkan hanya URL role runtime terbatas ke Streamlit → "
+            "Settings → Secrets. Jangan masukkan URL produksi atau kredensial migrasi."
+        )
     st.caption(
-        "Indikator backend di atas membaca konfigurasi. Gunakan pemeriksaan berikut untuk "
-        "menguji koneksi PostgreSQL, tabel wajib, dan hak akses tanpa menulis data."
+        "Pemeriksaan ini hanya membaca koneksi, tabel wajib, grant, kepemilikan tabel, "
+        "RLS/FORCE RLS, dan cakupan policy. Pemeriksaan tidak mengubah database."
     )
     st.info(
-        "Pembuatan/migrasi tabel tidak dijalankan dari proses aplikasi. "
-        "Jalankan postgres_schema_migration.py secara manual dari workstation administrator "
-        "menggunakan kredensial migrasi/DDL terpisah. Setelah itu, konfigurasi DATABASE_URL "
-        "aplikasi dengan role runtime non-owner yang hanya memiliki grant minimum, lalu "
-        "jalankan pemeriksaan read-only di bawah. Jangan gunakan role migrasi sebagai role runtime."
+        "Migrasi tidak dijalankan dari proses aplikasi. Gunakan PREVIEW_OPERATOR_RUNBOOK.md "
+        "di branch pengembangan untuk langkah provisioning, migrasi skema, pemasangan RLS, "
+        "dan pengujian dua identitas. Jangan gunakan role migrasi sebagai role runtime."
     )
-    if st.button("Uji koneksi, skema & hak akses PostgreSQL", key="database_health_check"):
+    if st.button(
+        "Uji koneksi, skema & hak akses PostgreSQL",
+        key="database_health_check",
+        disabled=not database_url_configured,
+        help="Konfigurasikan DATABASE_URL Preview di Streamlit Secrets terlebih dahulu."
+        if not database_url_configured else None,
+    ):
         health = check_postgres_health(secrets)
         if health.get("connected") and health.get("ok"):
             st.success(health["message"])
