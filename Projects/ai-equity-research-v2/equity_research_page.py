@@ -178,7 +178,7 @@ def render_equity_research():
             else:
                 st.caption("Konektor otomatis saat ini baru tersedia untuk BBRI; ticker bank lain tetap memakai input manual.")
             filing_preview = st.session_state.get("bank_filing_preview")
-            if filing_preview and filing_preview.get("issuer") == "PT Bank Rakyat Indonesia (Persero) Tbk":
+            if (filing_preview and filing_preview.get("issuer") == "PT Bank Rakyat Indonesia (Persero) Tbk"\n                    and symbol.strip().upper().replace(".JK", "") == "BBRI"):
                 st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
                 st.dataframe([
                     {"Metric": key, "Candidate value": item.get("value"),
