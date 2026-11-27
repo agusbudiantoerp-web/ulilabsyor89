@@ -40,7 +40,7 @@ class BankFilingCollectorTests(unittest.TestCase):
                 period="30-09-2026")
 
     def test_ignores_kpmm_heading_and_date_before_ratio_row(self):
-        text = "LAPORAN PERHITUNGAN KPMM BANK UMUM KONVENSIONAL\\nPT BANK RAKYAT INDONESIA\\nTanggal 30 September 2026\\nRasio KPMM (%) | 20,62 | 22,99"
+        text = "LAPORAN PERHITUNGAN KPMM BANK UMUM KONVENSIONAL\nPT BANK RAKYAT INDONESIA\nTanggal 30 September 2026\nRasio KPMM (%) | 20,62 | 22,99"
         result = extract_metrics_from_pdf_text(text, source_url="https://bri.co.id/report.pdf",
             source_name="BRI Q3 report", period="2026-09-30")
         self.assertEqual(result["metrics"]["CAR (%)"]["value"], 20.62)
