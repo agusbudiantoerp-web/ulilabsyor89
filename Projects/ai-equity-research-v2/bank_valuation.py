@@ -70,6 +70,8 @@ def calculate_bank_valuation(
     manual_metrics: dict | None = None,
     source_name: str | None = None,
     source_period: str | None = None,
+    source_url: str | None = None,
+    source_confirmed: bool = False,
 ) -> dict:
     """Calculate residual-income fair value and scenario/sensitivity outputs."""
     if not isinstance(data, dict):
@@ -118,6 +120,8 @@ def calculate_bank_valuation(
         manual_metrics=manual_metrics,
         source_name=source_name,
         source_period=source_period,
+        source_url=source_url,
+        source_confirmed=source_confirmed,
     )
     if expected_roe is None:
         calculated_roe = _finite(ratios.get("Calculated ROE (%)"))
