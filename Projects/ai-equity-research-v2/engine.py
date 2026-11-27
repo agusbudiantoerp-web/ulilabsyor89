@@ -114,6 +114,25 @@ def _statement_value(frame: pd.DataFrame, candidates: list[str]):
     return None
 
 
+def _statement_value_at_column(frame: pd.DataFrame, candidates: list[str], column):
+    """Read a matching statement value from a specified reporting period."""
+    if frame is None or frame.empty or column not in frame.columns:
+        return None
+    for candidate in candidates:
+        matches = [
+            label for label in frame.index
+            if str(label).strip().lower() == candidate.strip().lower()
+        ]
+        if matches:
+            row = frame.loc[matches[0]]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            value = _number(row.get(column))
+            if value is not None:
+                return value
+    return None
+
+
 def _latest_period(frame: pd.DataFrame):
     columns = _ordered_columns(frame)
     return str(columns[0]) if columns else None
@@ -250,6 +269,29 @@ def analyze_equity(symbol: str, period: str = "5y", market: str = "IDX") -> dict
             "Total Equity Gross Minority Interest",
             "Total Equity Net Minority Interest"
         ]
+    )
+    equity_columns = _ordered_columns(balance)
+    prior_stockholders_equity = (
+        _statement_value_at_column(
+            balance,
+            [
+                "Common Stock Equity",
+                "Stockholders Equity",
+                "Total Stockholder Equity",
+                "Total Equity Gross Minority Interest",
+                "Total Equity Net Minority Interest"
+            ],
+            equity_columns[1],
+        )
+        if len(equity_columns) > 1 else None
+    )
+    average_stockholders_equity = (
+        (total_stockholders_equity + prior_stockholders_equity) / 2
+        if total_stockholders_equity is not None
+        and prior_stockholders_equity is not None
+        and total_stockholders_equity > 0
+        and prior_stockholders_equity > 0
+        else None
     )
     accounts_receivable = _statement_value(
         balance,
@@ -414,6 +456,13 @@ def analyze_equity(symbol: str, period: str = "5y", market: str = "IDX") -> dict
         "Market capitalization": _number(info.get("marketCap")),
         "Shares outstanding": _number(info.get("sharesOutstanding")),
         "Total stockholders equity": total_stockholders_equity,
+        "Prior stockholders equity": prior_stockholders_equity,
+        "Average stockholders equity": average_stockholders_equity,
+        "Calculated ROE (%)": (
+            net_income_parent / average_stockholders_equity * 100
+            if net_income_parent is not None and average_stockholders_equity is not None
+            and average_stockholders_equity > 0 else None
+        ),
         "Trailing P/E": raw_pe,
         "Price to book": raw_pb,
         "ROE (%)": roe,
