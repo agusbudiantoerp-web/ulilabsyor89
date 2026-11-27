@@ -21,7 +21,9 @@ def _num(value):
 
 def assess_bank_data(data: dict, manual_metrics: dict | None = None,
                      source_name: str | None = None,
-                     source_period: str | None = None) -> dict:
+                     source_period: str | None = None,
+                     source_url: str | None = None,
+                     source_confirmed: bool = False) -> dict:
     ratios = data.get("ratios") or {}
     equity = _num(ratios.get("Total stockholders equity"))
     net_income = _num(ratios.get("Net income attributable to parent"))
@@ -101,12 +103,22 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         else:
             entered[field] = None
 
-    source_ok = bool(str(source_name or "").strip() and str(source_period or "").strip())
+    source_url_value = str(source_url or "").strip()
+    source_ok = bool(
+        str(source_name or "").strip()
+        and str(source_period or "").strip()
+        and source_url_value.startswith("https://")
+        and source_confirmed is True
+    )
     all_ratios = all(entered.get(field) is not None for field in BANK_RATIO_FIELDS)
     core_ok = not missing and equity is not None and equity > 0
+    failed_checks = any(
+        row.get("Status") in {"REVIEW REQUIRED", "INVALID"}
+        for row in checks
+    )
     if not core_ok:
         status = "INSUFFICIENT DATA"
-    elif source_ok and all_ratios and average_equity is not None and average_equity > 0:
+    elif source_ok and all_ratios and average_equity is not None and average_equity > 0 and not failed_checks:
         status = "VERIFIED"
     else:
         status = "REVIEW REQUIRED"
@@ -115,7 +127,9 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
     if missing:
         notes.append("Missing required fields: " + ", ".join(missing))
     if not source_ok:
-        notes.append("Official source name and reporting period are required for VERIFIED status.")
+        notes.append("To mark VERIFIED, provide an HTTPS official filing URL, source name, reporting period and confirm that you personally checked the filing.")
+    if failed_checks:
+        notes.append("At least one consistency check requires review; VERIFIED status is blocked.")
     if not all_ratios:
         notes.append("NPL gross, CAR, LDR and NIM must all be supplied from the same official reporting period.")
     if average_equity is None:
@@ -129,6 +143,8 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         "metrics": entered,
         "source_name": str(source_name or "").strip() or None,
         "source_period": str(source_period or "").strip() or None,
+        "source_url": source_url_value or None,
+        "source_confirmed": bool(source_confirmed),
         "notes": notes,
         "missing_fields": missing,
         "calculated_roe_pct": (
