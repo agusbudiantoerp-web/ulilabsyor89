@@ -207,7 +207,8 @@ def render_equity_research():
                 ], use_container_width=True, hide_index=True)
                 st.caption(
                     f"Source: {filing_preview.get('source_url')} · Period: {filing_preview.get('source_period')} · "
-                    f"SHA-256: {filing_preview.get('document_sha256')}"
+                    f"SHA-256: {filing_preview.get('document_sha256')} · "
+                    f"Retrieved: {filing_preview.get('retrieved_at_utc', 'uploaded / not timestamped')}"
                 )
                 st.button(
                     "Terapkan kandidat ke input (perlu konfirmasi)",
