@@ -6,8 +6,8 @@ Last updated: 2026-11-28
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest branch head: `c965ccfcb471a0e1a66c538fe9933acbed3aa4da` (documentation-only commit on top of the validated code-bearing commit `c5edf7365a1d428f0241a1676215ccf1087f9f65`).
-- Latest PR CI: **success** — Python 3.11, PostgreSQL 16, dependency audit reported **No known vulnerabilities found**, Python module compilation passed, and the complete suite passed **812 tests plus 3 subtests**. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069806047). The matching push workflow for the same head also completed successfully: [push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069801138). These runs include OIDC fail-closed configuration regression tests, bilingual OCR tests, and PostgreSQL tenant/RLS integration coverage.
+- Latest branch head at this update: `4ee8a70b527f56e82177ec6e12e1a79b567ffbc6` (release-readiness documentation-only commit on top of the validated code-bearing commit `c5edf7365a1d428f0241a1676215ccf1087f9f65`).
+- Latest PR and push CI on branch head `4ee8a70b527f56e82177ec6e12e1a79b567ffbc6`: **both success**. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46070669709) · [push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46070663877). The code-bearing commit `c5edf7365a1d428f0241a1676215ccf1087f9f65` passed **812 tests plus 3 subtests** on Python 3.11 with PostgreSQL 16; dependency audit reported **No known vulnerabilities found**, and Python module compilation passed. The later commits are documentation-only and their full CI workflows also completed successfully. The suite includes OIDC fail-closed configuration regression tests, bilingual OCR tests, and PostgreSQL tenant/RLS integration coverage.
 - The initial dependency audit found Pillow and SoupSieve CVEs in the original Python 3.10 resolution. The project runtime and CI now use Python 3.11 with patched Pillow/SoupSieve minimums; pandas is constrained below 3.0 to preserve validated date/type semantics.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
@@ -57,7 +57,7 @@ Last updated: 2026-11-28
 
 ## Release decision
 
-**Not production-ready yet.** Both PR and push CI workflows are green on head `c965ccfcb471a0e1a66c538fe9933acbed3aa4da`; the validated code-bearing commit passed 812 tests plus 3 subtests, Python compilation, `pip-audit`, and PostgreSQL 16 integration. Passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL could not be verified through the current browser environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
+**Not production-ready yet.** Both PR and push CI workflows are green on branch head `4ee8a70b527f56e82177ec6e12e1a79b567ffbc6`; the validated code-bearing commit passed 812 tests plus 3 subtests, Python compilation, `pip-audit`, and PostgreSQL 16 integration. Passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL could not be verified through the current browser environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
 
 
 ## PostgreSQL RLS policy diagnostics
