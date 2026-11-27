@@ -180,6 +180,9 @@ def make_excel_report(
                     {"Metric": "Current P/B", "Value": bank_valuation.get("current_pb")},
                     {"Metric": "Implied P/B", "Value": bank_valuation.get("implied_pb")},
                     {"Metric": "ROE source", "Value": bank_valuation.get("roe_source")},
+                    {"Metric": "Data quality status", "Value": bank_valuation.get("data_quality_status")},
+                    {"Metric": "Official source", "Value": (bank_valuation.get("data_quality") or {}).get("source_name")},
+                    {"Metric": "Official reporting period", "Value": (bank_valuation.get("data_quality") or {}).get("source_period")},
                     {"Metric": "Currency", "Value": bank_valuation.get("currency")},
                     {"Metric": "FX rate applied", "Value": bank_valuation.get("fx_rate_applied")},
                     {"Metric": "FX reference date", "Value": bank_valuation.get("fx_source_date")},
@@ -192,7 +195,15 @@ def make_excel_report(
                 bank_valuation["forecast"].to_excel(writer, sheet_name="Bank RIM Forecast", index=False)
                 bank_valuation["sensitivity"].to_excel(writer, sheet_name="Bank Sensitivity", index=False)
                 bank_valuation["scenarios"].to_excel(writer, sheet_name="Bank Scenarios", index=False)
-                pd.DataFrame({"Review notes": bank_valuation.get("warnings") or []}).to_excel(
+                quality = bank_valuation.get("data_quality") or {}
+                pd.DataFrame(quality.get("checks") or []).to_excel(
+                    writer, sheet_name="Bank Data Checks", index=False
+                )
+                pd.DataFrame([
+                    {"Indicator": key, "Value (%)": value}
+                    for key, value in (quality.get("metrics") or {}).items()
+                ]).to_excel(writer, sheet_name="Bank Ratios", index=False)
+                pd.DataFrame({"Review notes": list(bank_valuation.get("warnings") or []) + list(quality.get("notes") or [])}).to_excel(
                     writer, sheet_name="Bank Review", index=False
                 )
             else:
@@ -487,6 +498,9 @@ def make_pdf_report(
                 ["Current P/B", f"{bank_valuation.get('current_pb'):.2f}x"],
                 ["Implied P/B", f"{bank_valuation.get('implied_pb'):.2f}x"],
                 ["ROE source", str(bank_valuation.get("roe_source"))],
+                ["Data quality status", str(bank_valuation.get("data_quality_status"))],
+                ["Official source", str((bank_valuation.get("data_quality") or {}).get("source_name") or "Not supplied")],
+                ["Official reporting period", str((bank_valuation.get("data_quality") or {}).get("source_period") or "Not supplied")],
                 ["FX rate applied", str(bank_valuation.get("fx_rate_applied"))],
                 ["FX reference date", str(bank_valuation.get("fx_source_date"))],
             ]
@@ -514,6 +528,17 @@ def make_pdf_report(
                     f"Value/share {_fmt_scenario(scenario.get('Intrinsic value / share'), ',.2f')}, "
                     f"Upside {_fmt_scenario(scenario.get('Upside / downside (%)'), '+.2f')}%",
                     styles["BodyText"],
+                ))
+            quality = bank_valuation.get("data_quality") or {}
+            for metric, value in (quality.get("metrics") or {}).items():
+                story.append(Paragraph(
+                    escape(f"{metric}: {value if value is not None else 'Not supplied'}"),
+                    styles["BodyText"]
+                ))
+            for check in quality.get("checks") or []:
+                story.append(Paragraph(
+                    escape(f"Check — {check.get('Check')}: {check.get('Status')} · {check.get('Detail')}"),
+                    styles["BodyText"]
                 ))
             for warning in bank_valuation.get("warnings", []):
                 story.append(Paragraph("Review: " + escape(str(warning)), styles["BodyText"]))
