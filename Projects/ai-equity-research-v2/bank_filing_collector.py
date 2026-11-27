@@ -159,21 +159,21 @@ def extract_bmri_q3_2026_metrics_from_pdf_text(text: str, *, source_url: str,
                                                    source_name: str, period: str,
                                                    document_sha256: str | None = None) -> dict:
     """Extract only the explicitly labelled Bank-Only 9M26 column from BMRI's registered 3Q26 presentation."""
-    lines = [re.sub(r"\\s+", " ", x).strip() for x in str(text or "").splitlines()]
+    lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines()]
     row_specs = {
-        "Official reported ROE (%)": (r"RoE\\s*[–-]\\s*after tax\\s*\\(excl\\.\\s*MI\\)", "YTD average monthly equity excluding minority interest"),
-        "CAR (%)": (r"\\bCAR\\b", "Bank-Only CAR"),
-        "NIM (%)": (r"\\bNIM\\b", "Bank-Only net interest margin"),
-        "LDR (%)": (r"Loan to Deposit Ratio \\(LDR\\)\\s*[-–]\\s*Bank Entity", "Bank-Entity LDR"),
+        "Official reported ROE (%)": (r"RoE\s*[–-]\s*after tax\s*\(excl\.\s*MI\)", "YTD average monthly equity excluding minority interest"),
+        "CAR (%)": (r"\bCAR\b", "Bank-Only CAR"),
+        "NIM (%)": (r"\bNIM\b", "Bank-Only net interest margin"),
+        "LDR (%)": (r"Loan to Deposit Ratio \(LDR\)\s*[-–]\s*Bank Entity", "Bank-Entity LDR"),
     }
     metrics = {}
     current_page = 1
-    numeric = re.compile(r"(?<![A-Za-z])[-+]?\\d{1,3}(?:[.,]\\d+)?")
+    numeric = re.compile(r"(?<![A-Za-z])[-+]?\d{1,3}(?:[.,]\d+)?")
     for key, (pattern, basis) in row_specs.items():
         found = None
         page_no = None
         for index, line in enumerate(lines):
-            marker = re.search(r"\\[\\[PAGE:(\\d+)\\]\\]", line)
+            marker = re.search(r"\[\[PAGE:(\d+)\]\]", line)
             if marker:
                 current_page = int(marker.group(1))
                 line = line[marker.end():]
@@ -182,7 +182,7 @@ def extract_bmri_q3_2026_metrics_from_pdf_text(text: str, *, source_url: str,
             values = numeric.findall(line)
             if len(values) < 5:
                 for following in lines[index + 1:index + 4]:
-                    if re.search(r"\\[\\[PAGE:\\d+\\]\\]", following):
+                    if re.search(r"\[\[PAGE:\d+\]\]", following):
                         break
                     values.extend(numeric.findall(following))
                     if len(values) >= 6:
