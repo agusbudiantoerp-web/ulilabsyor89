@@ -270,7 +270,7 @@ def _run_pdf_ocr(content: bytes, max_pages: int = 12, page_numbers: list[int] | 
                 grayscale=True, thread_count=1,
             )
             if images:
-                page_text = pytesseract.image_to_string(images[0], lang="eng", config="--psm 6")
+                page_text = pytesseract.image_to_string(images[0], lang="eng+ind", config="--psm 6")
                 pages.append("[[PAGE:%s]]\n%s" % (number, page_text))
         return "\n".join(pages), "Tesseract OCR English 180 DPI; pages %s" % ",".join(map(str, selected))
     except Exception as exc:
