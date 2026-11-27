@@ -45,7 +45,7 @@ Excel includes Bank Valuation, Bank RIM Forecast, Bank Sensitivity, Bank Scenari
 
 - The current automatic filing connector is limited to the registered BBRI Q3 2026 issuer PDF. It extracts NPL gross, KPMM/CAR, ROE footnote 4, NIM and LDR as review-only candidates with source URL, period, PDF page and SHA-256 provenance.
 - The collector does not yet replace the app's core balance-sheet, income-statement or share-count feed. The market-price/fundamental freshness gate therefore remains active until those core statement fields are separately reconciled to the same period.
-- Other bank issuers require their own verified official-domain mapping and document-layout tests before automated retrieval is enabled.
+- Other bank issuers can upload their official PDF reports for the same review-only text extraction flow. Automated network retrieval remains limited to BBRI until each issuer's official-domain mapping and document layout are validated.
 - PDF extraction is text-based; scanned pages requiring OCR are not silently interpreted. An extraction result never sets analyst confirmation or VERIFIED status.
 - Verify parent-attributable equity, diluted shares, consolidated/per-share units, FX, period alignment and restatements against the official filing.
 - VERIFIED means the named analyst attested to reviewing the filing; it is not an audit opinion, regulatory rating or investment recommendation.
