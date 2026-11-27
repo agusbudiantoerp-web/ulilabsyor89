@@ -3,6 +3,7 @@ from io import BytesIO
 import pandas as pd
 
 from bank_valuation import calculate_bank_valuation
+from bank_data_quality import assess_bank_data
 from reports import make_excel_report, make_pdf_report
 
 
@@ -37,6 +38,58 @@ class BankValuationTests(unittest.TestCase):
         self.assertEqual(len(result["forecast"]), 5)
         self.assertEqual(len(result["scenarios"]), 3)
         self.assertEqual(result["sensitivity"].shape[0], 3)
+
+    def test_calculated_roe_prefers_net_income_over_average_equity(self):
+        data = sample_bank()
+        data["ratios"]["Average stockholders equity"] = 240_000_000_000_000
+        result = calculate_bank_valuation(data)
+        self.assertTrue(result["available"])
+        self.assertAlmostEqual(result["assumptions"]["expected_roe"], 50_000_000_000_000 / 240_000_000_000_000)
+        self.assertEqual(result["roe_source"], "Calculated net income / average reported equity")
+
+    def test_bank_quality_requires_official_source_period_and_all_ratios(self):
+        data = sample_bank()
+        incomplete = assess_bank_data(data)
+        self.assertEqual(incomplete["status"], "REVIEW REQUIRED")
+        verified = assess_bank_data(
+            data,
+            manual_metrics={
+                "NPL gross (%)": 2.5, "CAR (%)": 24.0,
+                "LDR (%)": 85.0, "NIM (%)": 6.0,
+            },
+            source_name="Official quarterly bank publication",
+            source_period="2026-09-30",
+        )
+        self.assertEqual(verified["status"], "REVIEW REQUIRED")
+        data["ratios"]["Average stockholders equity"] = 245_000_000_000_000
+        verified = assess_bank_data(
+            data,
+            manual_metrics={
+                "NPL gross (%)": 2.5, "CAR (%)": 24.0,
+                "LDR (%)": 85.0, "NIM (%)": 6.0,
+            },
+            source_name="Official quarterly bank publication",
+            source_period="2026-09-30",
+        )
+        self.assertEqual(verified["status"], "VERIFIED")
+
+    def test_bank_quality_marks_missing_core_fields_insufficient(self):
+        data = sample_bank()
+        data["ratios"]["Shares outstanding"] = None
+        result = assess_bank_data(data)
+        self.assertEqual(result["status"], "INSUFFICIENT DATA")
+        self.assertIn("Shares outstanding", result["missing_fields"])
+
+    def test_manual_bank_ratios_reject_out_of_range_values(self):
+        result = assess_bank_data(
+            sample_bank(),
+            manual_metrics={
+                "NPL gross (%)": 120, "CAR (%)": 20,
+                "LDR (%)": 80, "NIM (%)": 5,
+            },
+        )
+        self.assertTrue(any(row["Status"] == "INVALID" for row in result["checks"]))
+        self.assertIsNone(result["metrics"]["NPL gross (%)"])
 
     def test_rejects_missing_book_equity(self):
         data = sample_bank()
@@ -109,6 +162,8 @@ class BankValuationTests(unittest.TestCase):
         self.assertIn("Bank Valuation", workbook.sheet_names)
         self.assertIn("Bank RIM Forecast", workbook.sheet_names)
         self.assertIn("Bank Scenarios", workbook.sheet_names)
+        self.assertIn("Bank Ratios", workbook.sheet_names)
+        self.assertIn("Bank Data Checks", workbook.sheet_names)
         pdf = make_pdf_report(data, bank_valuation=valuation)
         self.assertTrue(pdf.startswith(b"%PDF"))
 
