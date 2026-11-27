@@ -207,9 +207,20 @@ def render_equity_research():
                 st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
                 st.dataframe([
                     {"Metric": key, "Candidate value": item.get("value"),
+                     "Definition / basis": item.get("definition", "Review against source document"),
                      "PDF page": item.get("page"), "Confidence": item.get("confidence")}
                     for key, item in filing_preview.get("metrics", {}).items()
                 ], use_container_width=True, hide_index=True)
+                if filing_preview.get("missing_metrics"):
+                    st.warning(
+                        "Metrics not safely extracted: "
+                        + ", ".join(filing_preview.get("missing_metrics", []))
+                        + ". Do not infer or substitute a differently defined ratio."
+                    )
+                for filing_note in filing_preview.get("notes", []):
+                    st.info(filing_note)
+                if filing_preview.get("scope"):
+                    st.caption(f"Extraction scope: {filing_preview.get('scope')}")
                 st.caption(
                     f"Source: {filing_preview.get('source_url')} · Period: {filing_preview.get('source_period')} · "
                     f"SHA-256: {filing_preview.get('document_sha256')} · "
