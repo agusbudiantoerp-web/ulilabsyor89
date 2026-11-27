@@ -83,16 +83,24 @@ def _decimal(token: str) -> float | None:
 
 def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str, ...] = ()):
     number = r"([0-9]{1,3}(?:[.,][0-9]{1,3})?)"
-    for page_no, line in enumerate(lines, start=1):
+    current_page = 1
+    for line in lines:
+        marker = re.search(r"\[\[PAGE:(\d+)\]\]", line)
+        if marker:
+            current_page = int(marker.group(1))
+            line = line[marker.end():]
         compact = re.sub(r"\s+", " ", line).strip()
         if not compact or any(re.search(x, compact, re.I) for x in exclude):
             continue
-        if any(re.search(x, compact, re.I) for x in patterns):
-            match = re.search(number, compact)
+        for pattern in patterns:
+            label = re.search(pattern, compact, re.I)
+            if not label:
+                continue
+            match = re.search(number, compact[label.end():])
             if match:
                 value = _decimal(match.group(1))
                 if value is not None:
-                    return value, page_no
+                    return value, current_page
     return None
 
 def extract_metrics_from_pdf_text(text: str, *, source_url: str, source_name: str,
@@ -102,6 +110,7 @@ def extract_metrics_from_pdf_text(text: str, *, source_url: str, source_name: st
         "NPL gross (%)": ((r"\bNPL\s+gross\b",), ()),
         "CAR (%)": ((r"\bKPMM\b", r"Capital\s+Adequacy\s+Ratio"), ()),
         "NIM (%)": ((r"\bNIM\b", r"Net\s+Interest\s+Margin"), ()),
+        "LDR (%)": ((r"\bLDR\b", r"Loan\s+to\s+Deposit\s+Ratio"), ()),
         # In the registered BRI ratio report, footnote 4 is ROE / average total equity.
         "Official reported ROE (%)": ((r"\bROE\b.*4\)",), (r"Tier\s*1",)),
     }
@@ -127,7 +136,7 @@ def extract_official_bank_filing(ticker: str) -> dict:
     content, final_url = download_official_pdf(config["url"])
     try:
         reader = PdfReader(BytesIO(content), strict=False)
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        text = "\n".join(f"[[PAGE:{index}]]\n{page.extract_text() or ''}" for index, page in enumerate(reader.pages, start=1))
     except Exception as exc:
         raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
     result = extract_metrics_from_pdf_text(text, source_url=final_url,
