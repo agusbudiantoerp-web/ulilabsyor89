@@ -35,7 +35,13 @@ def _unique_excel_sheet_name(workbook, proposed: str) -> str:
         suffix += 1
     return candidate
 
-def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | None = None, scenario_result: dict | None = None) -> bytes:
+def make_excel_report(
+    data: dict,
+    dcf: dict | None = None,
+    multistage_dcf: dict | None = None,
+    scenario_result: dict | None = None,
+    bank_valuation: dict | None = None,
+) -> bytes:
     out = BytesIO()
 
     ratios = pd.DataFrame([
@@ -156,6 +162,42 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
                 writer, sheet_name="Valuation Review", index=False
             )
 
+        is_bank_issuer = (
+            "bank" in str(data.get("industry") or "").lower()
+            or (
+                "bank" in str(data.get("company") or "").lower()
+                and "financial services" in str(data.get("sector") or "").lower()
+            )
+        )
+        if bank_valuation and (bank_valuation.get("available") or is_bank_issuer):
+            if bank_valuation.get("available"):
+                bank_rows = [
+                    {"Metric": "Method", "Value": bank_valuation.get("method")},
+                    {"Metric": "Intrinsic value per share", "Value": bank_valuation.get("intrinsic_value_per_share")},
+                    {"Metric": "Current price", "Value": bank_valuation.get("current_price")},
+                    {"Metric": "Upside / downside (%)", "Value": bank_valuation.get("upside_downside_pct")},
+                    {"Metric": "Book value per share", "Value": bank_valuation.get("book_value_per_share")},
+                    {"Metric": "Current P/B", "Value": bank_valuation.get("current_pb")},
+                    {"Metric": "Implied P/B", "Value": bank_valuation.get("implied_pb")},
+                    {"Metric": "ROE source", "Value": bank_valuation.get("roe_source")},
+                    {"Metric": "Currency", "Value": bank_valuation.get("currency")},
+                ]
+                bank_rows.extend(
+                    {"Metric": "Assumption: " + str(key), "Value": value}
+                    for key, value in (bank_valuation.get("assumptions") or {}).items()
+                )
+                pd.DataFrame(bank_rows).to_excel(writer, sheet_name="Bank Valuation", index=False)
+                bank_valuation["forecast"].to_excel(writer, sheet_name="Bank RIM Forecast", index=False)
+                bank_valuation["sensitivity"].to_excel(writer, sheet_name="Bank Sensitivity", index=False)
+                bank_valuation["scenarios"].to_excel(writer, sheet_name="Bank Scenarios", index=False)
+                pd.DataFrame({"Review notes": bank_valuation.get("warnings") or []}).to_excel(
+                    writer, sheet_name="Bank Review", index=False
+                )
+            else:
+                pd.DataFrame({
+                    "Bank valuation status": [bank_valuation.get("reason", "Not available")]
+                }).to_excel(writer, sheet_name="Bank Valuation", index=False)
+
         if scenario_result and scenario_result.get("available"):
             scenario_rows = []
             for name, result in (scenario_result.get("results") or {}).items():
@@ -260,7 +302,13 @@ def make_excel_report(data: dict, dcf: dict | None = None, multistage_dcf: dict 
     return out.getvalue()
 
 
-def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | None = None, scenario_result: dict | None = None) -> bytes:
+def make_pdf_report(
+    data: dict,
+    dcf: dict | None = None,
+    multistage_dcf: dict | None = None,
+    scenario_result: dict | None = None,
+    bank_valuation: dict | None = None,
+) -> bytes:
     out = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -417,6 +465,59 @@ def make_pdf_report(data: dict, dcf: dict | None = None, multistage_dcf: dict | 
             Paragraph(escape(reason), styles["BodyText"]),
             Spacer(1, 10)
         ]
+
+    is_bank_issuer = (
+        "bank" in str(data.get("industry") or "").lower()
+        or (
+            "bank" in str(data.get("company") or "").lower()
+            and "financial services" in str(data.get("sector") or "").lower()
+        )
+    )
+    if bank_valuation and (bank_valuation.get("available") or is_bank_issuer):
+        if bank_valuation.get("available"):
+            bank_rows = [
+                ["Bank valuation metric", "Value"],
+                ["Method", str(bank_valuation.get("method"))],
+                ["Intrinsic value per share", f"{bank_valuation.get('intrinsic_value_per_share'):,.2f} {bank_valuation.get('currency')}"],
+                ["Current price", f"{bank_valuation.get('current_price'):,.2f} {bank_valuation.get('currency')}"],
+                ["Upside / downside", f"{bank_valuation.get('upside_downside_pct'):+.2f}%"],
+                ["Book value per share", f"{bank_valuation.get('book_value_per_share'):,.2f} {bank_valuation.get('currency')}"],
+                ["Current P/B", f"{bank_valuation.get('current_pb'):.2f}x"],
+                ["Implied P/B", f"{bank_valuation.get('implied_pb'):.2f}x"],
+                ["ROE source", str(bank_valuation.get("roe_source"))],
+            ]
+            bank_table = Table(bank_rows, colWidths=[210, 250], repeatRows=1)
+            bank_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163447")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), .4, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("PADDING", (0, 0), (-1, -1), 5),
+            ]))
+            story += [
+                Paragraph("Bank Valuation · Residual Income Model", styles["Heading2"]),
+                bank_table,
+                Spacer(1, 8),
+            ]
+            for scenario in bank_valuation.get("scenarios", pd.DataFrame()).to_dict("records"):
+                story.append(Paragraph(
+                    f"{escape(str(scenario.get('Scenario')))} scenario: "
+                    f"ROE {float(scenario.get('Expected ROE')):.2%}, "
+                    f"Cost of equity {float(scenario.get('Cost of equity')):.2%}, "
+                    f"Growth {float(scenario.get('Stable growth')):.2%}, "
+                    f"Value/share {float(scenario.get('Intrinsic value / share')):,.2f}, "
+                    f"Upside {float(scenario.get('Upside / downside (%)')):+.2f}%",
+                    styles["BodyText"],
+                ))
+            for warning in bank_valuation.get("warnings", []):
+                story.append(Paragraph("Review: " + escape(str(warning)), styles["BodyText"]))
+            story.append(Spacer(1, 8))
+        else:
+            story += [
+                Paragraph("Bank Valuation not available", styles["Heading2"]),
+                Paragraph(escape(str(bank_valuation.get("reason", "Required bank data unavailable."))), styles["BodyText"]),
+                Spacer(1, 8),
+            ]
 
     if multistage_dcf and multistage_dcf.get("available"):
         story += [
