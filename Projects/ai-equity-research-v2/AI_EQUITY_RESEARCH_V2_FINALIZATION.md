@@ -35,7 +35,7 @@ The scoring engine is deterministic and explainable; it is not a trained ML pred
 - Admin-only Security & Audit console includes role-map visibility, permission matrix, audit-chain verification, storage routing, read-only PostgreSQL connectivity/schema/privilege/RLS diagnostics; schema migrations run out-of-band with a separate DDL identity.
 - Audit events cover authentication, research and portfolio operations, cash-flow/valuation lifecycle actions, thesis/reviewer decisions, backtests, forward-outcome refreshes, report exports, audit exports and database diagnostics.
 - Excel/CSV formula-injection protections include leading whitespace and Unicode BOM handling; dynamic scenario worksheet names are sanitized/de-duplicated. PDF dynamic-text escaping is implemented.
-- `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. `verify --manifest` validates artifact size/hash and rejects POSIX/Windows path traversal. `restore-sqlite --manifest ... --target ...` restores a verified SQLite backup through a temporary file and integrity checks; existing targets are protected unless `--overwrite` is explicitly supplied. PostgreSQL restore is not automated. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
+- `database_backup.py` supports integrity-checked SQLite backups and PostgreSQL custom-format logical dumps with SHA-256 manifests. `verify --manifest` validates artifact size/hash and rejects POSIX/Windows path traversal. `restore-sqlite --manifest ... --target ...` restores a verified SQLite backup through a temporary file and integrity checks; existing targets are protected unless `--overwrite` is explicitly supplied. PostgreSQL custom-format restore is implemented with SHA-256/size manifest validation, source-endpoint mismatch protection, empty-destination enforcement, transactional `pg_restore` with owner/ACL restoration disabled, and post-restore relation checks. A separate disposable-database restore drill remains an operational acceptance gate. PostgreSQL URLs are translated to libpq environment variables rather than exposed as command-line arguments.
 - CI compiles Python modules and runs the complete automated suite against an ephemeral PostgreSQL 16 service. The workflow uses maintained Node 24-compatible GitHub Actions releases and cancels superseded runs on the same ref.
 
 ## Remaining release gates (not feature-development tasks)
@@ -69,10 +69,11 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest feature-branch code head: `d51b19a9c4f17839808e24a7858ac209f0d6a3e8`.
-- Latest full suite: **761 passed, 0 failed**; Python 3.10 module compilation and the full suite against ephemeral PostgreSQL 16 passed: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45775398277).
+- Latest feature-branch code head at the time of this note: `3a97ee4dbbd16d6508dfcc691d4370026a1709ed`.
+- Latest push and PR workflows both passed: **809 tests and 3 subtests passed**, Python module compilation passed, dependency audit found no known vulnerabilities, and PostgreSQL 16 integration tests passed. [Push CI](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011006248) · [PR CI](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011015584).
 - The admin Security & Audit console now reports RLS enablement, FORCE RLS, table ownership and application-role SUPERUSER/BYPASSRLS status. This is a release diagnostic, not automatic RLS policy provisioning; PostgreSQL RLS remains a required staging/production setup task.
-- CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
+- Bank filing extraction includes bounded Tesseract OCR fallback (English + Indonesian) for scanned PDF pages, with BMRI's Q3 2026 ratio table targeted at page 23. OCR candidates are not verified data; unavailable OCR returns `OCR REQUIRED` without inventing metrics.
+- CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, live backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
 
 ## Research limitations
 
