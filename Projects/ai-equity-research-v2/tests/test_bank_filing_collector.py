@@ -179,6 +179,7 @@ def test_official_filing_document_provenance_is_preserved():
         self.assertIn("[[PAGE:23]]", text)
         self.assertIn("BMRI ratios table", text)
         self.assertIn("23", method)
+        self.assertIn("English+Indonesian (eng+ind)", method)
         self.assertEqual(convert.call_args.kwargs["first_page"], 23)
         self.assertEqual(convert.call_args.kwargs["last_page"], 23)
         self.assertEqual(ocr.call_args.kwargs["lang"], "eng+ind")
