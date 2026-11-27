@@ -147,6 +147,11 @@ def calculate_bank_valuation(
         book_value_per_share, expected_roe, cost_of_equity, stable_growth, years
     )
     intrinsic_value = base["intrinsic_value_per_share"] * applied_fx
+    if not math.isfinite(intrinsic_value) or intrinsic_value <= 0:
+        return {
+            "available": False,
+            "reason": "Residual Income menghasilkan nilai intrinsik nol/negatif atau tidak valid; periksa ROE, cost of equity, dan pertumbuhan.",
+        }
     upside = (intrinsic_value / price - 1) * 100
 
     sensitivity_rows = []
