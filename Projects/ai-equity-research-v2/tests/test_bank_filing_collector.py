@@ -30,6 +30,12 @@ class BankFilingCollectorTests(unittest.TestCase):
             source_name="BRI Q3 report", period="2026-09-30")
         self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
 
+    def test_extracts_values_when_split_cells_include_spaces(self):
+        text = "5. NPL gross\n   3,07    3,29   \n6. NPL net\n1,00 1,04"
+        result = extract_metrics_from_pdf_text(text, source_url="https://bri.co.id/report.pdf",
+            source_name="BRI Q3 report", period="2026-09-30")
+        self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
+
     def test_generic_upload_does_not_assume_bri_roe_footnote_definition(self):
         result = extract_metrics_from_pdf_text(
             "Return on Equity (ROE) 4) | 18,13",
