@@ -107,7 +107,7 @@ def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str
             if not match:
                 # Some PDF text extractors put table labels and values on separate lines.
                 continuation = []
-                for following in lines[index + 1:index + 4]:
+                for following in table_lines[index + 1:index + 4]:
                     if re.search(r"\[\[PAGE:\d+\]\]", following):
                         break
                     if re.search(r"\b(?:NPL\s+gross|KPMM|NIM|LDR|ROE|Loan\s+to\s+Deposit|Capital\s+Adequacy)\b", following, re.I):
@@ -177,7 +177,13 @@ def extract_bmri_q3_2026_metrics_from_pdf_text(text: str, *, source_url: str,
         )
     table_lines = lines[table_start:]
     metrics = {}
-    current_page = 1
+    page_markers = [
+        int(match.group(1))
+        for line in lines[:table_start + 1]
+        for match in [re.search(r"\[\[PAGE:(\d+)\]\]", line)]
+        if match
+    ]
+    current_page = page_markers[-1] if page_markers else 1
     numeric = re.compile(r"(?<![A-Za-z])[-+]?\d{1,3}(?:[.,]\d+)?")
     for key, (pattern, basis) in row_specs.items():
         found = None
