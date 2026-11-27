@@ -204,7 +204,10 @@ def render_equity_research():
                 st.caption("Konektor otomatis tersedia untuk BBRI dan BMRI Q3 2026; ticker bank lain tetap memakai upload/input manual.")
             filing_preview = st.session_state.get("bank_filing_preview")
             if (filing_preview and filing_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")):
-                st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
+                if filing_preview.get("ocr_required"):
+                    st.error("OCR REQUIRED · PDF berupa scan/gambar atau tidak memiliki lapisan teks yang cukup. Tidak ada angka yang diisi otomatis. Gunakan PDF dengan teks yang dapat dipilih atau masukkan rasio secara manual setelah memeriksa dokumen resmi.")
+                else:
+                    st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
                 st.dataframe([
                     {"Metric": key, "Candidate value": item.get("value"),
                      "Definition / basis": item.get("definition", "Review against source document"),
@@ -268,6 +271,8 @@ def render_equity_research():
                     st.error(f"Ekstraksi PDF gagal: {upload_error}")
 
             upload_preview = st.session_state.get("bank_filing_preview") or {}
+            if upload_preview.get("ticker") == symbol.strip().upper().replace(".JK", "") and upload_preview.get("ocr_required"):
+                st.error("OCR REQUIRED · PDF unggahan tampaknya berupa scan/gambar. Angka tidak diekstrak dan tidak boleh dianggap nol atau VERIFIED. Gunakan PDF text-based atau input manual setelah verifikasi halaman sumber.")
             if (
                 upload_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")
                 and upload_preview.get("extraction_method") == "Uploaded PDF text extraction"
