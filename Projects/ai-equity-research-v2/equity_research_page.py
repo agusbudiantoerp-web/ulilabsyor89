@@ -165,6 +165,14 @@ def render_equity_research():
             )
             st.caption("Digunakan khusus untuk emiten perbankan. Cost of equity harus lebih tinggi daripada stable growth.")
 
+            st.markdown("**Bank regulatory / operating ratios · manual official filing input**")
+            bank_npl_pct = st.text_input("NPL gross (%)", value="", help="Masukkan angka dari laporan publikasi bank; kosongkan jika belum diverifikasi.")
+            bank_car_pct = st.text_input("CAR / KPMM (%)", value="")
+            bank_ldr_pct = st.text_input("LDR (%)", value="")
+            bank_nim_pct = st.text_input("NIM (%)", value="")
+            bank_source_name = st.text_input("Official source / filing name", value="", help="Contoh: Laporan Publikasi Triwulan III 2026 — nama dokumen yang Anda periksa.")
+            bank_source_period = st.text_input("Official reporting period", value="", help="Contoh: 2026-09-30. Tidak boleh memakai tanggal harga saham.")
+
         run = st.button("Analyze stock", type="primary", use_container_width=True)
     
     if run:
@@ -215,6 +223,14 @@ def render_equity_research():
                         years=int(bank_forecast_years),
                         fx_rate=fx_rate,
                         fx_source_date=fx_source_date,
+                        manual_metrics={
+                            "NPL gross (%)": bank_npl_pct,
+                            "CAR (%)": bank_car_pct,
+                            "LDR (%)": bank_ldr_pct,
+                            "NIM (%)": bank_nim_pct,
+                        },
+                        source_name=bank_source_name,
+                        source_period=bank_source_period,
                     )
                     if is_bank(result)
                     else {"available": False, "reason": "Model khusus bank; tidak diterapkan pada emiten non-bank."}
@@ -340,6 +356,25 @@ def render_equity_research():
                         f"{bank_valuation['current_pb']:.2f}x"
                         if bank_valuation.get("current_pb") is not None else "N/A"
                     )
+                    status = bank_valuation.get("data_quality_status", "REVIEW REQUIRED")
+                    st.markdown(f"**Bank data quality: {status}**")
+                    quality = bank_valuation.get("data_quality") or {}
+                    metric_rows = [
+                        {"Indicator": name, "Value (%)": value if value is not None else "Not supplied"}
+                        for name, value in (quality.get("metrics") or {}).items()
+                    ]
+                    st.markdown("#### Bank operating and regulatory indicators")
+                    st.dataframe(metric_rows, use_container_width=True, hide_index=True)
+                    if quality.get("source_name") or quality.get("source_period"):
+                        st.caption(
+                            f"Source: {quality.get('source_name') or 'Not supplied'} · "
+                            f"Reporting period: {quality.get('source_period') or 'Not supplied'}"
+                        )
+                    if quality.get("checks"):
+                        st.markdown("#### Fundamental consistency checks")
+                        st.dataframe(quality["checks"], use_container_width=True, hide_index=True)
+                    for note in quality.get("notes", []):
+                        st.info(note)
                     st.caption(
                         f"Book value/share: {bank_valuation['book_value_per_share']:,.2f} "
                         f"{bank_valuation['currency']} · Implied P/B: "
@@ -404,10 +439,12 @@ def render_equity_research():
                         )
                     for warning in bank_valuation.get("warnings", []):
                         st.warning(warning)
-                    st.warning(
-                        "STATUS: REVIEW REQUIRED — cocokkan total ekuitas, laba, saham, "
-                        "dan periode laporan dengan laporan keuangan resmi sebelum menggunakan hasil."
-                    )
+                    if status == "VERIFIED":
+                        st.success("STATUS: VERIFIED — source, reporting period, core data and all four bank ratios have been supplied. Independently inspect the linked official filing.")
+                    elif status == "INSUFFICIENT DATA":
+                        st.error("STATUS: INSUFFICIENT DATA — data inti bank belum cukup untuk analisis yang dapat ditinjau.")
+                    else:
+                        st.warning("STATUS: REVIEW REQUIRED — verifikasi laporan resmi dan lengkapi rasio yang belum tersedia. Nilai intrinsik belum boleh diperlakukan sebagai hasil tervalidasi.")
                 else:
                     st.warning(
                         bank_valuation.get("reason", "Bank valuation belum tersedia.")
