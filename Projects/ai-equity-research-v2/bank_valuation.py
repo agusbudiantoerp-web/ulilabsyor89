@@ -234,6 +234,7 @@ def calculate_bank_valuation(
 
     current_pb = price / book_value_display if book_value_display > 0 else None
     implied_pb = intrinsic_value / book_value_display if book_value_display > 0 else None
+    roe_spread = (expected_roe - cost_of_equity) * 100.0
     warnings = [
         "Residual Income Model (RIM) adalah pendekatan valuasi ekuitas bank; bukan FCFF DCF.",
         "Book equity dan shares berasal dari data agregator. Cocokkan dengan ekuitas yang dapat diatribusikan kepada pemilik induk dan jumlah saham terdilusi pada laporan resmi.",
@@ -243,6 +244,18 @@ def calculate_bank_valuation(
     ]
     if roe_source != "User assumption":
         warnings.append(f"Expected ROE menggunakan sumber: {roe_source}. Verifikasi periode dan definisinya.")
+    if abs(roe_spread) <= 0.25:
+        warnings.append(
+            "Expected ROE hampir sama dengan cost of equity "
+            f"({expected_roe:.2%} vs {cost_of_equity:.2%}). Residual income mendekati nol, "
+            "sehingga nilai intrinsik dapat mendekati book value per share. "
+            "Uji skenario ROE dan cost of equity sebelum menarik kesimpulan."
+        )
+    elif roe_spread < 0:
+        warnings.append(
+            f"Expected ROE berada {abs(roe_spread):.2f} percentage points di bawah cost of equity; "
+            "model mengindikasikan penciptaan nilai ekonomi negatif relatif terhadap biaya ekuitas."
+        )
     warnings.extend(quality.get("notes") or [])
     if quality.get("status") != "VERIFIED":
         warnings.append("Data bank belum berstatus VERIFIED; intrinsic value hanya untuk review internal.")
@@ -272,6 +285,7 @@ def calculate_bank_valuation(
         "sensitivity": pd.DataFrame(sensitivity_rows),
         "scenarios": pd.DataFrame(scenarios),
         "roe_source": roe_source,
+        "roe_spread_pct_points": roe_spread,
         "fx_conversion_applied": conversion_applied,
         "fx_rate_applied": applied_fx if conversion_applied else None,
         "fx_source_date": fx_source_date if conversion_applied else None,
