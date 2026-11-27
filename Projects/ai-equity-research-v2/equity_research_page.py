@@ -172,6 +172,12 @@ def render_equity_research():
             bank_nim_pct = st.text_input("NIM (%)", value="")
             bank_source_name = st.text_input("Official source / filing name", value="", help="Contoh: Laporan Publikasi Triwulan III 2026 — nama dokumen yang Anda periksa.")
             bank_source_period = st.text_input("Official reporting period", value="", help="Contoh: 2026-09-30. Tidak boleh memakai tanggal harga saham.")
+            bank_source_url = st.text_input("Official filing URL (HTTPS)", value="")
+            bank_source_confirmed = st.checkbox(
+                "I personally checked this official filing and its figures",
+                value=False,
+                help="Status VERIFIED adalah konfirmasi analis, bukan verifikasi otomatis oleh aplikasi."
+            )
 
         run = st.button("Analyze stock", type="primary", use_container_width=True)
     
@@ -231,6 +237,8 @@ def render_equity_research():
                         },
                         source_name=bank_source_name,
                         source_period=bank_source_period,
+                        source_url=bank_source_url,
+                        source_confirmed=bank_source_confirmed,
                     )
                     if is_bank(result)
                     else {"available": False, "reason": "Model khusus bank; tidak diterapkan pada emiten non-bank."}
@@ -368,7 +376,8 @@ def render_equity_research():
                     if quality.get("source_name") or quality.get("source_period"):
                         st.caption(
                             f"Source: {quality.get('source_name') or 'Not supplied'} · "
-                            f"Reporting period: {quality.get('source_period') or 'Not supplied'}"
+                            f"Reporting period: {quality.get('source_period') or 'Not supplied'} · "
+                            f"Filing URL: {quality.get('source_url') or 'Not supplied'}"
                         )
                     if quality.get("checks"):
                         st.markdown("#### Fundamental consistency checks")
