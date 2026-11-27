@@ -166,6 +166,10 @@ def render_equity_research():
             st.caption("Digunakan khusus untuk emiten perbankan. Cost of equity harus lebih tinggi daripada stable growth.")
 
             st.markdown("**Bank regulatory / operating ratios · manual official filing input**")
+            bank_official_roe_pct = st.text_input(
+                "Official reported ROE (%)", value="",
+                help="Masukkan ROE dari laporan resmi. Pastikan definisinya (mis. laba setelah pajak / rata-rata ekuitas) dan periodenya sama dengan sumber yang dicatat."
+            )
             bank_npl_pct = st.text_input("NPL gross (%)", value="", help="Masukkan angka dari laporan publikasi bank; kosongkan jika belum diverifikasi.")
             bank_car_pct = st.text_input("CAR / KPMM (%)", value="")
             bank_ldr_pct = st.text_input("LDR (%)", value="")
@@ -236,6 +240,7 @@ def render_equity_research():
                         fx_rate=fx_rate,
                         fx_source_date=fx_source_date,
                         manual_metrics={
+                            "Official reported ROE (%)": bank_official_roe_pct,
                             "NPL gross (%)": bank_npl_pct,
                             "CAR (%)": bank_car_pct,
                             "LDR (%)": bank_ldr_pct,
@@ -373,6 +378,14 @@ def render_equity_research():
                     status = bank_valuation.get("data_quality_status", "REVIEW REQUIRED")
                     st.markdown(f"**Bank data quality: {status}**")
                     quality = bank_valuation.get("data_quality") or {}
+                    freshness = quality.get("fundamental_freshness_status", "UNKNOWN")
+                    gap_days = quality.get("price_fundamental_gap_days")
+                    if freshness == "STALE":
+                        st.error(f"Fundamental data freshness: STALE · {gap_days} calendar days between market price and latest financial statements. Refresh financials before relying on this valuation.")
+                    elif freshness == "CURRENT":
+                        st.caption(f"Fundamental data freshness: CURRENT · {gap_days} calendar-day gap.")
+                    else:
+                        st.warning("Fundamental data freshness: UNKNOWN · reporting dates are incomplete.")
                     metric_rows = [
                         {"Indicator": name, "Value (%)": value if value is not None else "Not supplied"}
                         for name, value in (quality.get("metrics") or {}).items()
