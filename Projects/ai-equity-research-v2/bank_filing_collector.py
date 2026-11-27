@@ -84,7 +84,7 @@ def _decimal(token: str) -> float | None:
 def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str, ...] = ()):
     number = r"([0-9]{1,3}(?:[.,][0-9]{1,3})?)"
     current_page = 1
-    for line in lines:
+    for index, line in enumerate(lines):
         marker = re.search(r"\[\[PAGE:(\d+)\]\]", line)
         if marker:
             current_page = int(marker.group(1))
@@ -96,7 +96,18 @@ def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str
             label = re.search(pattern, compact, re.I)
             if not label:
                 continue
-            match = re.search(number, compact[label.end():])
+            tail = compact[label.end():]
+            match = re.search(number, tail)
+            if not match:
+                # Some PDF text extractors put table labels and values on separate lines.
+                continuation = []
+                for following in lines[index + 1:index + 4]:
+                    if re.search(r"\[\[PAGE:\d+\]\]", following):
+                        break
+                    if re.search(r"\b(?:NPL\s+gross|KPMM|NIM|LDR|ROE|Loan\s+to\s+Deposit|Capital\s+Adequacy)\b", following, re.I):
+                        break
+                    continuation.append(following)
+                match = re.search(number, " ".join(continuation))
             if match:
                 value = _decimal(match.group(1))
                 if value is not None:
