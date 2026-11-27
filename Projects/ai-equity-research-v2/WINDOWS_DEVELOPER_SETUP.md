@@ -58,12 +58,13 @@ The complete CI suite also provisions PostgreSQL 16 and runs restricted-role/RLS
 
 The Python OCR wrappers are installed by `requirements.txt`. Local Windows also needs the Tesseract OCR executable and Poppler command-line tools; `packages.txt` installs these only in Streamlit Cloud, not on Windows.
 
-- Install Tesseract OCR 5.x and ensure `tesseract.exe` is available on PATH.
+- Install Tesseract OCR 5.x with both English (`eng`) and Indonesian (`ind`) trained data, and ensure `tesseract.exe` is available on PATH.
 - Install Poppler for Windows and ensure its `Library\\bin` directory (containing `pdftoppm.exe`) is available on PATH.
 - Open a new PowerShell window and verify:
 
 ```powershell
 tesseract --version
+tesseract --list-langs
 pdftoppm -v
 ```
 
