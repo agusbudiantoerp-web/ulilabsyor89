@@ -1,13 +1,13 @@
 # AI Equity Research V2 — Release Readiness
 
-Last updated: 2026-11-27
+Last updated: 2026-11-28
 
 ## Current engineering state
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest validated code-bearing commit: `c42b1460ce6ad154b4bc5158cce23c9dedef1848` (includes a Streamlit `AppTest` entry-point smoke test that verifies the workspace renders and fails closed when OIDC Secrets are absent).
-- Latest push CI on that commit: **success** — PostgreSQL 16.16 client/server, Python 3.11, dependency audit reported **No known vulnerabilities found**, module compilation passed, and the complete suite passed **779 tests**. This includes the real `pg_dump` → `pg_restore` round-trip into a separate disposable database and the Streamlit startup smoke test: [GitHub Actions run](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/45912015550).
+- Latest validated code-bearing commit: `3a97ee4dbbd16d6508dfcc691d4370026a1709ed`.
+- Latest push and PR CI on that commit: **both success** — Python 3.11, PostgreSQL 16, dependency audit reported **No known vulnerabilities found**, Python module compilation passed, and the complete suite passed **809 tests plus 3 subtests**. [Push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011006248) · [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011015584). The latest workflow includes the OCR tests; the previously established PostgreSQL integration and backup/restore round-trip tests remain in the suite.
 - The initial dependency audit found Pillow and SoupSieve CVEs in the original Python 3.10 resolution. The project runtime and CI now use Python 3.11 with patched Pillow/SoupSieve minimums; pandas is constrained below 3.0 to preserve validated date/type semantics.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
@@ -20,7 +20,7 @@ Last updated: 2026-11-27
 ## Implemented in the development branch
 
 - IDX/US research, DCF, Multi-Stage DCF, Reverse DCF, cross-model EV/equity/price bridge checks, and operating sensitivity across revenue-growth × EBITDA-margin assumptions with Excel/PDF Research Pack export.
-- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow with strict currency/URL/ticker/numeric validation and separate invalid-value reporting. Filing validation checks three-letter currency codes, structurally valid HTTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, distinguishes invalid provider values from genuinely missing data, and exposes invalid-value counts separately in the valuation UI. Multi-Stage DCF returns explicit unavailable results for non-finite forecast/terminal calculations rather than leaking numerical overflow.
+- Peer valuation with metric-period labels, fiscal year-end comparability warnings and a source-attributed issuer-filing CSV verification workflow with strict currency/URL/ticker/numeric validation and separate invalid-value reporting. Official bank filing extraction supports embedded PDF text and a bounded Tesseract OCR fallback for scanned PDFs (English/Indonesian); BMRI's Q3 2026 presentation targets its registered ratio-table page. OCR outputs remain review-only candidates and never auto-verify figures. Filing validation checks three-letter currency codes, structurally valid HTTP(S) source URLs, duplicate provider/issuer tickers, finite numeric fields, distinguishes invalid provider values from genuinely missing data, and exposes invalid-value counts separately in the valuation UI. Multi-Stage DCF returns explicit unavailable results for non-finite forecast/terminal calculations rather than leaking numerical overflow.
 - Portfolio cash-flow ledger, TWR/XIRR, FIFO/weighted-average tax lots, realized P&L, opening lots and split basis adjustments.
 - Manual broker-statement CSV reconciliation with matched/missing/unexpected and amount/quantity/price/date exceptions.
 - Transaction-aware historical portfolio replay with explicit trade fills, optional settlement dates, reserved unsettled buy payables, unsettled sell receivables, stale-price/FX checks and external-flow-adjusted TWR.
@@ -35,7 +35,7 @@ Last updated: 2026-11-27
 |---|---|---|
 | Portfolio ledger | Direct broker API integration, statutory tax treatment, inferred settlement calendars and multi-currency cash sub-ledgers | Broker API access, tax/accounting rules and explicit FX-conversion design |
 | Cross-market | Full local-currency cash balances and explicit FX conversion ledger | Product/accounting decision and additional integration tests |
-| Peer verification | Automated official filing retrieval/OCR, unit and consolidation-scope normalization | Official issuer/BEI source formats and validation rules |
+| Peer verification | Broader issuer/BEI filing coverage, automated unit and consolidation-scope normalization, analyst confirmation of OCR candidates | Official source formats, issuer-specific parsing rules and review evidence |
 | Valuation | Model-to-model assumption scenario sweeps beyond the new revenue-growth × EBITDA-margin sensitivity matrix | Additional UI/model acceptance criteria |
 | Corporate actions | Automated official BEI/issuer event feeds and adjusted-price reconciliation | Confirmed official feed endpoints, schemas and permitted access |
 | Market data | Secondary licensed provider adapter and provider-parity validation | Provider selection, subscription and secrets configured outside chat |
@@ -57,7 +57,7 @@ Last updated: 2026-11-27
 
 ## Release decision
 
-**Not production-ready yet.** The latest CI is green, including PostgreSQL-backed tests, but passing automated tests does not prove the multi-user deployment, security controls, external data integrations or operational recovery. Complete the staging and acceptance gates above before merging or deploying.
+**Not production-ready yet.** The latest push and PR CI are green, including PostgreSQL-backed tests and OCR regression coverage, but passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL was not accessible to the current browser verification environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
 
 
 ## PostgreSQL RLS policy diagnostics
