@@ -104,6 +104,19 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
                     "Detail": f"Expected a value between 0 and {upper}.",
                 })
 
+    official_roe = _num((manual_metrics or {}).get("Official reported ROE (%)"))
+    entered["Official reported ROE (%)"] = None
+    if official_roe is not None:
+        if 0 <= official_roe <= 200:
+            entered["Official reported ROE (%)"] = official_roe
+        else:
+            checks.append({
+                "Check": "Official reported ROE (%)",
+                "Value": official_roe,
+                "Status": "INVALID",
+                "Detail": "Expected a value between 0 and 200 percent.",
+            })
+
     source_url_value = str(source_url or "").strip()
     parsed_url = urlsplit(source_url_value)
     source_url_ok = bool(
