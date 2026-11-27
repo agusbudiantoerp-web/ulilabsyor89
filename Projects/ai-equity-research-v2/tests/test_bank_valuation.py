@@ -65,10 +65,12 @@ class BankValuationTests(unittest.TestCase):
         data["financial_currency"] = "USD"
         result = calculate_bank_valuation(
             data, expected_roe=0.18, cost_of_equity=0.12,
-            stable_growth=0.04, fx_rate=16000
+            stable_growth=0.04, fx_rate=16000,
+            fx_source_date="2026-11-06"
         )
         self.assertTrue(result["available"])
         self.assertEqual(result["fx_rate_applied"], 16000)
+        self.assertEqual(result["fx_source_date"], "2026-11-06")
         self.assertEqual(result["currency"], "IDR")
 
     def test_rejects_invalid_years(self):
