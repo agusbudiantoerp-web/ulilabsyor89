@@ -250,7 +250,11 @@ def extract_official_bank_filing(ticker: str) -> dict:
             roe_definition_mode="bri_q3_2026")
     result.update({"ticker": key, "issuer": config["issuer"], "document_title": config["title"],
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
-        "pages_read": len(reader.pages)})
+        "pages_read": len(reader.pages),
+        "extraction_method": (
+            "BMRI registered 3Q26 Bank-Only 9M26 table extraction"
+            if key == "BMRI" else "PDF text / registered BRI Q3 2026 metric extraction"
+        )})
     return result
 
 def extract_uploaded_bank_filing(pdf_bytes: bytes, *, ticker: str, source_name: str,
