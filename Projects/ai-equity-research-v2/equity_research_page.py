@@ -192,7 +192,7 @@ def render_equity_research():
                 if st.button("Terapkan kandidat ke input (perlu konfirmasi)", key="apply_bbri_candidates"):
                     for metric_key, state_key in (
                         ("NPL gross (%)", "bank_npl_pct"), ("CAR (%)", "bank_car_pct"),
-                        ("NIM (%)", "bank_nim_pct"),
+                        ("NIM (%)", "bank_nim_pct"), ("LDR (%)", "bank_ldr_pct"),
                         ("Official reported ROE (%)", "bank_official_roe_pct"),
                     ):
                         candidate = (filing_preview.get("metrics") or {}).get(metric_key)
