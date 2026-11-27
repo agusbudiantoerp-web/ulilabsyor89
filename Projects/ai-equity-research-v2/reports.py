@@ -181,6 +181,8 @@ def make_excel_report(
                     {"Metric": "Implied P/B", "Value": bank_valuation.get("implied_pb")},
                     {"Metric": "ROE source", "Value": bank_valuation.get("roe_source")},
                     {"Metric": "Currency", "Value": bank_valuation.get("currency")},
+                    {"Metric": "FX rate applied", "Value": bank_valuation.get("fx_rate_applied")},
+                    {"Metric": "FX reference date", "Value": bank_valuation.get("fx_source_date")},
                 ]
                 bank_rows.extend(
                     {"Metric": "Assumption: " + str(key), "Value": value}
@@ -485,6 +487,8 @@ def make_pdf_report(
                 ["Current P/B", f"{bank_valuation.get('current_pb'):.2f}x"],
                 ["Implied P/B", f"{bank_valuation.get('implied_pb'):.2f}x"],
                 ["ROE source", str(bank_valuation.get("roe_source"))],
+                ["FX rate applied", str(bank_valuation.get("fx_rate_applied"))],
+                ["FX reference date", str(bank_valuation.get("fx_source_date"))],
             ]
             bank_table = Table(bank_rows, colWidths=[210, 250], repeatRows=1)
             bank_table.setStyle(TableStyle([
