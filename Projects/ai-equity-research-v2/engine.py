@@ -55,6 +55,18 @@ def is_financial_institution(data: dict) -> bool:
     )
     return any(term in identity for term in terms)
 
+def is_bank(data: dict) -> bool:
+    """Identify banks specifically; do not classify every financial firm as a bank."""
+    sector = str(data.get("sector") or "").lower()
+    industry = str(data.get("industry") or "").lower()
+    company = str(data.get("company") or "").lower()
+    return (
+        "bank" in industry
+        or ("bank" in company and (
+            "financial services" in sector or "financials" in sector
+        ))
+    )
+
 
 def _ordered_columns(frame: pd.DataFrame):
     if frame is None or frame.empty:
@@ -229,6 +241,16 @@ def analyze_equity(symbol: str, period: str = "5y", market: str = "IDX") -> dict
             "Cash Cash Equivalents And Short Term Investments"
         ]
     )
+    total_stockholders_equity = _statement_value(
+        balance,
+        [
+            "Common Stock Equity",
+            "Stockholders Equity",
+            "Total Stockholder Equity",
+            "Total Equity Gross Minority Interest",
+            "Total Equity Net Minority Interest"
+        ]
+    )
     accounts_receivable = _statement_value(
         balance,
         ["Accounts Receivable", "Receivables"]
@@ -390,7 +412,8 @@ def analyze_equity(symbol: str, period: str = "5y", market: str = "IDX") -> dict
         "Inventory": inventory,
         "Accounts payable": accounts_payable,
         "Market capitalization": _number(info.get("marketCap")),
-	"Shares outstanding": _number(info.get("sharesOutstanding")),
+        "Shares outstanding": _number(info.get("sharesOutstanding")),
+        "Total stockholders equity": total_stockholders_equity,
         "Trailing P/E": raw_pe,
         "Price to book": raw_pb,
         "ROE (%)": roe,
