@@ -165,27 +165,65 @@ def render_equity_research():
             )
             st.caption("Digunakan khusus untuk emiten perbankan. Cost of equity harus lebih tinggi daripada stable growth.")
 
-            st.markdown("**Bank regulatory / operating ratios · manual official filing input**")
+            st.markdown("**Official filing collector · issuer source retrieval**")
+            if symbol.strip().upper().replace(".JK", "") == "BBRI":
+                if st.button("Ambil data resmi BBRI · Q3 2026", key="fetch_official_bbri_filing"):
+                    try:
+                        from bank_filing_collector import extract_official_bank_filing
+                        with st.spinner("Mengunduh dan membaca laporan resmi BRI..."):
+                            st.session_state["bank_filing_preview"] = extract_official_bank_filing("BBRI")
+                        st.success("Dokumen terbaca. Kandidat angka ditampilkan untuk pemeriksaan analis.")
+                    except Exception as filing_error:
+                        st.error(f"Pengambilan dokumen resmi gagal: {filing_error}")
+            else:
+                st.caption("Konektor otomatis saat ini baru tersedia untuk BBRI; ticker bank lain tetap memakai input manual.")
+            filing_preview = st.session_state.get("bank_filing_preview")
+            if filing_preview and filing_preview.get("issuer") == "PT Bank Rakyat Indonesia (Persero) Tbk":
+                st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
+                st.dataframe([
+                    {"Metric": key, "Candidate value": item.get("value"),
+                     "PDF page": item.get("page"), "Confidence": item.get("confidence")}
+                    for key, item in filing_preview.get("metrics", {}).items()
+                ], use_container_width=True, hide_index=True)
+                st.caption(
+                    f"Source: {filing_preview.get('source_url')} · Period: {filing_preview.get('source_period')} · "
+                    f"SHA-256: {filing_preview.get('document_sha256')}"
+                )
+                if st.button("Terapkan kandidat ke input (perlu konfirmasi)", key="apply_bbri_candidates"):
+                    for metric_key, state_key in (
+                        ("NPL gross (%)", "bank_npl_pct"), ("CAR (%)", "bank_car_pct"),
+                        ("NIM (%)", "bank_nim_pct"),
+                        ("Official reported ROE (%)", "bank_official_roe_pct"),
+                    ):
+                        candidate = (filing_preview.get("metrics") or {}).get(metric_key)
+                        if candidate is not None:
+                            st.session_state[state_key] = str(candidate["value"])
+                    st.session_state["bank_source_name"] = filing_preview.get("source_name", "")
+                    st.session_state["bank_source_period"] = filing_preview.get("source_period", "")
+                    st.session_state["bank_source_url"] = filing_preview.get("source_url", "")
+                    st.session_state["bank_source_confirmed"] = False
+                    st.warning("Kandidat diterapkan. Status VERIFIED tetap terkunci sampai analis memeriksa laporan dan mengonfirmasi manual.")
+            st.markdown("**Bank regulatory / operating ratios · official filing review**")
             bank_official_roe_pct = st.text_input(
-                "Official reported ROE (%)", value="",
+                "Official reported ROE (%)", value=st.session_state.get("bank_official_roe_pct", ""),
                 help="Masukkan ROE dari laporan resmi. Pastikan definisinya (mis. laba setelah pajak / rata-rata ekuitas) dan periodenya sama dengan sumber yang dicatat."
             )
-            bank_npl_pct = st.text_input("NPL gross (%)", value="", help="Masukkan angka dari laporan publikasi bank; kosongkan jika belum diverifikasi.")
-            bank_car_pct = st.text_input("CAR / KPMM (%)", value="")
-            bank_ldr_pct = st.text_input("LDR (%)", value="")
-            bank_nim_pct = st.text_input("NIM (%)", value="")
-            bank_source_name = st.text_input("Official source / filing name", value="", help="Contoh: Laporan Publikasi Triwulan III 2026 — nama dokumen yang Anda periksa.")
+            bank_npl_pct = st.text_input("NPL gross (%)", value=st.session_state.get("bank_npl_pct", ""), help="Masukkan angka dari laporan publikasi bank; kosongkan jika belum diverifikasi.")
+            bank_car_pct = st.text_input("CAR / KPMM (%)", value=st.session_state.get("bank_car_pct", ""))
+            bank_ldr_pct = st.text_input("LDR (%)", value=st.session_state.get("bank_ldr_pct", ""))
+            bank_nim_pct = st.text_input("NIM (%)", value=st.session_state.get("bank_nim_pct", ""))
+            bank_source_name = st.text_input("Official source / filing name", value=st.session_state.get("bank_source_name", ""), help="Contoh: Laporan Publikasi Triwulan III 2026 — nama dokumen yang Anda periksa.")
             bank_source_period = st.text_input(
-                "Official reporting period (YYYY-MM-DD)", value="",
+                "Official reporting period (YYYY-MM-DD)", value=st.session_state.get("bank_source_period", ""),
                 help="Gunakan tanggal periode laporan, bukan tanggal harga saham. Agar VERIFIED, tanggal ini harus sama dengan periode neraca dan laba rugi yang dipakai aplikasi."
             )
             bank_source_url = st.text_input(
-                "Official filing URL (HTTPS)", value="",
+                "Official filing URL (HTTPS)", value=st.session_state.get("bank_source_url", ""),
                 help="Masukkan tautan laporan dari situs resmi emiten, BEI, atau regulator. Tautan harus HTTPS tanpa username/password."
             )
             bank_source_confirmed = st.checkbox(
                 "I personally checked this official filing and its figures",
-                value=False,
+                value=st.session_state.get("bank_source_confirmed", False),
                 help="Status VERIFIED adalah konfirmasi analis, bukan verifikasi otomatis oleh aplikasi."
             )
 
