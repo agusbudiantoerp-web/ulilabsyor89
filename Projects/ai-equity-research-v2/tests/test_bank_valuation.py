@@ -117,6 +117,57 @@ class BankValuationTests(unittest.TestCase):
         self.assertEqual(result["status"], "REVIEW REQUIRED")
         self.assertFalse(result["source_url_valid_https"])
 
+    def test_stale_fundamentals_are_flagged_against_market_price(self):
+        data = sample_bank()
+        data["latest_price_date"] = "2026-11-27"
+        data["latest_balance_period"] = "2025-12-31"
+        data["latest_financial_period"] = "2025-12-31"
+        result = assess_bank_data(data)
+        self.assertEqual(result["fundamental_freshness_status"], "STALE")
+        self.assertGreater(result["price_fundamental_gap_days"], 150)
+        self.assertTrue(any(
+            row["Check"] == "Market price vs fundamental reporting-period gap"
+            and row["Status"] == "REVIEW REQUIRED"
+            for row in result["checks"]
+        ))
+
+    def test_official_filing_roe_is_used_and_labeled(self):
+        data = sample_bank()
+        result = calculate_bank_valuation(
+            data,
+            manual_metrics={"Official reported ROE (%)": 18.13},
+            cost_of_equity=0.12,
+            stable_growth=0.04,
+        )
+        self.assertTrue(result["available"])
+        self.assertAlmostEqual(result["assumptions"]["expected_roe"], 0.1813)
+        self.assertEqual(
+            result["roe_source"],
+            "Analyst-entered official filing ROE (not independently verified)",
+        )
+        self.assertEqual(
+            result["data_quality"]["metrics"]["Official reported ROE (%)"],
+            18.13,
+        )
+
+    def test_invalid_official_filing_roe_is_rejected_from_metrics(self):
+        result = assess_bank_data(
+            sample_bank(),
+            manual_metrics={
+                "Official reported ROE (%)": 250,
+                "NPL gross (%)": 2.5,
+                "CAR (%)": 20,
+                "LDR (%)": 80,
+                "NIM (%)": 5,
+            },
+        )
+        self.assertIsNone(result["metrics"]["Official reported ROE (%)"])
+        self.assertTrue(any(
+            row["Check"] == "Official reported ROE (%)"
+            and row["Status"] == "INVALID"
+            for row in result["checks"]
+        ))
+
     def test_bank_quality_marks_missing_core_fields_insufficient(self):
         data = sample_bank()
         data["ratios"]["Shares outstanding"] = None
