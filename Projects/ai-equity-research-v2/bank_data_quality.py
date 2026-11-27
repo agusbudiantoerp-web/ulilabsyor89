@@ -6,6 +6,8 @@ No provider field is promoted to VERIFIED merely because it is populated.
 from __future__ import annotations
 
 import math
+from datetime import date
+from urllib.parse import urlsplit
 
 
 BANK_RATIO_FIELDS = ("NPL gross (%)", "CAR (%)", "LDR (%)", "NIM (%)")
@@ -103,10 +105,55 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
                 })
 
     source_url_value = str(source_url or "").strip()
+    parsed_url = urlsplit(source_url_value)
+    source_url_ok = bool(
+        parsed_url.scheme.lower() == "https"
+        and parsed_url.hostname
+        and not parsed_url.username
+        and not parsed_url.password
+    )
+
+    # The filing period must be a real ISO date and must match the periods
+    # from which the app obtained the bank's balance sheet and income statement.
+    source_period_value = str(source_period or "").strip()
+    try:
+        source_period_date = date.fromisoformat(source_period_value)
+    except (TypeError, ValueError):
+        source_period_date = None
+
+    def _period_date(value):
+        if value is None:
+            return None
+        try:
+            return date.fromisoformat(str(value).strip()[:10])
+        except (TypeError, ValueError):
+            return None
+
+    balance_period = _period_date(data.get("latest_balance_period"))
+    financial_period = _period_date(data.get("latest_financial_period"))
+    period_matches = bool(
+        source_period_date
+        and balance_period
+        and financial_period
+        and source_period_date == balance_period == financial_period
+    )
+    if source_period_value:
+        checks.append({
+            "Check": "Official filing period vs financial statement periods",
+            "Value": source_period_value,
+            "Status": "PASS" if period_matches else "REVIEW REQUIRED",
+            "Detail": (
+                f"Source={source_period_value}; "
+                f"balance={balance_period.isoformat() if balance_period else 'unavailable'}; "
+                f"income={financial_period.isoformat() if financial_period else 'unavailable'}."
+            ),
+        })
+
     source_ok = bool(
         str(source_name or "").strip()
-        and str(source_period or "").strip()
-        and source_url_value.startswith("https://")
+        and source_period_date
+        and period_matches
+        and source_url_ok
         and source_confirmed is True
     )
     all_ratios = all(entered.get(field) is not None for field in BANK_RATIO_FIELDS)
@@ -126,7 +173,11 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
     if missing:
         notes.append("Missing required fields: " + ", ".join(missing))
     if not source_ok:
-        notes.append("To mark VERIFIED, provide an HTTPS official filing URL, source name, reporting period and confirm that you personally checked the filing.")
+        notes.append("To mark VERIFIED, provide a valid HTTPS filing URL, source name, an ISO reporting date matching both app financial statement periods, and confirm that you personally checked the filing.")
+    if source_period_value and not period_matches:
+        notes.append("The analyst filing period does not match both the balance-sheet and income-statement periods used by the model; VERIFIED is blocked.")
+    if source_url_value and not source_url_ok:
+        notes.append("The filing URL must be a valid HTTPS URL without embedded credentials.")
     if failed_checks:
         notes.append("At least one consistency check requires review; VERIFIED status is blocked.")
     if not all_ratios:
@@ -144,6 +195,8 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         "source_period": str(source_period or "").strip() or None,
         "source_url": source_url_value or None,
         "source_confirmed": bool(source_confirmed),
+        "source_period_matches_financials": period_matches,
+        "source_url_valid_https": source_url_ok,
         "notes": notes,
         "missing_fields": missing,
         "calculated_roe_pct": (
