@@ -31,6 +31,26 @@ def _audit_equity_export(fmt: str, ticker: str) -> None:
     _audit_equity_action("REPORT_EXPORT", ticker, {"format": fmt})
 
 
+def _apply_bank_filing_preview() -> None:
+    """Apply reviewed PDF candidates before Streamlit recreates the input widgets."""
+    preview = st.session_state.get("bank_filing_preview") or {}
+    metrics = preview.get("metrics") or {}
+    for metric_key, state_key in (
+        ("NPL gross (%)", "bank_npl_pct"),
+        ("CAR (%)", "bank_car_pct"),
+        ("NIM (%)", "bank_nim_pct"),
+        ("LDR (%)", "bank_ldr_pct"),
+        ("Official reported ROE (%)", "bank_official_roe_pct"),
+    ):
+        candidate = metrics.get(metric_key)
+        if candidate is not None:
+            st.session_state[state_key] = str(candidate.get("value", ""))
+    st.session_state["bank_source_name"] = preview.get("source_name", "")
+    st.session_state["bank_source_period"] = preview.get("source_period", "")
+    st.session_state["bank_source_url"] = preview.get("source_url", "")
+    st.session_state["bank_source_confirmed"] = False
+
+
 def render_equity_research():
     require_permission(st.session_state.get("_auth_role"), "run_analysis")
     render_page_hero("RESEARCH TERMINAL", "Equity Research & Valuation", "Fundamental analysis, DCF, Multi-Stage DCF, scenario valuation and sensitivity tools for IDX and US equities.", "FUNDAMENTALS  ·  DCF  ·  SCENARIOS")
@@ -189,20 +209,11 @@ def render_equity_research():
                     f"Source: {filing_preview.get('source_url')} · Period: {filing_preview.get('source_period')} · "
                     f"SHA-256: {filing_preview.get('document_sha256')}"
                 )
-                if st.button("Terapkan kandidat ke input (perlu konfirmasi)", key="apply_bbri_candidates"):
-                    for metric_key, state_key in (
-                        ("NPL gross (%)", "bank_npl_pct"), ("CAR (%)", "bank_car_pct"),
-                        ("NIM (%)", "bank_nim_pct"), ("LDR (%)", "bank_ldr_pct"),
-                        ("Official reported ROE (%)", "bank_official_roe_pct"),
-                    ):
-                        candidate = (filing_preview.get("metrics") or {}).get(metric_key)
-                        if candidate is not None:
-                            st.session_state[state_key] = str(candidate["value"])
-                    st.session_state["bank_source_name"] = filing_preview.get("source_name", "")
-                    st.session_state["bank_source_period"] = filing_preview.get("source_period", "")
-                    st.session_state["bank_source_url"] = filing_preview.get("source_url", "")
-                    st.session_state["bank_source_confirmed"] = False
-                    st.warning("Kandidat diterapkan. Status VERIFIED tetap terkunci sampai analis memeriksa laporan dan mengonfirmasi manual.")
+                st.button(
+                    "Terapkan kandidat ke input (perlu konfirmasi)",
+                    key="apply_bbri_candidates",
+                    on_click=_apply_bank_filing_preview,
+                )
             st.markdown("**Bank regulatory / operating ratios · official filing review**")
             bank_official_roe_pct = st.text_input(
                 "Official reported ROE (%)", value=st.session_state.get("bank_official_roe_pct", ""),
@@ -236,28 +247,30 @@ def render_equity_research():
                     )
                     st.session_state["bank_source_confirmed"] = False
                     st.success("PDF berhasil diproses sebagai kandidat. Periksa angka, halaman, periode dan sumber sebelum menerapkan.")
-                    upload_preview = st.session_state["bank_filing_preview"]
-                    st.dataframe([
-                        {"Metric": key, "Candidate value": item.get("value"),
-                         "PDF page": item.get("page"), "Confidence": item.get("confidence")}
-                        for key, item in upload_preview.get("metrics", {}).items()
-                    ], use_container_width=True, hide_index=True)
-                    if st.button("Terapkan kandidat PDF unggahan ke input", key="apply_uploaded_bank_pdf_candidates"):
-                        for metric_key, state_key in (
-                            ("NPL gross (%)", "bank_npl_pct"), ("CAR (%)", "bank_car_pct"),
-                            ("NIM (%)", "bank_nim_pct"), ("LDR (%)", "bank_ldr_pct"),
-                            ("Official reported ROE (%)", "bank_official_roe_pct"),
-                        ):
-                            candidate = (upload_preview.get("metrics") or {}).get(metric_key)
-                            if candidate is not None:
-                                st.session_state[state_key] = str(candidate["value"])
-                        st.session_state["bank_source_name"] = bank_source_name or uploaded_bank_pdf.name
-                        st.session_state["bank_source_period"] = bank_source_period
-                        st.session_state["bank_source_url"] = bank_source_url
-                        st.session_state["bank_source_confirmed"] = False
-                        st.warning("Kandidat PDF diterapkan. Jalankan Analyze stock setelah memeriksa semua nilai; status VERIFIED tidak otomatis diberikan.")
                 except Exception as upload_error:
                     st.error(f"Ekstraksi PDF gagal: {upload_error}")
+
+            upload_preview = st.session_state.get("bank_filing_preview") or {}
+            if (
+                upload_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")
+                and upload_preview.get("extraction_method") == "Uploaded PDF text extraction"
+            ):
+                st.warning("Hasil ekstraksi PDF unggahan adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
+                st.dataframe([
+                    {"Metric": key, "Candidate value": item.get("value"),
+                     "PDF page": item.get("page"), "Confidence": item.get("confidence")}
+                    for key, item in upload_preview.get("metrics", {}).items()
+                ], use_container_width=True, hide_index=True)
+                st.caption(
+                    f"Source: {upload_preview.get('source_url') or 'URL not supplied'} · "
+                    f"Period: {upload_preview.get('source_period')} · "
+                    f"SHA-256: {upload_preview.get('document_sha256')}"
+                )
+                st.button(
+                    "Terapkan kandidat PDF unggahan ke input",
+                    key="apply_uploaded_bank_pdf_candidates",
+                    on_click=_apply_bank_filing_preview,
+                )
             bank_source_confirmed = st.checkbox(
                 "I personally checked this official filing and its figures",
                 value=st.session_state.get("bank_source_confirmed", False),
