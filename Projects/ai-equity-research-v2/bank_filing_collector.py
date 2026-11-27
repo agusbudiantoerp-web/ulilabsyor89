@@ -90,6 +90,7 @@ def _decimal(token: str) -> float | None:
 def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str, ...] = ()):
     number = r"([0-9]{1,3}(?:[.,][0-9]{1,3})?)"
     current_page = 1
+    table_lines = lines  # Keep continuation lookup aligned with the same extracted page-aware text.
     for index, line in enumerate(lines):
         marker = re.search(r"\[\[PAGE:(\d+)\]\]", line)
         if marker:
