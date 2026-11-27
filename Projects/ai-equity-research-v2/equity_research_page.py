@@ -455,10 +455,20 @@ def render_equity_research():
                     else:
                         st.warning("STATUS: REVIEW REQUIRED — verifikasi laporan resmi dan lengkapi rasio yang belum tersedia. Nilai intrinsik belum boleh diperlakukan sebagai hasil tervalidasi.")
                 else:
-                    st.warning(
-                        bank_valuation.get("reason", "Bank valuation belum tersedia.")
-                        if bank_valuation else "Jalankan analisis saham terlebih dahulu."
-                    )
+                    if bank_valuation:
+                        status = bank_valuation.get("data_quality_status", "INSUFFICIENT DATA")
+                        if status == "INSUFFICIENT DATA":
+                            st.error(f"Bank data quality: {status}")
+                        else:
+                            st.warning(f"Bank data quality: {status}")
+                        quality = bank_valuation.get("data_quality") or {}
+                        for missing_field in quality.get("missing_fields", []):
+                            st.write(f"Missing: {missing_field}")
+                        for note in quality.get("notes", []):
+                            st.info(note)
+                        st.warning(bank_valuation.get("reason", "Bank valuation belum tersedia."))
+                    else:
+                        st.warning("Jalankan analisis saham terlebih dahulu.")
 
             if dcf and dcf.get("available"):
                 st.subheader("DCF valuation")
