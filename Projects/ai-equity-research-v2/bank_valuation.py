@@ -78,6 +78,14 @@ def calculate_bank_valuation(
         return {"available": False, "reason": "Data saham tidak valid."}
 
     ratios = data.get("ratios") or {}
+    quality = assess_bank_data(
+        data,
+        manual_metrics=manual_metrics,
+        source_name=source_name,
+        source_period=source_period,
+        source_url=source_url,
+        source_confirmed=source_confirmed,
+    )
     book_equity = _finite(ratios.get("Total stockholders equity"))
     shares = _finite(ratios.get("Shares outstanding"))
     price = _finite(data.get("price"))
@@ -86,14 +94,18 @@ def calculate_bank_valuation(
         return {
             "available": False,
             "reason": "Total stockholders equity tidak tersedia atau tidak positif. Periksa neraca resmi bank.",
+            "data_quality": quality,
+            "data_quality_status": quality["status"],
         }
     if shares is None or shares <= 0:
         return {
             "available": False,
             "reason": "Shares outstanding tidak tersedia atau tidak valid.",
+            "data_quality": quality,
+            "data_quality_status": quality["status"],
         }
     if price is None or price <= 0:
-        return {"available": False, "reason": "Harga saham tidak tersedia atau tidak valid."}
+        return {"available": False, "reason": "Harga saham tidak tersedia atau tidak valid.", "data_quality": quality, "data_quality_status": quality["status"]}
 
     book_value_per_share = book_equity / shares
     if not math.isfinite(book_value_per_share) or book_value_per_share <= 0:
@@ -115,14 +127,6 @@ def calculate_bank_valuation(
                 ),
             }
 
-    quality = assess_bank_data(
-        data,
-        manual_metrics=manual_metrics,
-        source_name=source_name,
-        source_period=source_period,
-        source_url=source_url,
-        source_confirmed=source_confirmed,
-    )
     if expected_roe is None:
         calculated_roe = _finite(ratios.get("Calculated ROE (%)"))
         reported_roe = _finite(ratios.get("ROE (%)"))
