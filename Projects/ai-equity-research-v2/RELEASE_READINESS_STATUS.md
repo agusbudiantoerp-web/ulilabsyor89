@@ -6,8 +6,8 @@ Last updated: 2026-11-28
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest validated PR code-bearing commit: `c5edf7365a1d428f0241a1676215ccf1087f9f65`.
-- Latest PR CI on that commit: **success** — Python 3.11, PostgreSQL 16, dependency audit reported **No known vulnerabilities found**, Python module compilation passed, and the complete suite passed **812 tests plus 3 subtests**. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069558401). The matching push workflow was still queued at the time of this update. This run includes OIDC fail-closed configuration regression tests and bilingual OCR tests; PostgreSQL tenant/RLS integration coverage remains in the suite.
+- Latest branch head: `c965ccfcb471a0e1a66c538fe9933acbed3aa4da` (documentation-only commit on top of the validated code-bearing commit `c5edf7365a1d428f0241a1676215ccf1087f9f65`).
+- Latest PR CI: **success** — Python 3.11, PostgreSQL 16, dependency audit reported **No known vulnerabilities found**, Python module compilation passed, and the complete suite passed **812 tests plus 3 subtests**. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069806047). The matching push workflow for the same head also completed successfully: [push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069801138). These runs include OIDC fail-closed configuration regression tests, bilingual OCR tests, and PostgreSQL tenant/RLS integration coverage.
 - The initial dependency audit found Pillow and SoupSieve CVEs in the original Python 3.10 resolution. The project runtime and CI now use Python 3.11 with patched Pillow/SoupSieve minimums; pandas is constrained below 3.0 to preserve validated date/type semantics.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
@@ -57,7 +57,7 @@ Last updated: 2026-11-28
 
 ## Release decision
 
-**Not production-ready yet.** The latest PR CI is green, including PostgreSQL-backed tests, OIDC configuration regression coverage and OCR regression coverage. The matching push workflow was queued at the time of this update. Passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL was not accessible to the current browser verification environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
+**Not production-ready yet.** Both PR and push CI workflows are green on head `c965ccfcb471a0e1a66c538fe9933acbed3aa4da`; the validated code-bearing commit passed 812 tests plus 3 subtests, Python compilation, `pip-audit`, and PostgreSQL 16 integration. Passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL could not be verified through the current browser environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
 
 
 ## PostgreSQL RLS policy diagnostics
