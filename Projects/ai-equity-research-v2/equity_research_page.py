@@ -236,6 +236,12 @@ def render_equity_research():
                     )
                     st.session_state["bank_source_confirmed"] = False
                     st.success("PDF berhasil diproses sebagai kandidat. Periksa angka, halaman, periode dan sumber sebelum menerapkan.")
+                    upload_preview = st.session_state["bank_filing_preview"]
+                    st.dataframe([
+                        {"Metric": key, "Candidate value": item.get("value"),
+                         "PDF page": item.get("page"), "Confidence": item.get("confidence")}
+                        for key, item in upload_preview.get("metrics", {}).items()
+                    ], use_container_width=True, hide_index=True)
                 except Exception as upload_error:
                     st.error(f"Ekstraksi PDF gagal: {upload_error}")
             bank_source_confirmed = st.checkbox(
