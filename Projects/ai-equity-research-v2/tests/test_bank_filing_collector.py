@@ -65,3 +65,24 @@ class BankFilingCollectorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+def test_official_filing_document_provenance_is_preserved():
+    from bank_data_quality import assess_bank_data
+
+    metadata = {
+        "document_sha256": "a" * 64,
+        "pages_read": 12,
+        "retrieved_at_utc": "2026-11-27T13:00:00+00:00",
+        "extraction_method": "PDF text / label match",
+        "document_title": "Official bank ratio report",
+    }
+    result = assess_bank_data({}, source_document_metadata=metadata)
+    provenance = result["document_provenance"]
+    assert provenance["sha256"] == "a" * 64
+    assert provenance["pages_read"] == 12
+    assert provenance["retrieved_at_utc"] == "2026-11-27T13:00:00+00:00"
+    assert provenance["extraction_method"] == "PDF text / label match"
+    assert provenance["document_title"] == "Official bank ratio report"
+    assert result["status"] == "INSUFFICIENT DATA"
