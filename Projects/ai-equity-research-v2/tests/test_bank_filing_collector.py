@@ -131,3 +131,31 @@ def test_official_filing_document_provenance_is_preserved():
     assert provenance["extraction_method"] == "PDF text / label match"
     assert provenance["document_title"] == "Official bank ratio report"
     assert result["status"] == "INSUFFICIENT DATA"
+
+
+    def test_scanned_upload_uses_ocr_fallback_and_keeps_review_gate(self):
+        from io import BytesIO
+        from unittest.mock import patch
+        from pypdf import PdfWriter
+        from bank_filing_collector import extract_uploaded_bank_filing
+
+        buffer = BytesIO()
+        writer = PdfWriter()
+        writer.add_blank_page(width=612, height=792)
+        writer.write(buffer)
+        ocr_text = (
+            "NPL gross 3.07 KPMM 20.62 "
+            "Return on Equity ROE average total equity 18.13 "
+            "Net Interest Margin NIM 6.16 Loan to Deposit Ratio LDR 88.22 "
+            "This OCR output contains enough readable financial statement text."
+        )
+        with patch("bank_filing_collector._run_pdf_ocr", return_value=(ocr_text, "Tesseract OCR test")):
+            result = extract_uploaded_bank_filing(
+                buffer.getvalue(), ticker="BBRI", source_name="Scanned ratio report",
+                period="2026-09-30", source_url="https://issuer.example/report.pdf",
+            )
+        self.assertEqual(result["status"], "REVIEW REQUIRED")
+        self.assertEqual(result["extraction_method"], "Tesseract OCR test; extracted candidates require analyst review")
+        self.assertTrue(result["analyst_review_required"])
+        self.assertTrue(result["metrics"])
+        self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
