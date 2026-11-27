@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 import pandas as pd
 
+from bank_data_quality import assess_bank_data
+
 
 def _finite(value):
     try:
@@ -65,6 +67,9 @@ def calculate_bank_valuation(
     years: int = 5,
     fx_rate: float | None = None,
     fx_source_date: str | None = None,
+    manual_metrics: dict | None = None,
+    source_name: str | None = None,
+    source_period: str | None = None,
 ) -> dict:
     """Calculate residual-income fair value and scenario/sensitivity outputs."""
     if not isinstance(data, dict):
@@ -108,19 +113,31 @@ def calculate_bank_valuation(
                 ),
             }
 
+    quality = assess_bank_data(
+        data,
+        manual_metrics=manual_metrics,
+        source_name=source_name,
+        source_period=source_period,
+    )
     if expected_roe is None:
+        calculated_roe = _finite(ratios.get("Calculated ROE (%)"))
         reported_roe = _finite(ratios.get("ROE (%)"))
         net_income = _finite(ratios.get("Net income attributable to parent"))
-        if reported_roe is not None:
+        if calculated_roe is not None:
+            expected_roe = calculated_roe / 100.0
+            roe_source = "Calculated net income / average reported equity"
+        elif reported_roe is not None:
             expected_roe = reported_roe / 100.0
-            roe_source = "Yahoo Finance reported ROE"
+            roe_source = "Yahoo Finance reported ROE (unverified provider field)"
         elif net_income is not None:
             expected_roe = net_income / book_equity
-            roe_source = "Net income / latest reported book equity proxy"
+            roe_source = "Net income / closing book equity proxy"
         else:
             return {
                 "available": False,
-                "reason": "Expected ROE tidak tersedia. Masukkan asumsi ROE atau lengkapi laba bersih.",
+                "reason": "Expected ROE tidak tersedia. Lengkapi laba bersih dan ekuitas atau masukkan asumsi ROE.",
+                "data_quality": quality,
+                "data_quality_status": quality["status"],
             }
     else:
         expected_roe = _finite(expected_roe)
@@ -200,11 +217,14 @@ def calculate_bank_valuation(
         "Residual Income Model (RIM) adalah pendekatan valuasi ekuitas bank; bukan FCFF DCF.",
         "Book equity dan shares berasal dari data agregator. Cocokkan dengan ekuitas yang dapat diatribusikan kepada pemilik induk dan jumlah saham terdilusi pada laporan resmi.",
         "ROE, cost of equity, dan stable growth adalah asumsi sensitif. Uji beberapa skenario dan jangan anggap nilai intrinsik sebagai target harga pasti.",
-        "NPL, CAR, LDR, dan NIM tidak diisi otomatis karena belum tersedia sebagai field terverifikasi dalam kontrak data saat ini; periksa publikasi resmi bank.",
+        "NPL gross, CAR, LDR, dan NIM hanya berasal dari input analis dengan sumber/periode yang dicatat; bukan otomatis diverifikasi oleh sistem.",
         "Model sederhana ini mengasumsikan ROE dan pertumbuhan book value stabil; perubahan kualitas kredit, kebutuhan modal, dan regulasi dapat mengubah hasil.",
     ]
     if roe_source != "User assumption":
         warnings.append(f"Expected ROE menggunakan sumber: {roe_source}. Verifikasi periode dan definisinya.")
+    warnings.extend(quality.get("notes") or [])
+    if quality.get("status") != "VERIFIED":
+        warnings.append("Data bank belum berstatus VERIFIED; intrinsic value hanya untuk review internal.")
     if conversion_applied:
         warnings.append(
             f"Nilai per saham dikonversi dari {financial_currency} ke {quote_currency} "
@@ -241,5 +261,6 @@ def calculate_bank_valuation(
             "years": years,
         },
         "warnings": warnings,
-        "data_quality_status": "REVIEW_REQUIRED",
+        "data_quality_status": quality["status"],
+        "data_quality": quality,
     }
