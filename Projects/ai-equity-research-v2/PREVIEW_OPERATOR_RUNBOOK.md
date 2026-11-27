@@ -167,13 +167,13 @@ Expected result: archive SHA-256/size validation succeeds, the manifest includes
 After the archive restore, treat the recovery database as not yet application-ready. PostgreSQL roles are cluster-level objects and are not included in a normal database archive. On a different PostgreSQL cluster, recreate or verify the restricted runtime role before rerunning the RLS migration. For example, using the migration administrator in `psql`:
 
 ```sql
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ai_equity_preview_runtime') THEN
     CREATE ROLE ai_equity_preview_runtime LOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
   END IF;
 END
-$;
+$$;
 ```
 
 Set the role password interactively in `psql` (outside the SQL block):
