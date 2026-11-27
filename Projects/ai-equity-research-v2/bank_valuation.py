@@ -72,6 +72,7 @@ def calculate_bank_valuation(
     source_period: str | None = None,
     source_url: str | None = None,
     source_confirmed: bool = False,
+    source_document_metadata: dict | None = None,
 ) -> dict:
     """Calculate residual-income fair value and scenario/sensitivity outputs."""
     if not isinstance(data, dict):
@@ -85,6 +86,7 @@ def calculate_bank_valuation(
         source_period=source_period,
         source_url=source_url,
         source_confirmed=source_confirmed,
+        source_document_metadata=source_document_metadata,
     )
     book_equity = _finite(ratios.get("Total stockholders equity"))
     shares = _finite(ratios.get("Shares outstanding"))
