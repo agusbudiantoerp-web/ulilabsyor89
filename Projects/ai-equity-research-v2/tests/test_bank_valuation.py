@@ -1,7 +1,9 @@
 import unittest
+from io import BytesIO
 import pandas as pd
 
 from bank_valuation import calculate_bank_valuation
+from reports import make_excel_report, make_pdf_report
 
 
 def sample_bank():
@@ -72,6 +74,41 @@ class BankValuationTests(unittest.TestCase):
     def test_rejects_invalid_years(self):
         result = calculate_bank_valuation(sample_bank(), expected_roe=0.18, years=0)
         self.assertFalse(result["available"])
+
+    def test_bank_valuation_is_in_excel_and_pdf_reports(self):
+        data = sample_bank()
+        data.update({
+            "as_of": "2026-11-27T00:00:00+00:00",
+            "latest_price_date": "2026-11-27",
+            "latest_financial_period": "2025-12-31",
+            "latest_balance_period": "2025-12-31",
+            "latest_cashflow_period": "2025-12-31",
+            "change_pct": 1.0,
+            "period_return_pct": 5.0,
+            "trend": "Bullish",
+            "rsi14": 55.0,
+            "annualized_volatility_pct": 25.0,
+            "data_source": "Test fixture",
+            "data_quality_note": "Test only",
+            "data_quality_warnings": [],
+            "disclaimer": "Test only; not investment advice.",
+            "history": pd.DataFrame([{
+                "Date": "2026-11-27", "Open": 5900, "High": 6050,
+                "Low": 5850, "Close": 6000, "Volume": 1000
+            }]),
+        })
+        valuation = calculate_bank_valuation(
+            data, expected_roe=0.18, cost_of_equity=0.12,
+            stable_growth=0.04, years=5
+        )
+        workbook = pd.ExcelFile(BytesIO(
+            make_excel_report(data, bank_valuation=valuation)
+        ))
+        self.assertIn("Bank Valuation", workbook.sheet_names)
+        self.assertIn("Bank RIM Forecast", workbook.sheet_names)
+        self.assertIn("Bank Scenarios", workbook.sheet_names)
+        pdf = make_pdf_report(data, bank_valuation=valuation)
+        self.assertTrue(pdf.startswith(b"%PDF"))
 
 
 if __name__ == "__main__":
