@@ -30,6 +30,15 @@ class BankFilingCollectorTests(unittest.TestCase):
             source_name="BRI Q3 report", period="2026-09-30")
         self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
 
+    def test_uploaded_pdf_parser_requires_iso_period_and_valid_pdf(self):
+        from bank_filing_collector import extract_uploaded_bank_filing
+        with self.assertRaises(FilingRetrievalError):
+            extract_uploaded_bank_filing(b"not a pdf", ticker="BBCA", source_name="test",
+                period="2026-09-30")
+        with self.assertRaises(FilingRetrievalError):
+            extract_uploaded_bank_filing(b"%PDF-fake", ticker="BBCA", source_name="test",
+                period="30-09-2026")
+
     def test_does_not_promote_tier_one_roe(self):
         result = extract_metrics_from_pdf_text("Return on Equity (ROE) 3) 22,11",
             source_url="https://bri.co.id/report.pdf", source_name="BRI report", period="2026-09-30")
