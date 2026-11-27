@@ -90,6 +90,7 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
     for field in BANK_RATIO_FIELDS:
         raw = (manual_metrics or {}).get(field)
         value = _num(raw)
+        entered[field] = None
         if value is not None:
             upper = 1000 if field == "LDR (%)" else 100
             if 0 <= value <= upper:
@@ -100,8 +101,6 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
                     "Status": "INVALID",
                     "Detail": f"Expected a value between 0 and {upper}.",
                 })
-        else:
-            entered[field] = None
 
     source_url_value = str(source_url or "").strip()
     source_ok = bool(
