@@ -227,9 +227,17 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
     if source_ok:
         notes.append("Source/period entered by analyst; verify the cited filing before treating inputs as authoritative.")
 
+    freshness_status = (
+        "STALE" if price_fundamental_gap_days is not None and price_fundamental_gap_days > 150
+        else "CURRENT" if price_fundamental_gap_days is not None
+        else "UNKNOWN"
+    )
+
     return {
         "status": status,
         "checks": checks,
+        "fundamental_freshness_status": freshness_status,
+        "price_fundamental_gap_days": price_fundamental_gap_days,
         "metrics": entered,
         "source_name": str(source_name or "").strip() or None,
         "source_period": str(source_period or "").strip() or None,
