@@ -137,6 +137,27 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         and financial_period
         and source_period_date == balance_period == financial_period
     )
+    price_period = _period_date(data.get("latest_price_date"))
+    fundamental_period = max(
+        (period for period in (balance_period, financial_period) if period),
+        default=None,
+    )
+    price_fundamental_gap_days = (
+        abs((price_period - fundamental_period).days)
+        if price_period and fundamental_period else None
+    )
+    if price_fundamental_gap_days is not None:
+        checks.append({
+            "Check": "Market price vs fundamental reporting-period gap",
+            "Value": price_fundamental_gap_days,
+            "Status": "REVIEW REQUIRED" if price_fundamental_gap_days > 150 else "PASS",
+            "Detail": (
+                f"Price date={price_period.isoformat()}; "
+                f"latest balance/income period={fundamental_period.isoformat()}; "
+                "gap is measured in calendar days. More than 150 days requires review."
+            ),
+        })
+
     if source_period_value:
         checks.append({
             "Check": "Official filing period vs financial statement periods",
@@ -176,6 +197,12 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         notes.append("To mark VERIFIED, provide a valid HTTPS filing URL, source name, an ISO reporting date matching both app financial statement periods, and confirm that you personally checked the filing.")
     if source_period_value and not period_matches:
         notes.append("The analyst filing period does not match both the balance-sheet and income-statement periods used by the model; VERIFIED is blocked.")
+    if price_fundamental_gap_days is not None and price_fundamental_gap_days > 150:
+        notes.append(
+            f"Fundamental data is stale relative to market price: "
+            f"{price_fundamental_gap_days} calendar days between price date and "
+            "latest balance-sheet/income-statement period. Refresh financial statements before relying on valuation."
+        )
     if source_url_value and not source_url_ok:
         notes.append("The filing URL must be a valid HTTPS URL without embedded credentials.")
     if failed_checks:
