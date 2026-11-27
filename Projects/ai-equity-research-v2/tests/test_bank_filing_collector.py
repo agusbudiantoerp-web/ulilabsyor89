@@ -87,6 +87,27 @@ NPL Ratio | 1.06 | 1.02 | -4bps | 1.03 | 0.98 | -5bps
             source_url="https://bri.co.id/report.pdf", source_name="BRI report", period="2026-09-30")
         self.assertNotIn("Official reported ROE (%)", result["metrics"])
 
+    def test_scanned_uploaded_pdf_is_flagged_for_ocr_without_inventing_metrics(self):
+        from io import BytesIO
+        from pypdf import PdfWriter
+        from bank_filing_collector import extract_uploaded_bank_filing
+
+        buffer = BytesIO()
+        writer = PdfWriter()
+        writer.add_blank_page(width=612, height=792)
+        writer.write(buffer)
+        result = extract_uploaded_bank_filing(
+            buffer.getvalue(), ticker="BMRI", source_name="Scanned quarterly report",
+            period="2026-09-30", source_url="https://issuer.example/report.pdf",
+        )
+        self.assertEqual(result["status"], "OCR REQUIRED")
+        self.assertTrue(result["ocr_required"])
+        self.assertEqual(result["metrics"], {})
+        self.assertEqual(len(result["missing_metrics"]), 5)
+        self.assertEqual(result["pages_read"], 1)
+        self.assertTrue(result["document_sha256"])
+        self.assertTrue(result["notes"])
+
 if __name__ == "__main__":
     unittest.main()
 
