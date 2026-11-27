@@ -165,12 +165,12 @@ def extract_uploaded_bank_filing(pdf_bytes: bytes, *, ticker: str, source_name: 
         raise FilingRetrievalError("File unggahan bukan PDF yang valid.")
     if len(pdf_bytes) > MAX_PDF_BYTES:
         raise FilingRetrievalError("Ukuran PDF unggahan melebihi batas 25 MB.")
-    if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", str(period or "")):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(period or "")):
         raise FilingRetrievalError("Periode laporan harus menggunakan format YYYY-MM-DD.")
     try:
         reader = PdfReader(BytesIO(pdf_bytes), strict=False)
-        text = "\\n".join(
-            f"[[PAGE:{index}]]\\n{page.extract_text() or ''}"
+        text = "\n".join(
+            f"[[PAGE:{index}]]\n{page.extract_text() or ''}"
             for index, page in enumerate(reader.pages, start=1)
         )
     except Exception as exc:
