@@ -8,7 +8,7 @@ class BankFilingCollectorTests(unittest.TestCase):
                 _validate_official_url(url)
 
     def test_extracts_values_with_period_and_provenance(self):
-        text = "KPMM 20,62\nNPL gross 3,07\nReturn on Equity (ROE) 3) 22,11\nReturn on Equity (ROE) 4) 18,13\nNet Interest Margin (NIM) 6,16"
+        text = "Kewajiban Penyediaan Modal Minimum (KPMM) | 20,62 | 23,01\n5. NPL gross | 3,07 | 3,29\n10. Return on Equity (ROE) 3) | 22,11 | 20,44\n11. Return on Equity (ROE) 4) | 18,13 | 16,48\n12. Net Interest Margin (NIM) | 6,16 | 6,53\n15. Loan to Deposit Ratio (LDR) | 88,22 | 87,05"
         result = extract_metrics_from_pdf_text(text, source_url="https://bri.co.id/report.pdf",
             source_name="BRI Q3 report", period="2026-09-30", document_sha256="abc123")
         metrics = result["metrics"]
@@ -16,9 +16,11 @@ class BankFilingCollectorTests(unittest.TestCase):
         self.assertEqual(metrics["CAR (%)"]["value"], 20.62)
         self.assertEqual(metrics["Official reported ROE (%)"]["value"], 18.13)
         self.assertEqual(metrics["NIM (%)"]["value"], 6.16)
+        self.assertEqual(metrics["LDR (%)"]["value"], 88.22)
+        self.assertEqual(metrics["LDR (%)"]["page"], 1)
         self.assertEqual(metrics["NPL gross (%)"]["period"], "2026-09-30")
         self.assertEqual(metrics["NPL gross (%)"]["source_url"], "https://bri.co.id/report.pdf")
-        self.assertIn("LDR (%)", result["missing_metrics"])
+        self.assertNotIn("LDR (%)", result["missing_metrics"])
         self.assertEqual(result["status"], "REVIEW REQUIRED")
 
     def test_does_not_promote_tier_one_roe(self):
