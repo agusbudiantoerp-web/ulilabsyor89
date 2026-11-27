@@ -242,6 +242,20 @@ def render_equity_research():
                          "PDF page": item.get("page"), "Confidence": item.get("confidence")}
                         for key, item in upload_preview.get("metrics", {}).items()
                     ], use_container_width=True, hide_index=True)
+                    if st.button("Terapkan kandidat PDF unggahan ke input", key="apply_uploaded_bank_pdf_candidates"):
+                        for metric_key, state_key in (
+                            ("NPL gross (%)", "bank_npl_pct"), ("CAR (%)", "bank_car_pct"),
+                            ("NIM (%)", "bank_nim_pct"), ("LDR (%)", "bank_ldr_pct"),
+                            ("Official reported ROE (%)", "bank_official_roe_pct"),
+                        ):
+                            candidate = (upload_preview.get("metrics") or {}).get(metric_key)
+                            if candidate is not None:
+                                st.session_state[state_key] = str(candidate["value"])
+                        st.session_state["bank_source_name"] = bank_source_name or uploaded_bank_pdf.name
+                        st.session_state["bank_source_period"] = bank_source_period
+                        st.session_state["bank_source_url"] = bank_source_url
+                        st.session_state["bank_source_confirmed"] = False
+                        st.warning("Kandidat PDF diterapkan. Jalankan Analyze stock setelah memeriksa semua nilai; status VERIFIED tidak otomatis diberikan.")
                 except Exception as upload_error:
                     st.error(f"Ekstraksi PDF gagal: {upload_error}")
             bank_source_confirmed = st.checkbox(
