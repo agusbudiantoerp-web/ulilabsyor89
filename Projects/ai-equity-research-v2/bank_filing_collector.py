@@ -228,6 +228,26 @@ def extract_bmri_q3_2026_metrics_from_pdf_text(text: str, *, source_url: str,
     }
 
 
+def _ocr_required_result(*, ticker: str, issuer: str, document_title: str,
+                         source_name: str, source_url: str, period: str,
+                         content: bytes, pages_read: int, extraction_method: str) -> dict:
+    """Return a safe, explicit state when a PDF is image-based or has no usable text layer."""
+    required = ["NPL gross (%)", "CAR (%)", "LDR (%)", "NIM (%)", "Official reported ROE (%)"]
+    return {
+        "ticker": ticker, "issuer": issuer, "document_title": document_title,
+        "source_name": source_name, "source_url": source_url,
+        "source_period": period, "document_sha256": sha256(content).hexdigest(),
+        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+        "pages_read": pages_read, "metrics": {}, "missing_metrics": required,
+        "analyst_review_required": True, "status": "OCR REQUIRED",
+        "extraction_method": extraction_method,
+        "ocr_required": True,
+        "notes": ["PDF tidak memiliki lapisan teks yang cukup untuk ekstraksi aman. Dokumen kemungkinan berupa hasil scan/gambar. Tidak ada angka yang diisi otomatis. Gunakan OCR yang ditinjau analis atau input manual dengan referensi halaman."]
+    }
+
+def _has_usable_pdf_text(text: str) -> bool:
+    return len(re.sub(r"[^A-Za-z0-9]", "", str(text or ""))) >= 40
+
 def extract_official_bank_filing(ticker: str) -> dict:
     key = str(ticker or "").upper().replace(".JK", "").strip()
     config = BANK_FILING_REGISTRY.get(key)
@@ -239,6 +259,13 @@ def extract_official_bank_filing(ticker: str) -> dict:
         text = "\n".join(f"[[PAGE:{index}]]\n{page.extract_text() or ''}" for index, page in enumerate(reader.pages, start=1))
     except Exception as exc:
         raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
+    if not _has_usable_pdf_text(text):
+        return _ocr_required_result(
+            ticker=key, issuer=config["issuer"], document_title=config["title"],
+            source_name=config["source_name"], source_url=final_url,
+            period=config["period"], content=content, pages_read=len(reader.pages),
+            extraction_method="PDF scan / no usable text layer; OCR required",
+        )
     if key == "BMRI":
         result = extract_bmri_q3_2026_metrics_from_pdf_text(
             text, source_url=final_url, source_name=config["source_name"],
@@ -276,6 +303,15 @@ def extract_uploaded_bank_filing(pdf_bytes: bytes, *, ticker: str, source_name: 
     except Exception as exc:
         raise FilingRetrievalError(f"PDF unggahan tidak dapat dibaca: {exc}") from exc
     key = str(ticker or "").upper().replace(".JK", "").strip()
+    if not _has_usable_pdf_text(text):
+        return _ocr_required_result(
+            ticker=key, issuer=key,
+            document_title=str(source_name or "Uploaded bank filing"),
+            source_name=str(source_name or "Uploaded bank filing"),
+            source_url=str(source_url or "").strip(), period=period,
+            content=bytes(pdf_bytes), pages_read=len(reader.pages),
+            extraction_method="Uploaded PDF scan / no usable text layer; OCR required",
+        )
     result = extract_metrics_from_pdf_text(
         text, source_url=str(source_url or "").strip(),
         source_name=str(source_name or "Uploaded bank filing").strip(),
