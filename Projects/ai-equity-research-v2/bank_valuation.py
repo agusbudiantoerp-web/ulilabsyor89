@@ -64,6 +64,7 @@ def calculate_bank_valuation(
     stable_growth: float = 0.04,
     years: int = 5,
     fx_rate: float | None = None,
+    fx_source_date: str | None = None,
 ) -> dict:
     """Calculate residual-income fair value and scenario/sensitivity outputs."""
     if not isinstance(data, dict):
@@ -207,7 +208,7 @@ def calculate_bank_valuation(
     if conversion_applied:
         warnings.append(
             f"Nilai per saham dikonversi dari {financial_currency} ke {quote_currency} "
-            f"dengan kurs manual {applied_fx:,.4f}; tanggal kurs harus dicatat pengguna."
+            f"dengan kurs manual {applied_fx:,.4f}; tanggal referensi: {fx_source_date or 'Not specified'}."
         )
 
     return {
@@ -232,6 +233,7 @@ def calculate_bank_valuation(
         "roe_source": roe_source,
         "fx_conversion_applied": conversion_applied,
         "fx_rate_applied": applied_fx if conversion_applied else None,
+        "fx_source_date": fx_source_date if conversion_applied else None,
         "assumptions": {
             "expected_roe": expected_roe,
             "cost_of_equity": cost_of_equity,
