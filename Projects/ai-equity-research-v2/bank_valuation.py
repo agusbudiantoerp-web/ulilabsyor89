@@ -128,13 +128,21 @@ def calculate_bank_valuation(
             }
 
     if expected_roe is None:
+        official_roe = _finite((manual_metrics or {}).get("Official reported ROE (%)"))
+        if official_roe is not None and 0 <= official_roe <= 200:
+            expected_roe = official_roe / 100.0
+            roe_source = "Analyst-entered official filing ROE (not independently verified)"
+        else:
+            official_roe = None
         calculated_roe = _finite(ratios.get("Calculated ROE (%)"))
         reported_roe = _finite(ratios.get("ROE (%)"))
         net_income = _finite(ratios.get("Net income attributable to parent"))
         average_equity = _finite(ratios.get("Average stockholders equity"))
         if calculated_roe is None and net_income is not None and average_equity is not None and average_equity > 0:
             calculated_roe = net_income / average_equity * 100.0
-        if calculated_roe is not None:
+        if official_roe is not None:
+            pass
+        elif calculated_roe is not None:
             expected_roe = calculated_roe / 100.0
             roe_source = "Calculated net income / average reported equity"
         elif reported_roe is not None:
