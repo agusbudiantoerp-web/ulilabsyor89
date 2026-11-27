@@ -6,10 +6,11 @@ Banks are valued with the Residual Income Model (RIM), not generic FCFF DCF. The
 
 ## ROE hierarchy
 
-1. Calculated ROE = latest net income attributable to parent / average reported stockholders' equity, when two comparable balance-sheet periods are available.
-2. Provider ROE is a fallback only and is explicitly labelled unverified.
-3. Closing-equity ROE is a proxy when average equity cannot be calculated.
-4. A manual ROE override is always labelled User assumption.
+1. Analyst-entered **Official reported ROE (%)** from a named filing is preferred when supplied; the UI and reports label it as analyst-entered and not independently verified. Record the exact ROE definition (for example, net income after tax / average equity versus Tier 1 average equity) and use a matching reporting period.
+2. Calculated ROE = latest net income attributable to parent / average reported stockholders' equity, when comparable periods are available.
+3. Provider ROE is a fallback only and is explicitly labelled unverified.
+4. Closing-equity ROE is a proxy when average equity cannot be calculated.
+5. The separate manual valuation override remains labelled User assumption.
 
 The current Yahoo Finance data path is an aggregator, not an official filing verification service. A populated provider field must not be described as verified.
 
@@ -32,7 +33,9 @@ OJK's *Laporan Surveillance Perbankan Indonesia Triwulan I 2026*, Appendix I, li
 - **REVIEW REQUIRED**: core data exists, but official filing provenance, one or more bank ratios, average equity, or a consistency check is incomplete.
 - **VERIFIED**: the analyst has supplied the source name, reporting period and HTTPS filing URL; all four bank ratios; average equity; and explicitly attested that the official filing and figures were checked. This is an analyst attestation, not an automated validation by the application.
 
-Consistency checks include calculated ROE vs provider ROE, book value per share, and price × shares vs provider market capitalization. Material discrepancies block VERIFIED status.
+Consistency checks include calculated ROE vs provider ROE, book value per share, price × shares vs provider market capitalization, and the calendar-day gap between the latest market-price date and the latest balance-sheet/income-statement period. A gap greater than 150 days is marked STALE and blocks VERIFIED status. Missing reporting dates are marked UNKNOWN; they are not assumed current.
+
+A documented official ROE input is distinct from the valuation-assumption override. It changes the RIM forecast ROE but does not independently verify the figure. The official source period must still match the financial statement periods used by the model.
 
 ## Exports
 
