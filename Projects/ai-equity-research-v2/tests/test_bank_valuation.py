@@ -226,6 +226,35 @@ class BankValuationTests(unittest.TestCase):
         self.assertEqual(result["fx_source_date"], "2026-11-06")
         self.assertEqual(result["currency"], "IDR")
 
+    def test_warns_when_expected_roe_equals_cost_of_equity(self):
+        result = calculate_bank_valuation(
+            sample_bank(), expected_roe=0.12,
+            cost_of_equity=0.12, stable_growth=0.04, years=5
+        )
+        self.assertTrue(result["available"])
+        self.assertAlmostEqual(result["roe_spread_pct_points"], 0.0)
+        self.assertAlmostEqual(
+            result["intrinsic_value_per_share"],
+            result["book_value_per_share"],
+            places=8,
+        )
+        self.assertTrue(any(
+            "ROE hampir sama dengan cost of equity" in warning
+            for warning in result["warnings"]
+        ))
+
+    def test_reports_negative_roe_spread(self):
+        result = calculate_bank_valuation(
+            sample_bank(), expected_roe=0.08,
+            cost_of_equity=0.12, stable_growth=0.04, years=5
+        )
+        self.assertTrue(result["available"])
+        self.assertAlmostEqual(result["roe_spread_pct_points"], -4.0)
+        self.assertTrue(any(
+            "penciptaan nilai ekonomi negatif" in warning
+            for warning in result["warnings"]
+        ))
+
     def test_rejects_invalid_years(self):
         result = calculate_bank_valuation(sample_bank(), expected_roe=0.18, years=0)
         self.assertFalse(result["available"])
