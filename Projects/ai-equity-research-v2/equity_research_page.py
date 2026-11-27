@@ -396,7 +396,25 @@ def render_equity_research():
             f"Neraca: {data.get('latest_balance_period', 'N/A')} · "
             f"Arus kas: {data.get('latest_cashflow_period', 'N/A')}"
         )
-    
+
+        # Surface bank-fundamental staleness outside the Valuation tab so it
+        # cannot be missed when users inspect only Overview or Fundamentals.
+        if is_bank(data) and bank_valuation and bank_valuation.get("available"):
+            bank_quality_top = bank_valuation.get("data_quality") or {}
+            freshness_top = bank_quality_top.get("fundamental_freshness_status", "UNKNOWN")
+            gap_top = bank_quality_top.get("price_fundamental_gap_days")
+            if freshness_top == "STALE":
+                st.error(
+                    f"BANK FUNDAMENTALS STALE · {gap_top} calendar days between "
+                    "the latest market price and financial statements. Refresh the "
+                    "bank's latest official financial statements before relying on RIM."
+                )
+            elif freshness_top == "UNKNOWN":
+                st.warning(
+                    "BANK FUNDAMENTAL FRESHNESS UNKNOWN · reporting dates are incomplete. "
+                    "The RIM result requires manual period verification."
+                )
+
         for warning in data.get("data_quality_warnings", []):
             st.warning(warning)
     
@@ -501,7 +519,8 @@ def render_equity_research():
                         f"Book value/share: {bank_valuation['book_value_per_share']:,.2f} "
                         f"{bank_valuation['currency']} · Implied P/B: "
                         f"{bank_valuation['implied_pb']:.2f}x · "
-                        f"ROE source: {bank_valuation['roe_source']}"
+                        f"ROE source: {bank_valuation['roe_source']} · "
+                        f"ROE − CoE: {bank_valuation.get('roe_spread_pct_points', 0.0):+.2f} pp"
                     )
                     if bank_valuation.get("fx_conversion_applied"):
                         st.caption(
