@@ -207,9 +207,20 @@ def make_excel_report(
                     writer, sheet_name="Bank Review", index=False
                 )
             else:
+                quality = bank_valuation.get("data_quality") or {}
                 pd.DataFrame({
-                    "Bank valuation status": [bank_valuation.get("reason", "Not available")]
+                    "Bank valuation status": [
+                        bank_valuation.get("data_quality_status", "INSUFFICIENT DATA"),
+                        bank_valuation.get("reason", "Not available"),
+                    ],
+                    "Details": [
+                        "Data quality status",
+                        "Missing: " + ", ".join(quality.get("missing_fields") or []),
+                    ],
                 }).to_excel(writer, sheet_name="Bank Valuation", index=False)
+                pd.DataFrame({"Review notes": quality.get("notes") or []}).to_excel(
+                    writer, sheet_name="Bank Review", index=False
+                )
 
         if scenario_result and scenario_result.get("available"):
             scenario_rows = []
@@ -548,7 +559,9 @@ def make_pdf_report(
         else:
             story += [
                 Paragraph("Bank Valuation not available", styles["Heading2"]),
+                Paragraph(escape("Data quality status: " + str(bank_valuation.get("data_quality_status", "INSUFFICIENT DATA"))), styles["BodyText"]),
                 Paragraph(escape(str(bank_valuation.get("reason", "Required bank data unavailable."))), styles["BodyText"]),
+                *[Paragraph("Review: " + escape(str(item)), styles["BodyText"]) for item in ((bank_valuation.get("data_quality") or {}).get("notes") or [])],
                 Spacer(1, 8),
             ]
 
