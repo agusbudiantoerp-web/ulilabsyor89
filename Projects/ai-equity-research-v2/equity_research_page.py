@@ -346,6 +346,13 @@ def render_equity_research():
                         f"{bank_valuation['implied_pb']:.2f}x · "
                         f"ROE source: {bank_valuation['roe_source']}"
                     )
+                    if bank_valuation.get("fx_conversion_applied"):
+                        st.caption(
+                            f"FX conversion: {bank_valuation['financial_currency']} to "
+                            f"{bank_valuation['currency']} · Rate: "
+                            f"{bank_valuation['fx_rate_applied']:,.4f} · Reference date: "
+                            f"{bank_valuation.get('fx_source_date') or 'Not specified'}"
+                        )
                     st.markdown("#### Residual Income Forecast")
                     st.dataframe(
                         bank_valuation["forecast"].style.format({
