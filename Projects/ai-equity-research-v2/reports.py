@@ -501,6 +501,8 @@ def make_pdf_report(
                 ["Data quality status", str(bank_valuation.get("data_quality_status"))],
                 ["Official source", str((bank_valuation.get("data_quality") or {}).get("source_name") or "Not supplied")],
                 ["Official reporting period", str((bank_valuation.get("data_quality") or {}).get("source_period") or "Not supplied")],
+                ["Official filing URL", str((bank_valuation.get("data_quality") or {}).get("source_url") or "Not supplied")],
+                ["Analyst filing confirmation", str((bank_valuation.get("data_quality") or {}).get("source_confirmed", False))],
                 ["FX rate applied", str(bank_valuation.get("fx_rate_applied"))],
                 ["FX reference date", str(bank_valuation.get("fx_source_date"))],
             ]
