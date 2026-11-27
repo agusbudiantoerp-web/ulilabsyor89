@@ -106,6 +106,8 @@ def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str
                         break
                     if re.search(r"\b(?:NPL\s+gross|KPMM|NIM|LDR|ROE|Loan\s+to\s+Deposit|Capital\s+Adequacy)\b", following, re.I):
                         break
+                    if not re.fullmatch(r"[\\s|0-9.,%()\\-]+", following.strip()):
+                        break
                     continuation.append(following)
                 match = re.search(number, " ".join(continuation))
             if match:
