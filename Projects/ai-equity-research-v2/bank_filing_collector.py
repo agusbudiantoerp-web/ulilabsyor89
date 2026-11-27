@@ -153,7 +153,39 @@ def extract_official_bank_filing(ticker: str) -> dict:
     result = extract_metrics_from_pdf_text(text, source_url=final_url,
         source_name=config["source_name"], period=config["period"],
         document_sha256=sha256(content).hexdigest())
-    result.update({"issuer": config["issuer"], "document_title": config["title"],
+    result.update({"ticker": key, "issuer": config["issuer"], "document_title": config["title"],
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "pages_read": len(reader.pages)})
+    return result
+
+def extract_uploaded_bank_filing(pdf_bytes: bytes, *, ticker: str, source_name: str,
+                                 period: str, source_url: str = "") -> dict:
+    """Parse an analyst-uploaded issuer PDF; extracted values remain review-only."""
+    if not isinstance(pdf_bytes, (bytes, bytearray)) or not pdf_bytes.startswith(b"%PDF"):
+        raise FilingRetrievalError("File unggahan bukan PDF yang valid.")
+    if len(pdf_bytes) > MAX_PDF_BYTES:
+        raise FilingRetrievalError("Ukuran PDF unggahan melebihi batas 25 MB.")
+    if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", str(period or "")):
+        raise FilingRetrievalError("Periode laporan harus menggunakan format YYYY-MM-DD.")
+    try:
+        reader = PdfReader(BytesIO(pdf_bytes), strict=False)
+        text = "\\n".join(
+            f"[[PAGE:{index}]]\\n{page.extract_text() or ''}"
+            for index, page in enumerate(reader.pages, start=1)
+        )
+    except Exception as exc:
+        raise FilingRetrievalError(f"PDF unggahan tidak dapat dibaca: {exc}") from exc
+    key = str(ticker or "").upper().replace(".JK", "").strip()
+    result = extract_metrics_from_pdf_text(
+        text, source_url=str(source_url or "").strip(),
+        source_name=str(source_name or "Uploaded bank filing").strip(),
+        period=period, document_sha256=sha256(pdf_bytes).hexdigest(),
+    )
+    result.update({
+        "ticker": key, "issuer": key,
+        "document_title": str(source_name or "Uploaded bank filing"),
+        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+        "pages_read": len(reader.pages),
+        "extraction_method": "Uploaded PDF text extraction",
+    })
     return result
