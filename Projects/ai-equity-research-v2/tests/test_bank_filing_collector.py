@@ -159,3 +159,25 @@ def test_official_filing_document_provenance_is_preserved():
         self.assertTrue(result["analyst_review_required"])
         self.assertTrue(result["metrics"])
         self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
+
+
+    def test_ocr_can_target_a_later_page_and_preserves_original_page_number(self):
+        from io import BytesIO
+        from unittest.mock import patch
+        from pypdf import PdfWriter
+        from bank_filing_collector import _run_pdf_ocr
+
+        buffer = BytesIO()
+        writer = PdfWriter()
+        for _ in range(25):
+            writer.add_blank_page(width=612, height=792)
+        writer.write(buffer)
+        with patch("pdf2image.convert_from_bytes", return_value=[object()]) as convert:
+            with patch("pytesseract.get_tesseract_version", return_value="5.0"):
+                with patch("pytesseract.image_to_string", return_value="BMRI ratios table"):
+                    text, method = _run_pdf_ocr(buffer.getvalue(), page_numbers=[23])
+        self.assertIn("[[PAGE:23]]", text)
+        self.assertIn("BMRI ratios table", text)
+        self.assertIn("23", method)
+        self.assertEqual(convert.call_args.kwargs["first_page"], 23)
+        self.assertEqual(convert.call_args.kwargs["last_page"], 23)
