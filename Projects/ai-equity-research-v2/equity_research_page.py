@@ -3,6 +3,8 @@ import streamlit as st
 
 from ui_theme import render_page_hero
 from engine import analyze_equity, calculate_dcf, dcf_sensitivity, build_research_summary
+from engine import is_bank
+from bank_valuation import calculate_bank_valuation
 from multistage_adapter import calculate_multistage_dcf
 from reports import make_excel_report, make_pdf_report
 from scenario_ui import render_scenario_analysis
@@ -139,7 +141,27 @@ def render_equity_research():
         )
         fx_source_date = st.text_input("FX reference date", "2026-11-06")
         st.caption("Masukkan kurs referensi dan tanggalnya secara manual. Perbarui sebelum analisis berikutnya.")
-    
+
+        with st.expander("Bank valuation assumptions"):
+            bank_roe_pct = st.number_input(
+                "Expected ROE (%)", min_value=-100.0, max_value=200.0,
+                value=12.0, step=0.5,
+                help="Asumsi ROE jangka menengah untuk Residual Income Model bank."
+            )
+            bank_cost_of_equity_pct = st.number_input(
+                "Cost of equity (%)", min_value=0.5, max_value=100.0,
+                value=12.0, step=0.5
+            )
+            bank_growth_pct = st.number_input(
+                "Stable book-value growth (%)", min_value=-10.0, max_value=20.0,
+                value=4.0, step=0.5
+            )
+            bank_forecast_years = st.number_input(
+                "Bank forecast years", min_value=1, max_value=20,
+                value=5, step=1
+            )
+            st.caption("Digunakan khusus untuk emiten perbankan. Cost of equity harus lebih tinggi daripada stable growth.")
+
         run = st.button("Analyze stock", type="primary", use_container_width=True)
     
     if run:
@@ -178,10 +200,24 @@ def render_equity_research():
                     allow_data_quality_override=allow_data_quality_override,
                     fx_source_date=fx_source_date
                 )
+
+                bank_valuation = (
+                    calculate_bank_valuation(
+                        result,
+                        expected_roe=bank_roe_pct / 100,
+                        cost_of_equity=bank_cost_of_equity_pct / 100,
+                        stable_growth=bank_growth_pct / 100,
+                        years=int(bank_forecast_years),
+                        fx_rate=fx_rate,
+                    )
+                    if is_bank(result)
+                    else {"available": False, "reason": "Model khusus bank; tidak diterapkan pada emiten non-bank."}
+                )
     
             st.session_state["equity_result"] = result
             st.session_state["equity_dcf"] = dcf
             st.session_state["equity_multistage_dcf"] = multistage_dcf
+            st.session_state["equity_bank_valuation"] = bank_valuation
             st.session_state.pop("valuation_reconciliation_result", None)
             st.session_state.pop("reverse_dcf_result", None)
             _audit_equity_action(
@@ -196,6 +232,7 @@ def render_equity_research():
     data = st.session_state.get("equity_result")
     dcf = st.session_state.get("equity_dcf")
     multistage_dcf = st.session_state.get("equity_multistage_dcf")
+    bank_valuation = st.session_state.get("equity_bank_valuation")
     scenario_result = st.session_state.get("equity_scenario_result")
     
     if data:
@@ -271,6 +308,98 @@ def render_equity_research():
             st.write("Trend:", data["trend"], "· RSI:", data["rsi_signal"])
     
         with tab4:
+            if is_bank(data):
+                st.subheader("Bank Valuation Model · Residual Income")
+                st.caption(
+                    "Valuasi ekuitas bank berbasis book value dan residual income. "
+                    "FCFF DCF dan Multi-Stage DCF tidak digunakan untuk bank."
+                )
+                if bank_valuation and bank_valuation.get("available"):
+                    b1, b2, b3, b4 = st.columns(4)
+                    b1.metric(
+                        "Intrinsic Value / Share",
+                        f"{bank_valuation['intrinsic_value_per_share']:,.2f} {bank_valuation['currency']}"
+                    )
+                    b2.metric(
+                        "Current Price",
+                        f"{bank_valuation['current_price']:,.2f} {bank_valuation['currency']}"
+                    )
+                    b3.metric(
+                        "Upside / Downside",
+                        f"{bank_valuation['upside_downside_pct']:+.2f}%"
+                    )
+                    b4.metric(
+                        "Current P/B",
+                        f"{bank_valuation['current_pb']:.2f}x"
+                        if bank_valuation.get("current_pb") is not None else "N/A"
+                    )
+                    st.caption(
+                        f"Book value/share: {bank_valuation['book_value_per_share']:,.2f} "
+                        f"{bank_valuation['currency']} · Implied P/B: "
+                        f"{bank_valuation['implied_pb']:.2f}x · "
+                        f"ROE source: {bank_valuation['roe_source']}"
+                    )
+                    st.markdown("#### Residual Income Forecast")
+                    st.dataframe(
+                        bank_valuation["forecast"].style.format({
+                            "Opening book value / share": "{:,.2f}",
+                            "Forecast ROE": "{:.2%}",
+                            "Cost of equity": "{:.2%}",
+                            "Residual income / share": "{:,.2f}",
+                            "Present value of residual income": "{:,.2f}",
+                        }),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    st.markdown("#### Bear / Base / Bull Scenarios")
+                    st.dataframe(
+                        bank_valuation["scenarios"].style.format({
+                            "Expected ROE": "{:.2%}",
+                            "Cost of equity": "{:.2%}",
+                            "Stable growth": "{:.2%}",
+                            "Intrinsic value / share": "{:,.2f}",
+                            "Upside / downside (%)": "{:+.2f}%",
+                        }),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    st.markdown("#### Sensitivity · ROE vs Cost of Equity")
+                    st.caption(
+                        "Nilai intrinsik per saham; asumsi stable growth dan periode forecast mengikuti Base Case."
+                    )
+                    sensitivity_display = bank_valuation["sensitivity"].copy()
+                    sensitivity_display["Cost of equity"] = sensitivity_display["Cost of equity"].map(
+                        lambda value: f"{value:.2%}"
+                    )
+                    st.dataframe(
+                        sensitivity_display.style.format(
+                            {column: "{:,.2f}" for column in sensitivity_display.columns if column != "Cost of equity"}
+                        ),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    with st.expander("Bank valuation assumptions and methodology"):
+                        st.json(bank_valuation["assumptions"])
+                        st.write(
+                            f"Present value of forecast residual income: "
+                            f"{bank_valuation['pv_residual_income']:,.2f} {bank_valuation['currency']}"
+                        )
+                        st.write(
+                            f"Present value of terminal residual income: "
+                            f"{bank_valuation['pv_terminal_residual_income']:,.2f} {bank_valuation['currency']}"
+                        )
+                    for warning in bank_valuation.get("warnings", []):
+                        st.warning(warning)
+                    st.warning(
+                        "STATUS: REVIEW REQUIRED — cocokkan total ekuitas, laba, saham, "
+                        "dan periode laporan dengan laporan keuangan resmi sebelum menggunakan hasil."
+                    )
+                else:
+                    st.warning(
+                        bank_valuation.get("reason", "Bank valuation belum tersedia.")
+                        if bank_valuation else "Jalankan analisis saham terlebih dahulu."
+                    )
+
             if dcf and dcf.get("available"):
                 st.subheader("DCF valuation")
     
@@ -349,247 +478,255 @@ def render_equity_research():
                         "NPL, CAR, dan pendekatan residual income atau dividend discount."
                     )
     
-            st.divider()
-            st.subheader("Multi-Stage DCF Valuation")
-            st.caption(
-                "Valuasi menggunakan tiga fase pertumbuhan: High Growth, "
-                "Transition Growth, dan Stable Growth."
-            )
-    
-            if multistage_dcf and multistage_dcf.get("available"):
-                ms_currency = multistage_dcf.get("quote_currency", data["currency"])
-    
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric(
-                    "Intrinsic Value / Share",
-                    f"{multistage_dcf['intrinsic_value_per_share']:,.2f} {ms_currency}"
-                )
-                m2.metric(
-                    "Current Price",
-                    f"{multistage_dcf['current_price']:,.2f} {ms_currency}"
-                )
-                m3.metric(
-                    "Upside / Downside",
-                    f"{multistage_dcf['upside_downside_pct']:+.2f}%"
-                )
-                m4.metric(
-                    "Equity Value",
-                    f"{multistage_dcf['equity_value']:,.2f} "
-                    f"{multistage_dcf.get('financial_currency', ms_currency)}"
-                )
-    
-                ms_financial_currency = multistage_dcf.get('financial_currency', ms_currency)
-                ms_fx_rate = multistage_dcf.get('fx_rate_applied')
-                ms_fx_date = multistage_dcf.get('fx_source_date')
-                if ms_financial_currency != ms_currency:
-                    st.caption('Currency conversion: {} to {} - Applied FX rate: {:,.2f} - Reference date: {}'.format(ms_financial_currency, ms_currency, ms_fx_rate, ms_fx_date or 'Not specified'))
-                else:
-                    st.caption('Valuation currency: {}. No currency conversion applied.'.format(ms_currency))
-                # Transparansi sumber EBITDA yang digunakan model.
-                ebitda_used = multistage_dcf.get("ebitda_used")
-                ebitda_source = multistage_dcf.get("ebitda_source")
-                financial_currency = multistage_dcf.get(
-                    "financial_currency", ms_currency
-                )
-    
-                st.markdown("#### EBITDA Data Source")
-    
-                if ebitda_used is not None:
-                    e1, e2 = st.columns(2)
-                    e1.metric(
-                        "EBITDA Used",
-                        f"{ebitda_used:,.2f} {financial_currency}"
-                    )
-                    e2.metric(
-                        "EBITDA Source",
-                        ebitda_source or "Not specified"
-                    )
-    
-                if multistage_dcf.get("warnings"):
-                    st.warning("Valuasi memiliki peringatan yang memerlukan review manual.")
-                elif multistage_dcf.get("data_quality_warnings"):
-                    st.info("Terdapat catatan kualitas data dari sumber Yahoo Finance.")
-                else:
-                    st.success("Pemeriksaan konsistensi data: tidak ada warning.")
-    
-                st.write(
-                    "**Enterprise Value:** "
-                    f"{multistage_dcf['enterprise_value']:,.2f} "
-                    f"{multistage_dcf.get('financial_currency', ms_currency)}"
-                )
-                st.write(
-                    "**Net Debt:** "
-                    f"{multistage_dcf['net_debt']:,.2f} "
-                    f"{multistage_dcf.get('financial_currency', ms_currency)}"
-                )
-    
-                st.subheader("Multi-Stage DCF Forecast")
-                st.dataframe(
-                    multistage_dcf["forecast"],
-                    use_container_width=True,
-                    hide_index=True
-                )
-    
-                # Multi-Stage DCF Sensitivity Analysis
-                st.subheader("Multi-Stage DCF Sensitivity Analysis")
+            if not is_bank(data):
+                st.divider()
+                st.subheader("Multi-Stage DCF Valuation")
                 st.caption(
-                    "Nilai intrinsik per saham berdasarkan kombinasi "
-                    "WACC dan Terminal Growth."
+                    "Valuasi menggunakan tiga fase pertumbuhan: High Growth, "
+                    "Transition Growth, dan Stable Growth."
                 )
-    
-                sensitivity_financials = multistage_dcf.get(
-                    "sensitivity_financials"
-                )
-                sensitivity_assumptions = multistage_dcf.get(
-                    "sensitivity_assumptions"
-                )
-    
-                if sensitivity_financials and sensitivity_assumptions:
-                    base_wacc = float(sensitivity_assumptions["wacc"])
-                    base_growth = float(
-                        sensitivity_assumptions["terminal_growth"]
+        
+                if multistage_dcf and multistage_dcf.get("available"):
+                    ms_currency = multistage_dcf.get("quote_currency", data["currency"])
+        
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric(
+                        "Intrinsic Value / Share",
+                        f"{multistage_dcf['intrinsic_value_per_share']:,.2f} {ms_currency}"
                     )
-    
-                    # Rentang otomatis di sekitar Base Case.
-                    wacc_values = sorted(set([
-                        round(base_wacc - 0.04, 4),
-                        round(base_wacc - 0.02, 4),
-                        round(base_wacc, 4),
-                        round(base_wacc + 0.02, 4),
-                        round(base_wacc + 0.04, 4),
-                    ]))
-    
-                    growth_values = sorted(set([
-                        round(max(0.0, base_growth - 0.01), 4),
-                        round(max(0.0, base_growth - 0.005), 4),
-                        round(base_growth, 4),
-                        round(base_growth + 0.005, 4),
-                        round(base_growth + 0.01, 4),
-                    ]))
-    
-                    ms_sensitivity = run_dcf_sensitivity(
-                        fundamentals=sensitivity_financials,
-                        assumptions=sensitivity_assumptions,
-                        years=years,
-                        wacc_values=wacc_values,
-                        terminal_growth_values=growth_values,
+                    m2.metric(
+                        "Current Price",
+                        f"{multistage_dcf['current_price']:,.2f} {ms_currency}"
                     )
-    
-                    if ms_sensitivity.get("available"):
-                        matrix_table = []
-    
-                        for row in ms_sensitivity["matrix"]:
-                            table_row = {
-                                "WACC": f"{row['wacc']:.2%}"
-                            }
-    
-                            for growth, value in row["values"].items():
-                                column = f"TG {growth:.2%}"
-                                table_row[column] = (
-                                    f"{value:,.2f} {ms_currency}"
-                                    if value is not None
-                                    else "N/A"
-                                )
-    
-                            matrix_table.append(table_row)
-    
-                        st.dataframe(
-                            matrix_table,
-                            use_container_width=True,
-                            hide_index=True
+                    m3.metric(
+                        "Upside / Downside",
+                        f"{multistage_dcf['upside_downside_pct']:+.2f}%"
+                    )
+                    m4.metric(
+                        "Equity Value",
+                        f"{multistage_dcf['equity_value']:,.2f} "
+                        f"{multistage_dcf.get('financial_currency', ms_currency)}"
+                    )
+        
+                    ms_financial_currency = multistage_dcf.get('financial_currency', ms_currency)
+                    ms_fx_rate = multistage_dcf.get('fx_rate_applied')
+                    ms_fx_date = multistage_dcf.get('fx_source_date')
+                    if ms_financial_currency != ms_currency:
+                        st.caption('Currency conversion: {} to {} - Applied FX rate: {:,.2f} - Reference date: {}'.format(ms_financial_currency, ms_currency, ms_fx_rate, ms_fx_date or 'Not specified'))
+                    else:
+                        st.caption('Valuation currency: {}. No currency conversion applied.'.format(ms_currency))
+                    # Transparansi sumber EBITDA yang digunakan model.
+                    ebitda_used = multistage_dcf.get("ebitda_used")
+                    ebitda_source = multistage_dcf.get("ebitda_source")
+                    financial_currency = multistage_dcf.get(
+                        "financial_currency", ms_currency
+                    )
+        
+                    st.markdown("#### EBITDA Data Source")
+        
+                    if ebitda_used is not None:
+                        e1, e2 = st.columns(2)
+                        e1.metric(
+                            "EBITDA Used",
+                            f"{ebitda_used:,.2f} {financial_currency}"
                         )
-    
-                        base_case = ms_sensitivity.get("base_case")
-    
-                        if base_case and base_case.get(
-                            "intrinsic_value_per_share"
-                        ) is not None:
-                            base_sensitivity_value = base_case[
-                                "intrinsic_value_per_share"
-                            ]
-                            main_value = multistage_dcf[
-                                "intrinsic_value_per_share"
-                            ]
-                            difference = abs(
-                                base_sensitivity_value - main_value
+                        e2.metric(
+                            "EBITDA Source",
+                            ebitda_source or "Not specified"
+                        )
+        
+                    if multistage_dcf.get("warnings"):
+                        st.warning("Valuasi memiliki peringatan yang memerlukan review manual.")
+                    elif multistage_dcf.get("data_quality_warnings"):
+                        st.info("Terdapat catatan kualitas data dari sumber Yahoo Finance.")
+                    else:
+                        st.success("Pemeriksaan konsistensi data: tidak ada warning.")
+        
+                    st.write(
+                        "**Enterprise Value:** "
+                        f"{multistage_dcf['enterprise_value']:,.2f} "
+                        f"{multistage_dcf.get('financial_currency', ms_currency)}"
+                    )
+                    st.write(
+                        "**Net Debt:** "
+                        f"{multistage_dcf['net_debt']:,.2f} "
+                        f"{multistage_dcf.get('financial_currency', ms_currency)}"
+                    )
+        
+                    st.subheader("Multi-Stage DCF Forecast")
+                    st.dataframe(
+                        multistage_dcf["forecast"],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+        
+                    # Multi-Stage DCF Sensitivity Analysis
+                    st.subheader("Multi-Stage DCF Sensitivity Analysis")
+                    st.caption(
+                        "Nilai intrinsik per saham berdasarkan kombinasi "
+                        "WACC dan Terminal Growth."
+                    )
+        
+                    sensitivity_financials = multistage_dcf.get(
+                        "sensitivity_financials"
+                    )
+                    sensitivity_assumptions = multistage_dcf.get(
+                        "sensitivity_assumptions"
+                    )
+        
+                    if sensitivity_financials and sensitivity_assumptions:
+                        base_wacc = float(sensitivity_assumptions["wacc"])
+                        base_growth = float(
+                            sensitivity_assumptions["terminal_growth"]
+                        )
+        
+                        # Rentang otomatis di sekitar Base Case.
+                        wacc_values = sorted(set([
+                            round(base_wacc - 0.04, 4),
+                            round(base_wacc - 0.02, 4),
+                            round(base_wacc, 4),
+                            round(base_wacc + 0.02, 4),
+                            round(base_wacc + 0.04, 4),
+                        ]))
+        
+                        growth_values = sorted(set([
+                            round(max(0.0, base_growth - 0.01), 4),
+                            round(max(0.0, base_growth - 0.005), 4),
+                            round(base_growth, 4),
+                            round(base_growth + 0.005, 4),
+                            round(base_growth + 0.01, 4),
+                        ]))
+        
+                        ms_sensitivity = run_dcf_sensitivity(
+                            fundamentals=sensitivity_financials,
+                            assumptions=sensitivity_assumptions,
+                            years=years,
+                            wacc_values=wacc_values,
+                            terminal_growth_values=growth_values,
+                        )
+        
+                        if ms_sensitivity.get("available"):
+                            matrix_table = []
+        
+                            for row in ms_sensitivity["matrix"]:
+                                table_row = {
+                                    "WACC": f"{row['wacc']:.2%}"
+                                }
+        
+                                for growth, value in row["values"].items():
+                                    column = f"TG {growth:.2%}"
+                                    table_row[column] = (
+                                        f"{value:,.2f} {ms_currency}"
+                                        if value is not None
+                                        else "N/A"
+                                    )
+        
+                                matrix_table.append(table_row)
+        
+                            st.dataframe(
+                                matrix_table,
+                                use_container_width=True,
+                                hide_index=True
                             )
-    
-                            st.metric(
-                                "Base Case · Sensitivity",
-                                f"{base_sensitivity_value:,.2f} {ms_currency}",
-                                help=(
-                                    "Seharusnya sama dengan Intrinsic Value "
-                                    "utama jika asumsi dan input identik."
+        
+                            base_case = ms_sensitivity.get("base_case")
+        
+                            if base_case and base_case.get(
+                                "intrinsic_value_per_share"
+                            ) is not None:
+                                base_sensitivity_value = base_case[
+                                    "intrinsic_value_per_share"
+                                ]
+                                main_value = multistage_dcf[
+                                    "intrinsic_value_per_share"
+                                ]
+                                difference = abs(
+                                    base_sensitivity_value - main_value
                                 )
-                            )
-    
-                            if difference < max(0.01, abs(main_value) * 1e-8):
-                                st.success(
-                                    "Base Case cocok dengan valuasi utama."
+        
+                                st.metric(
+                                    "Base Case · Sensitivity",
+                                    f"{base_sensitivity_value:,.2f} {ms_currency}",
+                                    help=(
+                                        "Seharusnya sama dengan Intrinsic Value "
+                                        "utama jika asumsi dan input identik."
+                                    )
                                 )
+        
+                                if difference < max(0.01, abs(main_value) * 1e-8):
+                                    st.success(
+                                        "Base Case cocok dengan valuasi utama."
+                                    )
+                                else:
+                                    st.error(
+                                        "Base Case berbeda dari valuasi utama. "
+                                        "Perlu pemeriksaan input atau asumsi."
+                                    )
                             else:
-                                st.error(
-                                    "Base Case berbeda dari valuasi utama. "
-                                    "Perlu pemeriksaan input atau asumsi."
+                                st.warning(
+                                    "Base Case tidak ditemukan dalam matriks."
                                 )
                         else:
                             st.warning(
-                                "Base Case tidak ditemukan dalam matriks."
+                                ms_sensitivity.get(
+                                    "reason",
+                                    "Multi-Stage sensitivity tidak tersedia."
+                                )
                             )
                     else:
                         st.warning(
-                            ms_sensitivity.get(
-                                "reason",
-                                "Multi-Stage sensitivity tidak tersedia."
+                            "Input sensitivitas belum tersedia. "
+                            "Jalankan ulang analisis saham."
+                        )
+        
+                    assumptions = multistage_dcf.get("assumptions", {})
+                    if assumptions:
+                        with st.expander("Show Multi-Stage DCF assumptions"):
+                            st.dataframe(
+                                [
+                                    {"Assumption": key, "Value": value}
+                                    for key, value in assumptions.items()
+                                ],
+                                use_container_width=True,
+                                hide_index=True
                             )
-                        )
-                else:
-                    st.warning(
-                        "Input sensitivitas belum tersedia. "
-                        "Jalankan ulang analisis saham."
-                    )
-    
-                assumptions = multistage_dcf.get("assumptions", {})
-                if assumptions:
-                    with st.expander("Show Multi-Stage DCF assumptions"):
-                        st.dataframe(
-                            [
-                                {"Assumption": key, "Value": value}
-                                for key, value in assumptions.items()
-                            ],
-                            use_container_width=True,
-                            hide_index=True
-                        )
-    
-                for warning in multistage_dcf.get("data_quality_warnings", []):
-                    st.info(warning)
-    
-                for warning in multistage_dcf.get("warnings", []):
-                    st.warning(warning)
-    
-                if multistage_dcf.get("data_quality_override"):
-                    st.warning(
-                        "Perhitungan dilanjutkan dengan persetujuan manual "
-                        "meskipun terdapat peringatan yang memerlukan review."
-                    )
-    
-                st.caption(multistage_dcf.get("warning", ""))
-    
-            else:
-                reason = (
-                    multistage_dcf.get("reason", "Run analysis first.")
-                    if multistage_dcf else "Run analysis first."
-                )
-                st.info(f"Multi-Stage DCF belum tersedia: {reason}")
-    
-                if multistage_dcf:
+        
                     for warning in multistage_dcf.get("data_quality_warnings", []):
+                        st.info(warning)
+        
+                    for warning in multistage_dcf.get("warnings", []):
                         st.warning(warning)
-    
-            st.divider()
-            scenario_result = render_scenario_analysis(data, fx_rate=fx_rate, years=years)
-            st.session_state["equity_scenario_result"] = scenario_result
-    
+        
+                    if multistage_dcf.get("data_quality_override"):
+                        st.warning(
+                            "Perhitungan dilanjutkan dengan persetujuan manual "
+                            "meskipun terdapat peringatan yang memerlukan review."
+                        )
+        
+                    st.caption(multistage_dcf.get("warning", ""))
+        
+                else:
+                    reason = (
+                        multistage_dcf.get("reason", "Run analysis first.")
+                        if multistage_dcf else "Run analysis first."
+                    )
+                    st.info(f"Multi-Stage DCF belum tersedia: {reason}")
+        
+                    if multistage_dcf:
+                        for warning in multistage_dcf.get("data_quality_warnings", []):
+                            st.warning(warning)
+        
+                st.divider()
+                scenario_result = render_scenario_analysis(data, fx_rate=fx_rate, years=years)
+                st.session_state["equity_scenario_result"] = scenario_result
+        
+
+            else:
+                st.info(
+                    "Multi-Stage DCF dan FCFF scenario valuation dilewati untuk bank. "
+                    "Gunakan Bank Valuation Model berbasis Residual Income di atas."
+                )
+
         with tab5:
             render_historical_analysis(symbol, market)
     
