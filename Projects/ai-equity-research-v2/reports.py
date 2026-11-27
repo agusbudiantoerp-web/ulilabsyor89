@@ -500,13 +500,15 @@ def make_pdf_report(
                 Spacer(1, 8),
             ]
             for scenario in bank_valuation.get("scenarios", pd.DataFrame()).to_dict("records"):
+                def _fmt_scenario(value, pattern):
+                    return format(float(value), pattern) if value is not None else "N/A"
                 story.append(Paragraph(
                     f"{escape(str(scenario.get('Scenario')))} scenario: "
-                    f"ROE {float(scenario.get('Expected ROE')):.2%}, "
-                    f"Cost of equity {float(scenario.get('Cost of equity')):.2%}, "
-                    f"Growth {float(scenario.get('Stable growth')):.2%}, "
-                    f"Value/share {float(scenario.get('Intrinsic value / share')):,.2f}, "
-                    f"Upside {float(scenario.get('Upside / downside (%)')):+.2f}%",
+                    f"ROE {_fmt_scenario(scenario.get('Expected ROE'), '.2%')}, "
+                    f"Cost of equity {_fmt_scenario(scenario.get('Cost of equity'), '.2%')}, "
+                    f"Growth {_fmt_scenario(scenario.get('Stable growth'), '.2%')}, "
+                    f"Value/share {_fmt_scenario(scenario.get('Intrinsic value / share'), ',.2f')}, "
+                    f"Upside {_fmt_scenario(scenario.get('Upside / downside (%)'), '+.2f')}%",
                     styles["BodyText"],
                 ))
             for warning in bank_valuation.get("warnings", []):
