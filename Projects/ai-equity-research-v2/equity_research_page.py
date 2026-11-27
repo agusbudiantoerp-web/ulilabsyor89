@@ -198,7 +198,7 @@ def render_equity_research():
                         with st.spinner(f"Mengunduh dan membaca laporan resmi {bank_issuer_label}..."):
                             st.session_state["bank_filing_preview"] = extract_official_bank_filing(bank_ticker_key)
                         if st.session_state["bank_filing_preview"].get("ocr_required"):
-                            st.warning("PDF berhasil diunduh, tetapi tidak memiliki lapisan teks yang cukup. OCR/manual review diperlukan; tidak ada angka yang diekstrak.")
+                            st.warning("PDF tidak dapat diekstrak otomatis. OCR mungkin tidak tersedia atau gagal; tidak ada angka yang diisi.")
                         else:
                             st.success("Dokumen terbaca. Kandidat angka ditampilkan untuk pemeriksaan analis.")
                     except Exception as filing_error:
@@ -208,7 +208,7 @@ def render_equity_research():
             filing_preview = st.session_state.get("bank_filing_preview")
             if (filing_preview and filing_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")):
                 if filing_preview.get("ocr_required"):
-                    st.error("OCR REQUIRED · PDF berupa scan/gambar atau tidak memiliki lapisan teks yang cukup. Tidak ada angka yang diisi otomatis. Gunakan PDF dengan teks yang dapat dipilih atau masukkan rasio secara manual setelah memeriksa dokumen resmi.")
+                    st.error("OCR REQUIRED · PDF berupa scan/gambar dan OCR tidak tersedia atau gagal. Tidak ada angka yang diisi otomatis. Periksa instalasi OCR atau masukkan rasio manual setelah memeriksa halaman sumber.")
                 else:
                     st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
                 st.dataframe([
@@ -259,7 +259,7 @@ def render_equity_research():
             uploaded_bank_pdf = st.file_uploader(
                 "Upload official bank ratio report (PDF)", type=["pdf"],
                 key="bank_ratio_pdf_upload",
-                help="Untuk bank yang belum memiliki konektor otomatis. PDF hasil scan memerlukan OCR dan belum didukung."
+                help="Untuk bank yang belum memiliki konektor otomatis. PDF hasil scan akan dicoba dengan Tesseract OCR (maksimal 12 halaman); hasil tetap wajib diperiksa analis."
             )
             if st.button("Baca PDF yang diunggah", key="parse_uploaded_bank_pdf", disabled=uploaded_bank_pdf is None):
                 try:
@@ -276,10 +276,10 @@ def render_equity_research():
 
             upload_preview = st.session_state.get("bank_filing_preview") or {}
             if upload_preview.get("ticker") == symbol.strip().upper().replace(".JK", "") and upload_preview.get("ocr_required"):
-                st.error("OCR REQUIRED · PDF unggahan tampaknya berupa scan/gambar. Angka tidak diekstrak dan tidak boleh dianggap nol atau VERIFIED. Gunakan PDF text-based atau input manual setelah verifikasi halaman sumber.")
+                st.error("OCR REQUIRED · PDF unggahan berupa scan/gambar dan OCR tidak tersedia atau gagal. Angka tidak diekstrak dan tidak boleh dianggap nol atau VERIFIED. Periksa OCR atau input manual setelah verifikasi halaman sumber.")
             if (
                 upload_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")
-                and upload_preview.get("extraction_method") == "Uploaded PDF text extraction"
+                and str(upload_preview.get("extraction_method", "")).startswith(("Uploaded PDF text layer", "Tesseract OCR"))
             ):
                 st.warning("Hasil ekstraksi PDF unggahan adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
                 st.dataframe([
