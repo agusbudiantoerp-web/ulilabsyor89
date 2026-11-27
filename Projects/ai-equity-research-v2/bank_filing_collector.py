@@ -117,16 +117,24 @@ def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str
     return None
 
 def extract_metrics_from_pdf_text(text: str, *, source_url: str, source_name: str,
-                                  period: str, document_sha256: str | None = None) -> dict:
+                                  period: str, document_sha256: str | None = None,
+                                  roe_definition_mode: str = "explicit") -> dict:
     lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines()]
     specs = {
         "NPL gross (%)": ((r"\bNPL\s+gross\b",), ()),
         "CAR (%)": ((r"\bKPMM\b", r"Capital\s+Adequacy\s+Ratio"), ()),
         "NIM (%)": ((r"\bNIM\b", r"Net\s+Interest\s+Margin"), ()),
         "LDR (%)": ((r"\bLDR\b", r"Loan\s+to\s+Deposit\s+Ratio"), ()),
-        # In the registered BRI ratio report, footnote 4 is ROE / average total equity.
-        "Official reported ROE (%)": ((r"\bROE\b.*4\)",), (r"Tier\s*1",)),
     }
+    if roe_definition_mode == "bri_q3_2026":
+        # Footnote 4 is average total equity only in this registered BRI Q3 2026 report.
+        specs["Official reported ROE (%)"] = ((r"\bROE\b.*4\)",), (r"Tier\s*1",))
+    else:
+        # For other issuers, require the equity basis to be explicit in the same row.
+        specs["Official reported ROE (%)"] = (
+            (r"\bROE\b.*(?:average\s+(?:total\s+)?equity|rata[- ]rata\s+(?:total\s+)?ekuitas)",),
+            (r"Tier\s*1",),
+        )
     metrics = {}
     for key, (patterns, exclude) in specs.items():
         found = _find_metric(lines, patterns, exclude)
@@ -154,7 +162,8 @@ def extract_official_bank_filing(ticker: str) -> dict:
         raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
     result = extract_metrics_from_pdf_text(text, source_url=final_url,
         source_name=config["source_name"], period=config["period"],
-        document_sha256=sha256(content).hexdigest())
+        document_sha256=sha256(content).hexdigest(),
+        roe_definition_mode="bri_q3_2026")
     result.update({"ticker": key, "issuer": config["issuer"], "document_title": config["title"],
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "pages_read": len(reader.pages)})
