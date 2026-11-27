@@ -17,20 +17,26 @@ def oidc_provider_name(secrets: Any) -> str | None:
         raise ValueError("Konfigurasi [auth] tidak valid.")
     if not auth_settings.get("redirect_uri") or not auth_settings.get("cookie_secret"):
         raise ValueError("redirect_uri dan cookie_secret wajib dikonfigurasi.")
-    root_configured = all(auth_settings.get(key) for key in (
-        "client_id", "client_secret", "server_metadata_url"
-    ))
-    named = [
-        str(key) for key, value in auth_settings.items()
-        if (isinstance(value, dict) or hasattr(value, "get"))
-        and value.get("client_id") and value.get("client_secret")
-        and value.get("server_metadata_url")
-    ]
-    if root_configured and not named:
+    provider_keys = ("client_id", "client_secret", "server_metadata_url")
+    root_values = [auth_settings.get(key) for key in provider_keys]
+    root_has_any = any(root_values)
+    root_configured = all(root_values)
+    named_candidates = []
+    for key, value in auth_settings.items():
+        if not (isinstance(value, dict) or hasattr(value, "get")):
+            continue
+        values = [value.get(provider_key) for provider_key in provider_keys]
+        if any(values):
+            named_candidates.append((str(key), all(values)))
+    if root_has_any and not root_configured:
+        raise ValueError("Konfigurasi provider OIDC default [auth] tidak lengkap.")
+    if root_configured and named_candidates:
+        raise ValueError("Jangan gabungkan provider OIDC default dan provider bernama.")
+    if root_configured:
         return None
-    if not root_configured and len(named) == 1:
-        return named[0]
-    raise ValueError("Harus ada tepat satu konfigurasi OIDC: default [auth] atau satu provider bernama.")
+    if len(named_candidates) == 1 and named_candidates[0][1]:
+        return named_candidates[0][0]
+    raise ValueError("Harus ada tepat satu konfigurasi OIDC lengkap: default [auth] atau satu provider bernama.")
 
 
 def oidc_is_configured(secrets: Any) -> bool:
