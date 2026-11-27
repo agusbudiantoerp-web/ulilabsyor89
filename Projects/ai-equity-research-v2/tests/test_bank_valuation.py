@@ -131,6 +131,11 @@ class BankValuationTests(unittest.TestCase):
             for row in result["checks"]
         ))
 
+    def test_fundamental_freshness_is_unknown_when_dates_are_missing(self):
+        result = assess_bank_data(sample_bank())
+        self.assertEqual(result["fundamental_freshness_status"], "UNKNOWN")
+        self.assertIsNone(result["price_fundamental_gap_days"])
+
     def test_official_filing_roe_is_used_and_labeled(self):
         data = sample_bank()
         result = calculate_bank_valuation(
