@@ -23,6 +23,13 @@ class BankFilingCollectorTests(unittest.TestCase):
         self.assertNotIn("LDR (%)", result["missing_metrics"])
         self.assertEqual(result["status"], "REVIEW REQUIRED")
 
+
+    def test_extracts_values_when_pdf_splits_table_cells_across_lines(self):
+        text = "5. NPL gross\\n3,07\\n3,29\\n6. NPL net\\n1,00\\n1,04"
+        result = extract_metrics_from_pdf_text(text, source_url="https://bri.co.id/report.pdf",
+            source_name="BRI Q3 report", period="2026-09-30")
+        self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
+
     def test_does_not_promote_tier_one_roe(self):
         result = extract_metrics_from_pdf_text("Return on Equity (ROE) 3) 22,11",
             source_url="https://bri.co.id/report.pdf", source_name="BRI report", period="2026-09-30")
