@@ -62,6 +62,8 @@ class BankValuationTests(unittest.TestCase):
         )
         self.assertEqual(verified["status"], "REVIEW REQUIRED")
         data["ratios"]["Average stockholders equity"] = 245_000_000_000_000
+        data["latest_balance_period"] = "2026-09-30 00:00:00"
+        data["latest_financial_period"] = "2026-09-30 00:00:00"
         verified = assess_bank_data(
             data,
             manual_metrics={
@@ -74,6 +76,46 @@ class BankValuationTests(unittest.TestCase):
             source_confirmed=True,
         )
         self.assertEqual(verified["status"], "VERIFIED")
+        self.assertTrue(verified["source_period_matches_financials"])
+
+    def test_bank_quality_blocks_verified_when_filing_period_differs(self):
+        data = sample_bank()
+        data["ratios"]["Average stockholders equity"] = 245_000_000_000_000
+        data["latest_balance_period"] = "2026-09-30 00:00:00"
+        data["latest_financial_period"] = "2026-09-30 00:00:00"
+        result = assess_bank_data(
+            data,
+            manual_metrics={
+                "NPL gross (%)": 2.5, "CAR (%)": 24.0,
+                "LDR (%)": 85.0, "NIM (%)": 6.0,
+            },
+            source_name="Official quarterly bank publication",
+            source_period="2026-06-30",
+            source_url="https://www.examplebank.co.id/investor/quarterly-report.pdf",
+            source_confirmed=True,
+        )
+        self.assertEqual(result["status"], "REVIEW REQUIRED")
+        self.assertFalse(result["source_period_matches_financials"])
+        self.assertTrue(any("period" in note.lower() for note in result["notes"]))
+
+    def test_bank_quality_rejects_invalid_or_credentialed_source_urls(self):
+        data = sample_bank()
+        data["ratios"]["Average stockholders equity"] = 245_000_000_000_000
+        data["latest_balance_period"] = "2026-09-30"
+        data["latest_financial_period"] = "2026-09-30"
+        result = assess_bank_data(
+            data,
+            manual_metrics={
+                "NPL gross (%)": 2.5, "CAR (%)": 24.0,
+                "LDR (%)": 85.0, "NIM (%)": 6.0,
+            },
+            source_name="Official quarterly bank publication",
+            source_period="2026-09-30",
+            source_url="https://analyst:secret@examplebank.co.id/report.pdf",
+            source_confirmed=True,
+        )
+        self.assertEqual(result["status"], "REVIEW REQUIRED")
+        self.assertFalse(result["source_url_valid_https"])
 
     def test_bank_quality_marks_missing_core_fields_insufficient(self):
         data = sample_bank()
