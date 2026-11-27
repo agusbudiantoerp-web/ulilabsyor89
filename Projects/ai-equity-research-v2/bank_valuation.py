@@ -131,6 +131,9 @@ def calculate_bank_valuation(
         calculated_roe = _finite(ratios.get("Calculated ROE (%)"))
         reported_roe = _finite(ratios.get("ROE (%)"))
         net_income = _finite(ratios.get("Net income attributable to parent"))
+        average_equity = _finite(ratios.get("Average stockholders equity"))
+        if calculated_roe is None and net_income is not None and average_equity is not None and average_equity > 0:
+            calculated_roe = net_income / average_equity * 100.0
         if calculated_roe is not None:
             expected_roe = calculated_roe / 100.0
             roe_source = "Calculated net income / average reported equity"
