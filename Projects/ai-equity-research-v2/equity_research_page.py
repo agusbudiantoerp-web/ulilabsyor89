@@ -197,7 +197,10 @@ def render_equity_research():
                         from bank_filing_collector import extract_official_bank_filing
                         with st.spinner(f"Mengunduh dan membaca laporan resmi {bank_issuer_label}..."):
                             st.session_state["bank_filing_preview"] = extract_official_bank_filing(bank_ticker_key)
-                        st.success("Dokumen terbaca. Kandidat angka ditampilkan untuk pemeriksaan analis.")
+                        if st.session_state["bank_filing_preview"].get("ocr_required"):
+                            st.warning("PDF berhasil diunduh, tetapi tidak memiliki lapisan teks yang cukup. OCR/manual review diperlukan; tidak ada angka yang diekstrak.")
+                        else:
+                            st.success("Dokumen terbaca. Kandidat angka ditampilkan untuk pemeriksaan analis.")
                     except Exception as filing_error:
                         st.error(f"Pengambilan dokumen resmi gagal: {filing_error}")
             else:
@@ -229,11 +232,12 @@ def render_equity_research():
                     f"SHA-256: {filing_preview.get('document_sha256')} · "
                     f"Retrieved: {filing_preview.get('retrieved_at_utc', 'uploaded / not timestamped')}"
                 )
-                st.button(
-                    "Terapkan kandidat ke input (perlu konfirmasi)",
-                    key="apply_bbri_candidates",
-                    on_click=_apply_bank_filing_preview,
-                )
+                if not filing_preview.get("ocr_required"):
+                    st.button(
+                        "Terapkan kandidat ke input (perlu konfirmasi)",
+                        key="apply_bbri_candidates",
+                        on_click=_apply_bank_filing_preview,
+                    )
             st.markdown("**Bank regulatory / operating ratios · official filing review**")
             bank_official_roe_pct = st.text_input(
                 "Official reported ROE (%)", value=st.session_state.get("bank_official_roe_pct", ""),
