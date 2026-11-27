@@ -171,8 +171,14 @@ def render_equity_research():
             bank_ldr_pct = st.text_input("LDR (%)", value="")
             bank_nim_pct = st.text_input("NIM (%)", value="")
             bank_source_name = st.text_input("Official source / filing name", value="", help="Contoh: Laporan Publikasi Triwulan III 2026 — nama dokumen yang Anda periksa.")
-            bank_source_period = st.text_input("Official reporting period", value="", help="Contoh: 2026-09-30. Tidak boleh memakai tanggal harga saham.")
-            bank_source_url = st.text_input("Official filing URL (HTTPS)", value="")
+            bank_source_period = st.text_input(
+                "Official reporting period (YYYY-MM-DD)", value="",
+                help="Gunakan tanggal periode laporan, bukan tanggal harga saham. Agar VERIFIED, tanggal ini harus sama dengan periode neraca dan laba rugi yang dipakai aplikasi."
+            )
+            bank_source_url = st.text_input(
+                "Official filing URL (HTTPS)", value="",
+                help="Masukkan tautan laporan dari situs resmi emiten, BEI, atau regulator. Tautan harus HTTPS tanpa username/password."
+            )
             bank_source_confirmed = st.checkbox(
                 "I personally checked this official filing and its figures",
                 value=False,
