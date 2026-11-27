@@ -214,6 +214,7 @@ def render_equity_research():
                         stable_growth=bank_growth_pct / 100,
                         years=int(bank_forecast_years),
                         fx_rate=fx_rate,
+                        fx_source_date=fx_source_date,
                     )
                     if is_bank(result)
                     else {"available": False, "reason": "Model khusus bank; tidak diterapkan pada emiten non-bank."}
