@@ -734,7 +734,7 @@ def render_equity_research():
     
         col1.download_button(
             "Download Excel report",
-            make_excel_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result),
+            make_excel_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result, bank_valuation=bank_valuation),
             file_name=f"{data['ticker'].replace('.', '_')}_research.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
@@ -743,7 +743,7 @@ def render_equity_research():
     
         col2.download_button(
             "Download PDF report",
-            make_pdf_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result),
+            make_pdf_report(data, dcf, multistage_dcf=multistage_dcf, scenario_result=scenario_result, bank_valuation=bank_valuation),
             file_name=f"{data['ticker'].replace('.', '_')}_research.pdf",
             mime="application/pdf",
             use_container_width=True,
