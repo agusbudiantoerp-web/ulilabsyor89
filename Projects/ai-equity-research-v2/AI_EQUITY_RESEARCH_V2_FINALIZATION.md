@@ -69,8 +69,8 @@ The local scheduler remains separate from Streamlit Cloud. Keep its `.env`, Tele
 
 ## Current automated CI baseline
 
-- Latest feature-branch code head at the time of this note: `3a97ee4dbbd16d6508dfcc691d4370026a1709ed`.
-- Latest push and PR workflows both passed: **809 tests and 3 subtests passed**, Python module compilation passed, dependency audit found no known vulnerabilities, and PostgreSQL 16 integration tests passed. [Push CI](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011006248) · [PR CI](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011015584).
+- Latest feature-branch validated PR head at the time of this note: `c5edf7365a1d428f0241a1676215ccf1087f9f65`.
+- PR workflow passed: **812 tests and 3 subtests passed**, Python module compilation passed, dependency audit found no known vulnerabilities, and PostgreSQL 16 integration tests passed. [PR CI](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069558401). The matching push workflow was queued at the time of this note.
 - The admin Security & Audit console now reports RLS enablement, FORCE RLS, table ownership and application-role SUPERUSER/BYPASSRLS status. This is a release diagnostic, not automatic RLS policy provisioning; PostgreSQL RLS remains a required staging/production setup task.
 - Bank filing extraction includes bounded Tesseract OCR fallback (English + Indonesian) for scanned PDF pages, with BMRI's Q3 2026 ratio table targeted at page 23. OCR candidates are not verified data; unavailable OCR returns `OCR REQUIRED` without inventing metrics.
 - CI validates automated code paths only. It does not certify Preview OIDC, live provider credentials, two-user isolation, role permissions, live backup/restore, browser rendering or production readiness; those still require the release-gate exercise.
