@@ -174,6 +174,11 @@ BEGIN
   END IF;
 END
 $;
+```
+
+Set the role password interactively in `psql` (outside the SQL block):
+
+```text
 \password ai_equity_preview_runtime
 ```
 
