@@ -218,6 +218,7 @@ def render_equity_research():
             st.session_state["equity_dcf"] = dcf
             st.session_state["equity_multistage_dcf"] = multistage_dcf
             st.session_state["equity_bank_valuation"] = bank_valuation
+            st.session_state.pop("equity_scenario_result", None)
             st.session_state.pop("valuation_reconciliation_result", None)
             st.session_state.pop("reverse_dcf_result", None)
             _audit_equity_action(
