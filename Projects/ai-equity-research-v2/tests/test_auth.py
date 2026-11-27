@@ -163,3 +163,50 @@ def test_logout_is_not_blocked_by_audit_storage_failure(monkeypatch):
     audited = logout(fake_st, {"subject_id": "issuer|subject", "role": "analyst"})
     assert audited is False
     assert fake_st.logged_out is True
+
+
+def test_oidc_rejects_partial_default_provider_even_when_named_provider_is_complete():
+    secrets = {
+        "auth": {
+            "redirect_uri": "https://example.streamlit.app/oauth2callback",
+            "cookie_secret": "private",
+            "client_id": "partial-default-id",
+            "google": {
+                "client_id": "id",
+                "client_secret": "secret",
+                "server_metadata_url": "https://accounts.google.com/.well-known/openid-configuration",
+            },
+        }
+    }
+    assert not oidc_is_configured(secrets)
+    with pytest.raises(ValueError, match="default"):
+        oidc_provider_name(secrets)
+
+
+def test_oidc_rejects_partial_named_provider_next_to_complete_named_provider():
+    secrets = {
+        "auth": {
+            "redirect_uri": "https://example.streamlit.app/oauth2callback",
+            "cookie_secret": "private",
+            "google": {
+                "client_id": "id",
+                "client_secret": "secret",
+                "server_metadata_url": "https://accounts.google.com/.well-known/openid-configuration",
+            },
+            "microsoft": {"client_id": "partial-id"},
+        }
+    }
+    assert not oidc_is_configured(secrets)
+    with pytest.raises(ValueError, match="tepat satu"):
+        oidc_provider_name(secrets)
+
+
+def test_oidc_rejects_partial_default_provider_without_named_provider():
+    secrets = {
+        "auth": {
+            "redirect_uri": "https://example.streamlit.app/oauth2callback",
+            "cookie_secret": "private",
+            "client_id": "partial-id",
+        }
+    }
+    assert not oidc_is_configured(secrets)
