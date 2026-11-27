@@ -10,7 +10,7 @@ class BankFilingCollectorTests(unittest.TestCase):
     def test_extracts_values_with_period_and_provenance(self):
         text = "Kewajiban Penyediaan Modal Minimum (KPMM) | 20,62 | 23,01\n5. NPL gross | 3,07 | 3,29\n10. Return on Equity (ROE) 3) | 22,11 | 20,44\n11. Return on Equity (ROE) 4) | 18,13 | 16,48\n12. Net Interest Margin (NIM) | 6,16 | 6,53\n15. Loan to Deposit Ratio (LDR) | 88,22 | 87,05"
         result = extract_metrics_from_pdf_text(text, source_url="https://bri.co.id/report.pdf",
-            source_name="BRI Q3 report", period="2026-09-30", document_sha256="abc123")
+            source_name="BRI Q3 report", period="2026-09-30", document_sha256="abc123", roe_definition_mode="bri_q3_2026")
         metrics = result["metrics"]
         self.assertEqual(metrics["NPL gross (%)"]["value"], 3.07)
         self.assertEqual(metrics["CAR (%)"]["value"], 20.62)
@@ -29,6 +29,13 @@ class BankFilingCollectorTests(unittest.TestCase):
         result = extract_metrics_from_pdf_text(text, source_url="https://bri.co.id/report.pdf",
             source_name="BRI Q3 report", period="2026-09-30")
         self.assertEqual(result["metrics"]["NPL gross (%)"]["value"], 3.07)
+
+    def test_generic_upload_does_not_assume_bri_roe_footnote_definition(self):
+        result = extract_metrics_from_pdf_text(
+            "Return on Equity (ROE) 4) | 18,13",
+            source_url="https://bank.example/report.pdf", source_name="Other bank report",
+            period="2026-09-30")
+        self.assertNotIn("Official reported ROE (%)", result["metrics"])
 
     def test_uploaded_pdf_parser_requires_iso_period_and_valid_pdf(self):
         from bank_filing_collector import extract_uploaded_bank_filing
