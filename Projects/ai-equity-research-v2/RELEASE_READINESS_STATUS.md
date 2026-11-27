@@ -6,8 +6,8 @@ Last updated: 2026-11-28
 
 - Development branch: `feature/advanced-equity-intelligence`
 - Pull request: [#4](https://github.com/agusbudiantoerp-web/ulilabsyor89/pull/4) — Draft, not merged.
-- Latest validated code-bearing commit: `3a97ee4dbbd16d6508dfcc691d4370026a1709ed`.
-- Latest push and PR CI on that commit: **both success** — Python 3.11, PostgreSQL 16, dependency audit reported **No known vulnerabilities found**, Python module compilation passed, and the complete suite passed **809 tests plus 3 subtests**. [Push workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011006248) · [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46011015584). The latest workflow includes the OCR tests; the previously established PostgreSQL integration and backup/restore round-trip tests remain in the suite.
+- Latest validated PR code-bearing commit: `c5edf7365a1d428f0241a1676215ccf1087f9f65`.
+- Latest PR CI on that commit: **success** — Python 3.11, PostgreSQL 16, dependency audit reported **No known vulnerabilities found**, Python module compilation passed, and the complete suite passed **812 tests plus 3 subtests**. [PR workflow](https://github.com/agusbudiantoerp-web/ulilabsyor89/actions/runs/46069558401). The matching push workflow was still queued at the time of this update. This run includes OIDC fail-closed configuration regression tests and bilingual OCR tests; PostgreSQL tenant/RLS integration coverage remains in the suite.
 - The initial dependency audit found Pillow and SoupSieve CVEs in the original Python 3.10 resolution. The project runtime and CI now use Python 3.11 with patched Pillow/SoupSieve minimums; pandas is constrained below 3.0 to preserve validated date/type semantics.
 - The PostgreSQL integration suite also verifies that the runtime role is not granted access to unrelated administrator-owned sequences in the application schema.
 - Production branch `main` remains unchanged.
@@ -27,7 +27,7 @@ Last updated: 2026-11-28
 - Cross-market daily return analysis with FX-only return marking on local-market holidays, explicit stale-price/FX limits, IID Monte Carlo, two-state Markov regime simulation with optional smoothed empirical transitions, moving-block bootstrap, and a two-window structural-break diagnostic warning. The structural-break diagnostic is heuristic, not a formal breakpoint test or out-of-sample calibration.
 - Owner-scoped thesis/version/reviewer export and review-aging dashboard.
 - Research Pack exports for applicable portfolio, reconciliation, filing, thesis and simulation outputs.
-- OIDC identity resolution using immutable issuer-bound `iss|sub`, server-managed fail-closed roles, owner-scoped stores, admin-only security/audit controls, database diagnostics and backup/restore tooling.
+- OIDC identity resolution using immutable issuer-bound `iss|sub`, server-managed fail-closed roles, owner-scoped stores, admin-only security/audit controls, database diagnostics and backup/restore tooling. OIDC configuration rejects incomplete or mixed default/named provider blocks.
 
 ## Remaining engineering and external dependencies
 
@@ -57,7 +57,7 @@ Last updated: 2026-11-28
 
 ## Release decision
 
-**Not production-ready yet.** The latest push and PR CI are green, including PostgreSQL-backed tests and OCR regression coverage, but passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL was not accessible to the current browser verification environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
+**Not production-ready yet.** The latest PR CI is green, including PostgreSQL-backed tests, OIDC configuration regression coverage and OCR regression coverage. The matching push workflow was queued at the time of this update. Passing automated tests does not prove the live Preview multi-user deployment, security controls, external data integrations or operational recovery. The Preview URL was not accessible to the current browser verification environment; live OIDC, database and two-identity acceptance remain unverified. Complete the staging and acceptance gates above before merging or deploying.
 
 
 ## PostgreSQL RLS policy diagnostics
