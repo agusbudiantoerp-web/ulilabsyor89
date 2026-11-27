@@ -183,6 +183,8 @@ def make_excel_report(
                     {"Metric": "Data quality status", "Value": bank_valuation.get("data_quality_status")},
                     {"Metric": "Official source", "Value": (bank_valuation.get("data_quality") or {}).get("source_name")},
                     {"Metric": "Official reporting period", "Value": (bank_valuation.get("data_quality") or {}).get("source_period")},
+                    {"Metric": "Official filing URL", "Value": (bank_valuation.get("data_quality") or {}).get("source_url")},
+                    {"Metric": "Analyst filing confirmation", "Value": (bank_valuation.get("data_quality") or {}).get("source_confirmed", False)},
                     {"Metric": "Currency", "Value": bank_valuation.get("currency")},
                     {"Metric": "FX rate applied", "Value": bank_valuation.get("fx_rate_applied")},
                     {"Metric": "FX reference date", "Value": bank_valuation.get("fx_source_date")},
