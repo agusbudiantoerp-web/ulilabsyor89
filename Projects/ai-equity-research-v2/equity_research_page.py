@@ -338,6 +338,11 @@ def render_equity_research():
                         source_period=bank_source_period,
                         source_url=bank_source_url,
                         source_confirmed=bank_source_confirmed,
+                        source_document_metadata=(
+                            st.session_state.get("bank_filing_preview")
+                            if (st.session_state.get("bank_filing_preview") or {}).get("ticker") == result.get("ticker", "").upper().replace(".JK", "")
+                            else None
+                        ),
                     )
                     if is_bank(result)
                     else {"available": False, "reason": "Model khusus bank; tidak diterapkan pada emiten non-bank."}
