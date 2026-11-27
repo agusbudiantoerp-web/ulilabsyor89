@@ -174,10 +174,11 @@ def test_official_filing_document_provenance_is_preserved():
         writer.write(buffer)
         with patch("pdf2image.convert_from_bytes", return_value=[object()]) as convert:
             with patch("pytesseract.get_tesseract_version", return_value="5.0"):
-                with patch("pytesseract.image_to_string", return_value="BMRI ratios table"):
+                with patch("pytesseract.image_to_string", return_value="BMRI ratios table") as ocr:
                     text, method = _run_pdf_ocr(buffer.getvalue(), page_numbers=[23])
         self.assertIn("[[PAGE:23]]", text)
         self.assertIn("BMRI ratios table", text)
         self.assertIn("23", method)
         self.assertEqual(convert.call_args.kwargs["first_page"], 23)
         self.assertEqual(convert.call_args.kwargs["last_page"], 23)
+        self.assertEqual(ocr.call_args.kwargs["lang"], "eng+ind")
