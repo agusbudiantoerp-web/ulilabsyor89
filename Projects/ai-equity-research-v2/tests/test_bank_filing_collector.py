@@ -1,7 +1,31 @@
 import unittest
-from bank_filing_collector import FilingRetrievalError, _validate_official_url, extract_metrics_from_pdf_text
+from bank_filing_collector import FilingRetrievalError, _validate_official_url, extract_metrics_from_pdf_text, extract_bmri_q3_2026_metrics_from_pdf_text
 
 class BankFilingCollectorTests(unittest.TestCase):
+    def test_extracts_bmri_bank_only_9m26_metrics_with_scope_and_pages(self):
+        text = """[[PAGE:23]]
+Ratios (in %)
+RoE – after tax (excl. MI) | 18.4 | 20.8 | 2.38pts | 19.0 | 21.6 | 2.59pts
+NIM | 4.78 | 4.43 | -35bps | 4.58 | 4.19 | -38bps
+Loan to Deposit Ratio (LDR) - Bank Entity | 92.2 | 90.8 | -1.48pts | 92.6 | 91.2 | -1.35pts
+CAR | 20.1 | 18.7 | -1.34pts | 19.0 | 18.4 | -65bps
+NPL Ratio | 1.06 | 1.02 | -4bps | 1.03 | 0.98 | -5bps
+"""
+        result = extract_bmri_q3_2026_metrics_from_pdf_text(
+            text, source_url="https://www.bankmandiri.co.id/report.pdf",
+            source_name="BMRI 3Q26 Results Presentation",
+            period="2026-09-30", document_sha256="bmrihash",
+        )
+        metrics = result["metrics"]
+        self.assertEqual(metrics["Official reported ROE (%)"]["value"], 21.6)
+        self.assertEqual(metrics["NIM (%)"]["value"], 4.19)
+        self.assertEqual(metrics["LDR (%)"]["value"], 91.2)
+        self.assertEqual(metrics["CAR (%)"]["value"], 18.4)
+        self.assertEqual(metrics["CAR (%)"]["page"], 23)
+        self.assertNotIn("NPL gross (%)", metrics)
+        self.assertIn("NPL gross (%)", result["missing_metrics"])
+        self.assertTrue(result["analyst_review_required"])
+
     def test_rejects_non_allowlisted_or_non_https_urls(self):
         for url in ("http://bri.co.id/report.pdf", "https://evil.example/report.pdf", "https://user:pass@bri.co.id/report.pdf"):
             with self.subTest(url=url), self.assertRaises(FilingRetrievalError):
