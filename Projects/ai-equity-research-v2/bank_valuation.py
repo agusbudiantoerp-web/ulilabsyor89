@@ -194,6 +194,8 @@ def calculate_bank_valuation(
         "Residual Income Model (RIM) adalah pendekatan valuasi ekuitas bank; bukan FCFF DCF.",
         "Book equity dan shares berasal dari data agregator. Cocokkan dengan ekuitas yang dapat diatribusikan kepada pemilik induk dan jumlah saham terdilusi pada laporan resmi.",
         "ROE, cost of equity, dan stable growth adalah asumsi sensitif. Uji beberapa skenario dan jangan anggap nilai intrinsik sebagai target harga pasti.",
+        "NPL, CAR, LDR, dan NIM tidak diisi otomatis karena belum tersedia sebagai field terverifikasi dalam kontrak data saat ini; periksa publikasi resmi bank.",
+        "Model sederhana ini mengasumsikan ROE dan pertumbuhan book value stabil; perubahan kualitas kredit, kebutuhan modal, dan regulasi dapat mengubah hasil.",
     ]
     if roe_source != "User assumption":
         warnings.append(f"Expected ROE menggunakan sumber: {roe_source}. Verifikasi periode dan definisinya.")
