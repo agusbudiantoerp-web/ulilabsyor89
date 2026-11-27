@@ -248,6 +248,25 @@ def _ocr_required_result(*, ticker: str, issuer: str, document_title: str,
 def _has_usable_pdf_text(text: str) -> bool:
     return len(re.sub(r"[^A-Za-z0-9]", "", str(text or ""))) >= 40
 
+
+def _run_pdf_ocr(content: bytes, max_pages: int = 12) -> tuple[str, str]:
+    """Bounded OCR fallback; extracted values always remain analyst-review candidates."""
+    try:
+        from pdf2image import convert_from_bytes
+        import pytesseract
+        pytesseract.get_tesseract_version()
+        reader = PdfReader(BytesIO(content), strict=False)
+        count = min(len(reader.pages), max_pages)
+        if count < 1:
+            return "", "OCR found no pages"
+        images = convert_from_bytes(content, dpi=180, first_page=1, last_page=count, grayscale=True, thread_count=1)
+        pages = []
+        for number, page in enumerate(images, start=1):
+            pages.append("[[PAGE:%s]]\n%s" % (number, pytesseract.image_to_string(page, lang="eng", config="--psm 6")))
+        return "\n".join(pages), "Tesseract OCR English 180 DPI; first %s pages" % count
+    except Exception as exc:
+        return "", "OCR unavailable or failed: %s" % type(exc).__name__
+
 def extract_official_bank_filing(ticker: str) -> dict:
     key = str(ticker or "").upper().replace(".JK", "").strip()
     config = BANK_FILING_REGISTRY.get(key)
@@ -259,13 +278,16 @@ def extract_official_bank_filing(ticker: str) -> dict:
         text = "\n".join(f"[[PAGE:{index}]]\n{page.extract_text() or ''}" for index, page in enumerate(reader.pages, start=1))
     except Exception as exc:
         raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
+    extraction_mode = "PDF text layer"
     if not _has_usable_pdf_text(text):
-        return _ocr_required_result(
-            ticker=key, issuer=config["issuer"], document_title=config["title"],
-            source_name=config["source_name"], source_url=final_url,
-            period=config["period"], content=content, pages_read=len(reader.pages),
-            extraction_method="PDF scan / no usable text layer; OCR required",
-        )
+        text, extraction_mode = _run_pdf_ocr(content)
+        if not _has_usable_pdf_text(text):
+            return _ocr_required_result(
+                ticker=key, issuer=config["issuer"], document_title=config["title"],
+                source_name=config["source_name"], source_url=final_url,
+                period=config["period"], content=content, pages_read=len(reader.pages),
+                extraction_method=extraction_mode,
+            )
     if key == "BMRI":
         result = extract_bmri_q3_2026_metrics_from_pdf_text(
             text, source_url=final_url, source_name=config["source_name"],
@@ -280,8 +302,8 @@ def extract_official_bank_filing(ticker: str) -> dict:
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "pages_read": len(reader.pages),
         "extraction_method": (
-            "BMRI registered 3Q26 Bank-Only 9M26 table extraction"
-            if key == "BMRI" else "PDF text / registered BRI Q3 2026 metric extraction"
+            f"{extraction_mode}; BMRI registered 3Q26 Bank-Only 9M26 table extraction"
+            if key == "BMRI" else f"{extraction_mode}; registered BRI Q3 2026 metric extraction"
         )})
     return result
 
@@ -303,15 +325,18 @@ def extract_uploaded_bank_filing(pdf_bytes: bytes, *, ticker: str, source_name: 
     except Exception as exc:
         raise FilingRetrievalError(f"PDF unggahan tidak dapat dibaca: {exc}") from exc
     key = str(ticker or "").upper().replace(".JK", "").strip()
+    extraction_mode = "Uploaded PDF text layer"
     if not _has_usable_pdf_text(text):
-        return _ocr_required_result(
-            ticker=key, issuer=key,
-            document_title=str(source_name or "Uploaded bank filing"),
-            source_name=str(source_name or "Uploaded bank filing"),
-            source_url=str(source_url or "").strip(), period=period,
-            content=bytes(pdf_bytes), pages_read=len(reader.pages),
-            extraction_method="Uploaded PDF scan / no usable text layer; OCR required",
-        )
+        text, extraction_mode = _run_pdf_ocr(bytes(pdf_bytes))
+        if not _has_usable_pdf_text(text):
+            return _ocr_required_result(
+                ticker=key, issuer=key,
+                document_title=str(source_name or "Uploaded bank filing"),
+                source_name=str(source_name or "Uploaded bank filing"),
+                source_url=str(source_url or "").strip(), period=period,
+                content=bytes(pdf_bytes), pages_read=len(reader.pages),
+                extraction_method=extraction_mode,
+            )
     result = extract_metrics_from_pdf_text(
         text, source_url=str(source_url or "").strip(),
         source_name=str(source_name or "Uploaded bank filing").strip(),
@@ -322,6 +347,6 @@ def extract_uploaded_bank_filing(pdf_bytes: bytes, *, ticker: str, source_name: 
         "document_title": str(source_name or "Uploaded bank filing"),
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "pages_read": len(reader.pages),
-        "extraction_method": "Uploaded PDF text extraction",
+        "extraction_method": f"{extraction_mode}; extracted candidates require analyst review",
     })
     return result
