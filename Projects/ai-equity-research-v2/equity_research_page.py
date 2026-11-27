@@ -186,17 +186,22 @@ def render_equity_research():
             st.caption("Digunakan khusus untuk emiten perbankan. Cost of equity harus lebih tinggi daripada stable growth.")
 
             st.markdown("**Official filing collector · issuer source retrieval**")
-            if symbol.strip().upper().replace(".JK", "") == "BBRI":
-                if st.button("Ambil data resmi BBRI · Q3 2026", key="fetch_official_bbri_filing"):
+            bank_ticker_key = symbol.strip().upper().replace(".JK", "")
+            if bank_ticker_key in {"BBRI", "BMRI"}:
+                bank_issuer_label = "BRI" if bank_ticker_key == "BBRI" else "Bank Mandiri"
+                if st.button(
+                    f"Ambil data resmi {bank_issuer_label} · Q3 2026",
+                    key=f"fetch_official_{bank_ticker_key.lower()}_filing",
+                ):
                     try:
                         from bank_filing_collector import extract_official_bank_filing
-                        with st.spinner("Mengunduh dan membaca laporan resmi BRI..."):
-                            st.session_state["bank_filing_preview"] = extract_official_bank_filing("BBRI")
+                        with st.spinner(f"Mengunduh dan membaca laporan resmi {bank_issuer_label}..."):
+                            st.session_state["bank_filing_preview"] = extract_official_bank_filing(bank_ticker_key)
                         st.success("Dokumen terbaca. Kandidat angka ditampilkan untuk pemeriksaan analis.")
                     except Exception as filing_error:
                         st.error(f"Pengambilan dokumen resmi gagal: {filing_error}")
             else:
-                st.caption("Konektor otomatis saat ini baru tersedia untuk BBRI; ticker bank lain tetap memakai input manual.")
+                st.caption("Konektor otomatis tersedia untuk BBRI dan BMRI Q3 2026; ticker bank lain tetap memakai upload/input manual.")
             filing_preview = st.session_state.get("bank_filing_preview")
             if (filing_preview and filing_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")):
                 st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
