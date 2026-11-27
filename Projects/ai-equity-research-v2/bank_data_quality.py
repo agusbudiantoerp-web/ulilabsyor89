@@ -25,7 +25,8 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
                      source_name: str | None = None,
                      source_period: str | None = None,
                      source_url: str | None = None,
-                     source_confirmed: bool = False) -> dict:
+                     source_confirmed: bool = False,
+                     source_document_metadata: dict | None = None) -> dict:
     ratios = data.get("ratios") or {}
     equity = _num(ratios.get("Total stockholders equity"))
     net_income = _num(ratios.get("Net income attributable to parent"))
@@ -233,6 +234,15 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         else "UNKNOWN"
     )
 
+    metadata = source_document_metadata if isinstance(source_document_metadata, dict) else {}
+    document_provenance = {
+        "sha256": str(metadata.get("document_sha256") or "").strip() or None,
+        "pages_read": metadata.get("pages_read") if isinstance(metadata.get("pages_read"), int) else None,
+        "retrieved_at_utc": str(metadata.get("retrieved_at_utc") or "").strip() or None,
+        "extraction_method": str(metadata.get("extraction_method") or "").strip() or None,
+        "document_title": str(metadata.get("document_title") or "").strip() or None,
+    }
+
     return {
         "status": status,
         "checks": checks,
@@ -242,6 +252,7 @@ def assess_bank_data(data: dict, manual_metrics: dict | None = None,
         "source_name": str(source_name or "").strip() or None,
         "source_period": str(source_period or "").strip() or None,
         "source_url": source_url_value or None,
+        "document_provenance": document_provenance,
         "source_confirmed": bool(source_confirmed),
         "source_period_matches_financials": period_matches,
         "source_url_valid_https": source_url_ok,
