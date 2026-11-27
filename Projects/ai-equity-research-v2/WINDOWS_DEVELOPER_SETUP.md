@@ -54,7 +54,22 @@ python -m pytest tests -q
 
 The complete CI suite also provisions PostgreSQL 16 and runs restricted-role/RLS integration checks. A local run without a dedicated disposable PostgreSQL test database does not replace that CI coverage.
 
-## 5. Start the Streamlit application
+## 5. Optional OCR support for scanned bank filings
+
+The Python OCR wrappers are installed by `requirements.txt`. Local Windows also needs the Tesseract OCR executable and Poppler command-line tools; `packages.txt` installs these only in Streamlit Cloud, not on Windows.
+
+- Install Tesseract OCR 5.x and ensure `tesseract.exe` is available on PATH.
+- Install Poppler for Windows and ensure its `Library\\bin` directory (containing `pdftoppm.exe`) is available on PATH.
+- Open a new PowerShell window and verify:
+
+```powershell
+tesseract --version
+pdftoppm -v
+```
+
+OCR is limited to 12 pages per document at 180 DPI. The registered BMRI Q3 2026 connector targets page 23 of its presentation. If either executable is unavailable, the app safely reports OCR REQUIRED and does not fill any extracted values. OCR output always requires analyst review.
+
+## 6. Start the Streamlit application
 
 ```powershell
 streamlit run app.py
@@ -62,7 +77,7 @@ streamlit run app.py
 
 For local-only exploration, the app may use its configured SQLite fallback. Do not connect a local development session to production PostgreSQL. Use a disposable Preview database for multi-user/OIDC acceptance.
 
-## 6. Exit the environment
+## 7. Exit the environment
 
 ```powershell
 deactivate
@@ -70,7 +85,7 @@ deactivate
 
 Keep OAuth secrets, cookie secrets, API keys and database connection strings in private local environment variables or Streamlit Secrets. Never commit them or paste them into chat.
 
-## Troubleshooting
+## 8. Troubleshooting
 
 - If `py -3.11` is not found, install Python 3.11 and reopen PowerShell.
 - If package installation fails, confirm `python --version` reports 3.11 and retry inside the activated `.venv`.
