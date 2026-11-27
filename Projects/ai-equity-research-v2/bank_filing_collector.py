@@ -9,13 +9,19 @@ import requests
 from pypdf import PdfReader
 
 MAX_PDF_BYTES = 25 * 1024 * 1024
-ALLOWED_HOSTS = {"bri.co.id", "www.bri.co.id", "ir-bri.com", "www.ir-bri.com"}
+ALLOWED_HOSTS = {"bri.co.id", "www.bri.co.id", "ir-bri.com", "www.ir-bri.com", "bankmandiri.co.id", "www.bankmandiri.co.id"}
 BANK_FILING_REGISTRY = {"BBRI": {
     "issuer": "PT Bank Rakyat Indonesia (Persero) Tbk",
     "title": "Laporan Rasio Keuangan BRI per 30 September 2026",
     "period": "2026-09-30",
     "url": "https://bri.co.id/web/guest/api/files?path=%2Fsites%2Fdefault%2Ffiles%2Fdocuments%2FBRI+Lapkeu+Q3+2026+Ind.pdf",
     "source_name": "BRI Q3 2026 Financial Ratio Report",
+}, "BMRI": {
+    "issuer": "PT Bank Mandiri (Persero) Tbk",
+    "title": "3Q 2026 Results Presentation — Bank Mandiri",
+    "period": "2026-09-30",
+    "url": "https://www.bankmandiri.co.id/documents/38265486/0/3Q26%2BAnalyst%2BMeeting%2B-%2BLong%2BForm%2B%281%29.pdf/f895d89c-5482-c853-6157-f8c06bdf34fb?t=1792746870722",
+    "source_name": "Bank Mandiri 3Q 2026 Results Presentation — Bank-Only Ratios",
 }}
 
 class FilingRetrievalError(ValueError):
@@ -149,6 +155,62 @@ def extract_metrics_from_pdf_text(text: str, *, source_url: str, source_name: st
         "missing_metrics": [key for key in required if key not in metrics],
         "analyst_review_required": True, "status": "REVIEW REQUIRED"}
 
+def extract_bmri_q3_2026_metrics_from_pdf_text(text: str, *, source_url: str,
+                                                   source_name: str, period: str,
+                                                   document_sha256: str | None = None) -> dict:
+    """Extract only the explicitly labelled Bank-Only 9M26 column from BMRI's registered 3Q26 presentation."""
+    lines = [re.sub(r"\\s+", " ", x).strip() for x in str(text or "").splitlines()]
+    row_specs = {
+        "Official reported ROE (%)": (r"RoE\\s*[–-]\\s*after tax\\s*\\(excl\\.\\s*MI\\)", "YTD average monthly equity excluding minority interest"),
+        "CAR (%)": (r"\\bCAR\\b", "Bank-Only CAR"),
+        "NIM (%)": (r"\\bNIM\\b", "Bank-Only net interest margin"),
+        "LDR (%)": (r"Loan to Deposit Ratio \\(LDR\\)\\s*[-–]\\s*Bank Entity", "Bank-Entity LDR"),
+    }
+    metrics = {}
+    current_page = 1
+    numeric = re.compile(r"(?<![A-Za-z])[-+]?\\d{1,3}(?:[.,]\\d+)?")
+    for key, (pattern, basis) in row_specs.items():
+        found = None
+        page_no = None
+        for index, line in enumerate(lines):
+            marker = re.search(r"\\[\\[PAGE:(\\d+)\\]\\]", line)
+            if marker:
+                current_page = int(marker.group(1))
+                line = line[marker.end():]
+            if not re.search(pattern, line, re.I):
+                continue
+            values = numeric.findall(line)
+            if len(values) < 5:
+                for following in lines[index + 1:index + 4]:
+                    if re.search(r"\\[\\[PAGE:\\d+\\]\\]", following):
+                        break
+                    values.extend(numeric.findall(following))
+                    if len(values) >= 6:
+                        break
+            if len(values) >= 5:
+                parsed = _decimal(values[4])
+                if parsed is not None:
+                    found, page_no = parsed, current_page
+                    break
+        if found is not None:
+            metrics[key] = {
+                "value": found, "unit": "%", "period": period,
+                "source_url": source_url, "source_name": source_name,
+                "page": page_no, "extraction_method": "BMRI registered 3Q26 Bank-Only 9M26 table column",
+                "confidence": "REVIEW",
+                "definition": basis,
+            }
+    required = ("NPL gross (%)", "CAR (%)", "LDR (%)", "NIM (%)", "Official reported ROE (%)")
+    return {
+        "source_name": source_name, "source_url": source_url, "source_period": period,
+        "document_sha256": document_sha256, "metrics": metrics,
+        "missing_metrics": [key for key in required if key not in metrics],
+        "analyst_review_required": True, "status": "REVIEW REQUIRED",
+        "scope": "Bank-only; 9M26; analyst presentation",
+        "notes": ["NPL Ratio is not mapped to NPL gross because the registered source row does not explicitly identify the gross basis."],
+    }
+
+
 def extract_official_bank_filing(ticker: str) -> dict:
     key = str(ticker or "").upper().replace(".JK", "").strip()
     config = BANK_FILING_REGISTRY.get(key)
@@ -160,10 +222,16 @@ def extract_official_bank_filing(ticker: str) -> dict:
         text = "\n".join(f"[[PAGE:{index}]]\n{page.extract_text() or ''}" for index, page in enumerate(reader.pages, start=1))
     except Exception as exc:
         raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
-    result = extract_metrics_from_pdf_text(text, source_url=final_url,
-        source_name=config["source_name"], period=config["period"],
-        document_sha256=sha256(content).hexdigest(),
-        roe_definition_mode="bri_q3_2026")
+    if key == "BMRI":
+        result = extract_bmri_q3_2026_metrics_from_pdf_text(
+            text, source_url=final_url, source_name=config["source_name"],
+            period=config["period"], document_sha256=sha256(content).hexdigest(),
+        )
+    else:
+        result = extract_metrics_from_pdf_text(text, source_url=final_url,
+            source_name=config["source_name"], period=config["period"],
+            document_sha256=sha256(content).hexdigest(),
+            roe_definition_mode="bri_q3_2026")
     result.update({"ticker": key, "issuer": config["issuer"], "document_title": config["title"],
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "pages_read": len(reader.pages)})
