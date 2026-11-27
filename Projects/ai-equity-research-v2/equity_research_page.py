@@ -143,10 +143,13 @@ def render_equity_research():
         st.caption("Masukkan kurs referensi dan tanggalnya secara manual. Perbarui sebelum analisis berikutnya.")
 
         with st.expander("Bank valuation assumptions"):
+            use_manual_bank_roe = st.checkbox(
+                "Override reported ROE with manual assumption", value=False
+            )
             bank_roe_pct = st.number_input(
                 "Expected ROE (%)", min_value=-100.0, max_value=200.0,
-                value=12.0, step=0.5,
-                help="Asumsi ROE jangka menengah untuk Residual Income Model bank."
+                value=12.0, step=0.5, disabled=not use_manual_bank_roe,
+                help="Secara default model memakai reported ROE dari sumber data; aktifkan untuk menggantinya."
             )
             bank_cost_of_equity_pct = st.number_input(
                 "Cost of equity (%)", min_value=0.5, max_value=100.0,
@@ -204,7 +207,9 @@ def render_equity_research():
                 bank_valuation = (
                     calculate_bank_valuation(
                         result,
-                        expected_roe=bank_roe_pct / 100,
+                        expected_roe=(
+                            bank_roe_pct / 100 if use_manual_bank_roe else None
+                        ),
                         cost_of_equity=bank_cost_of_equity_pct / 100,
                         stable_growth=bank_growth_pct / 100,
                         years=int(bank_forecast_years),
