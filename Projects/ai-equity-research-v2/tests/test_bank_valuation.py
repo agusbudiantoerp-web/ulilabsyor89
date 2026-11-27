@@ -70,6 +70,8 @@ class BankValuationTests(unittest.TestCase):
             },
             source_name="Official quarterly bank publication",
             source_period="2026-09-30",
+            source_url="https://www.examplebank.co.id/investor/quarterly-report.pdf",
+            source_confirmed=True,
         )
         self.assertEqual(verified["status"], "VERIFIED")
 
