@@ -166,13 +166,23 @@ def extract_bmri_q3_2026_metrics_from_pdf_text(text: str, *, source_url: str,
         "NIM (%)": (r"\bNIM\b", "Bank-Only net interest margin"),
         "LDR (%)": (r"Loan to Deposit Ratio \(LDR\)\s*[-–]\s*Bank Entity", "Bank-Entity LDR"),
     }
+    table_start = next(
+        (index for index, line in enumerate(lines) if "Ratios (in %)" in line),
+        None,
+    )
+    if table_start is None:
+        table_start = next(
+            (index for index, line in enumerate(lines) if "Key profitability ratios" in line),
+            0,
+        )
+    table_lines = lines[table_start:]
     metrics = {}
     current_page = 1
     numeric = re.compile(r"(?<![A-Za-z])[-+]?\d{1,3}(?:[.,]\d+)?")
     for key, (pattern, basis) in row_specs.items():
         found = None
         page_no = None
-        for index, line in enumerate(lines):
+        for index, line in enumerate(table_lines):
             marker = re.search(r"\[\[PAGE:(\d+)\]\]", line)
             if marker:
                 current_page = int(marker.group(1))
