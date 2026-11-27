@@ -1,0 +1,139 @@
+"""Allow-listed official bank filing retrieval; extracted values remain review-only."""
+from __future__ import annotations
+from hashlib import sha256
+from io import BytesIO
+import re
+from datetime import datetime, timezone
+from urllib.parse import urljoin, urlsplit
+import requests
+from pypdf import PdfReader
+
+MAX_PDF_BYTES = 25 * 1024 * 1024
+ALLOWED_HOSTS = {"bri.co.id", "www.bri.co.id", "ir-bri.com", "www.ir-bri.com"}
+BANK_FILING_REGISTRY = {"BBRI": {
+    "issuer": "PT Bank Rakyat Indonesia (Persero) Tbk",
+    "title": "Laporan Rasio Keuangan BRI per 30 September 2026",
+    "period": "2026-09-30",
+    "url": "https://bri.co.id/web/guest/api/files?path=%2Fsites%2Fdefault%2Ffiles%2Fdocuments%2FBRI+Lapkeu+Q3+2026+Ind.pdf",
+    "source_name": "BRI Q3 2026 Financial Ratio Report",
+}}
+
+class FilingRetrievalError(ValueError):
+    pass
+
+def _validate_official_url(url: str) -> None:
+    parsed = urlsplit(str(url or "").strip())
+    if parsed.scheme.lower() != "https" or parsed.hostname not in ALLOWED_HOSTS:
+        raise FilingRetrievalError("URL bukan HTTPS dari domain penerbit yang diizinkan.")
+    if parsed.username or parsed.password:
+        raise FilingRetrievalError("URL dengan username/password tidak diizinkan.")
+
+def download_official_pdf(url: str, timeout: int = 20) -> tuple[bytes, str]:
+    current = str(url or "").strip()
+    session = requests.Session()
+    session.headers.update({"User-Agent": "AdvancedEquityIntelligence/1.0"})
+    for _ in range(4):
+        _validate_official_url(current)
+        try:
+            response = session.get(current, timeout=timeout, allow_redirects=False, stream=True)
+        except requests.RequestException as exc:
+            raise FilingRetrievalError(f"Gagal menghubungi situs penerbit: {exc}") from exc
+        if response.is_redirect:
+            location = response.headers.get("Location")
+            response.close()
+            if not location:
+                raise FilingRetrievalError("Redirect tidak memiliki alamat tujuan.")
+            current = urljoin(current, location)
+            continue
+        if response.status_code != 200:
+            status = response.status_code
+            response.close()
+            raise FilingRetrievalError(f"Situs penerbit mengembalikan HTTP {status}.")
+        length = response.headers.get("Content-Length")
+        if length and length.isdigit() and int(length) > MAX_PDF_BYTES:
+            response.close()
+            raise FilingRetrievalError("Ukuran dokumen melebihi batas 25 MB.")
+        chunks, total = [], 0
+        try:
+            for chunk in response.iter_content(65536):
+                if chunk:
+                    total += len(chunk)
+                    if total > MAX_PDF_BYTES:
+                        raise FilingRetrievalError("Ukuran dokumen melebihi batas 25 MB.")
+                    chunks.append(chunk)
+        finally:
+            response.close()
+        content = b"".join(chunks)
+        if not content.startswith(b"%PDF"):
+            raise FilingRetrievalError("Dokumen yang diterima bukan PDF yang valid.")
+        return content, current
+    raise FilingRetrievalError("Terlalu banyak pengalihan URL.")
+
+def _decimal(token: str) -> float | None:
+    token = token.strip().replace("%", "").replace(" ", "")
+    if "," in token and "." in token:
+        token = token.replace(".", "").replace(",", ".")
+    elif "," in token:
+        token = token.replace(",", ".")
+    try:
+        value = float(token)
+    except (TypeError, ValueError):
+        return None
+    return value if 0 <= value <= 1000 else None
+
+def _find_metric(lines: list[str], patterns: tuple[str, ...], exclude: tuple[str, ...] = ()):
+    number = r"([0-9]{1,3}(?:[.,][0-9]{1,3})?)"
+    for page_no, line in enumerate(lines, start=1):
+        compact = re.sub(r"\s+", " ", line).strip()
+        if not compact or any(re.search(x, compact, re.I) for x in exclude):
+            continue
+        if any(re.search(x, compact, re.I) for x in patterns):
+            match = re.search(number, compact)
+            if match:
+                value = _decimal(match.group(1))
+                if value is not None:
+                    return value, page_no
+    return None
+
+def extract_metrics_from_pdf_text(text: str, *, source_url: str, source_name: str,
+                                  period: str, document_sha256: str | None = None) -> dict:
+    lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines()]
+    specs = {
+        "NPL gross (%)": ((r"\bNPL\s+gross\b",), ()),
+        "CAR (%)": ((r"\bKPMM\b", r"Capital\s+Adequacy\s+Ratio"), ()),
+        "NIM (%)": ((r"\bNIM\b", r"Net\s+Interest\s+Margin"), ()),
+        # In the registered BRI ratio report, footnote 4 is ROE / average total equity.
+        "Official reported ROE (%)": ((r"\bROE\b.*4\)",), (r"Tier\s*1",)),
+    }
+    metrics = {}
+    for key, (patterns, exclude) in specs.items():
+        found = _find_metric(lines, patterns, exclude)
+        if found:
+            value, page_no = found
+            metrics[key] = {"value": value, "unit": "%", "period": period,
+                "source_url": source_url, "source_name": source_name, "page": page_no,
+                "extraction_method": "PDF text / label match", "confidence": "REVIEW"}
+    required = ("NPL gross (%)", "CAR (%)", "LDR (%)", "NIM (%)", "Official reported ROE (%)")
+    return {"source_name": source_name, "source_url": source_url, "source_period": period,
+        "document_sha256": document_sha256, "metrics": metrics,
+        "missing_metrics": [key for key in required if key not in metrics],
+        "analyst_review_required": True, "status": "REVIEW REQUIRED"}
+
+def extract_official_bank_filing(ticker: str) -> dict:
+    key = str(ticker or "").upper().replace(".JK", "").strip()
+    config = BANK_FILING_REGISTRY.get(key)
+    if not config:
+        raise FilingRetrievalError(f"Belum ada konektor sumber resmi terdaftar untuk {key or 'ticker ini'}. Gunakan input manual.")
+    content, final_url = download_official_pdf(config["url"])
+    try:
+        reader = PdfReader(BytesIO(content), strict=False)
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    except Exception as exc:
+        raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
+    result = extract_metrics_from_pdf_text(text, source_url=final_url,
+        source_name=config["source_name"], period=config["period"],
+        document_sha256=sha256(content).hexdigest())
+    result.update({"issuer": config["issuer"], "document_title": config["title"],
+        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+        "pages_read": len(reader.pages)})
+    return result
