@@ -178,7 +178,7 @@ def render_equity_research():
             else:
                 st.caption("Konektor otomatis saat ini baru tersedia untuk BBRI; ticker bank lain tetap memakai input manual.")
             filing_preview = st.session_state.get("bank_filing_preview")
-            if (filing_preview and filing_preview.get("issuer") == "PT Bank Rakyat Indonesia (Persero) Tbk"\n                    and symbol.strip().upper().replace(".JK", "") == "BBRI"):
+            if (filing_preview and filing_preview.get("ticker") == symbol.strip().upper().replace(".JK", "")):
                 st.warning("Hasil ekstraksi PDF adalah kandidat, bukan data VERIFIED. Cocokkan setiap angka dengan halaman dan definisi laporan.")
                 st.dataframe([
                     {"Metric": key, "Candidate value": item.get("value"),
@@ -221,6 +221,23 @@ def render_equity_research():
                 "Official filing URL (HTTPS)", value=st.session_state.get("bank_source_url", ""),
                 help="Masukkan tautan laporan dari situs resmi emiten, BEI, atau regulator. Tautan harus HTTPS tanpa username/password."
             )
+            uploaded_bank_pdf = st.file_uploader(
+                "Upload official bank ratio report (PDF)", type=["pdf"],
+                key="bank_ratio_pdf_upload",
+                help="Untuk bank yang belum memiliki konektor otomatis. PDF hasil scan memerlukan OCR dan belum didukung."
+            )
+            if st.button("Baca PDF yang diunggah", key="parse_uploaded_bank_pdf", disabled=uploaded_bank_pdf is None):
+                try:
+                    from bank_filing_collector import extract_uploaded_bank_filing
+                    st.session_state["bank_filing_preview"] = extract_uploaded_bank_filing(
+                        uploaded_bank_pdf.getvalue(), ticker=symbol,
+                        source_name=bank_source_name or uploaded_bank_pdf.name,
+                        period=bank_source_period, source_url=bank_source_url,
+                    )
+                    st.session_state["bank_source_confirmed"] = False
+                    st.success("PDF berhasil diproses sebagai kandidat. Periksa angka, halaman, periode dan sumber sebelum menerapkan.")
+                except Exception as upload_error:
+                    st.error(f"Ekstraksi PDF gagal: {upload_error}")
             bank_source_confirmed = st.checkbox(
                 "I personally checked this official filing and its figures",
                 value=st.session_state.get("bank_source_confirmed", False),
