@@ -22,6 +22,7 @@ BANK_FILING_REGISTRY = {"BBRI": {
     "period": "2026-09-30",
     "url": "https://www.bankmandiri.co.id/documents/38265486/0/3Q26%2BAnalyst%2BMeeting%2B-%2BLong%2BForm%2B%281%29.pdf/f895d89c-5482-c853-6157-f8c06bdf34fb?t=1792746870722",
     "source_name": "Bank Mandiri 3Q 2026 Results Presentation — Bank-Only Ratios",
+    "ocr_pages": [23],
 }}
 
 class FilingRetrievalError(ValueError):
@@ -249,21 +250,29 @@ def _has_usable_pdf_text(text: str) -> bool:
     return len(re.sub(r"[^A-Za-z0-9]", "", str(text or ""))) >= 40
 
 
-def _run_pdf_ocr(content: bytes, max_pages: int = 12) -> tuple[str, str]:
+def _run_pdf_ocr(content: bytes, max_pages: int = 12, page_numbers: list[int] | None = None) -> tuple[str, str]:
     """Bounded OCR fallback; extracted values always remain analyst-review candidates."""
     try:
         from pdf2image import convert_from_bytes
         import pytesseract
         pytesseract.get_tesseract_version()
         reader = PdfReader(BytesIO(content), strict=False)
-        count = min(len(reader.pages), max_pages)
-        if count < 1:
-            return "", "OCR found no pages"
-        images = convert_from_bytes(content, dpi=180, first_page=1, last_page=count, grayscale=True, thread_count=1)
+        if page_numbers:
+            selected = sorted({int(number) for number in page_numbers if 1 <= int(number) <= len(reader.pages)})[:max_pages]
+        else:
+            selected = list(range(1, min(len(reader.pages), max_pages) + 1))
+        if not selected:
+            return "", "OCR found no selected pages"
         pages = []
-        for number, page in enumerate(images, start=1):
-            pages.append("[[PAGE:%s]]\n%s" % (number, pytesseract.image_to_string(page, lang="eng", config="--psm 6")))
-        return "\n".join(pages), "Tesseract OCR English 180 DPI; first %s pages" % count
+        for number in selected:
+            images = convert_from_bytes(
+                content, dpi=180, first_page=number, last_page=number,
+                grayscale=True, thread_count=1,
+            )
+            if images:
+                page_text = pytesseract.image_to_string(images[0], lang="eng", config="--psm 6")
+                pages.append("[[PAGE:%s]]\n%s" % (number, page_text))
+        return "\n".join(pages), "Tesseract OCR English 180 DPI; pages %s" % ",".join(map(str, selected))
     except Exception as exc:
         return "", "OCR unavailable or failed: %s" % type(exc).__name__
 
@@ -280,7 +289,7 @@ def extract_official_bank_filing(ticker: str) -> dict:
         raise FilingRetrievalError(f"PDF diunduh tetapi teks tidak dapat dibaca: {exc}") from exc
     extraction_mode = "PDF text layer"
     if not _has_usable_pdf_text(text):
-        text, extraction_mode = _run_pdf_ocr(content)
+        text, extraction_mode = _run_pdf_ocr(content, page_numbers=config.get("ocr_pages"))
         if not _has_usable_pdf_text(text):
             return _ocr_required_result(
                 ticker=key, issuer=config["issuer"], document_title=config["title"],
