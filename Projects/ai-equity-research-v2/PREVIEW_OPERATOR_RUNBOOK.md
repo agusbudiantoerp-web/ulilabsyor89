@@ -38,9 +38,9 @@ Keep the consent screen in Testing and allow only approved test accounts during 
 
 ## 3. Provision Preview PostgreSQL
 
-Create a dedicated disposable PostgreSQL database with TLS enabled and a dedicated migration/admin identity. The migration identity must be able to create/alter the application's schema objects and must be SUPERUSER or BYPASSRLS for the RLS rollout/maintenance checks. On managed PostgreSQL, confirm the provider supports the required privileges before proceeding.
+Create a dedicated Neon project for Preview only (do not reuse a production project or production branch). Use its default branch as the disposable Preview database, and retain TLS (`sslmode=require`). Use the Neon project owner/admin login as the migration identity: Neon does not provide a PostgreSQL SUPERUSER login; its managed administrator login is a member of the `neon_superuser` role. The RLS migration recognizes that managed membership. Do not create the migration identity as an ordinary SQL role. Keep the migration connection direct/unpooled (hostname has no `-pooler` suffix).
 
-Connect as the migration identity and create a new runtime role. Use a unique role name for this Preview database:
+From the Neon SQL Editor (or `psql`) connected as the Neon project owner/admin on the Preview branch, create a restricted runtime role using SQL. SQL-created roles are not automatically members of `neon_superuser`; this is intentional. Use a unique role name for this Preview database:
 
 ```sql
 CREATE ROLE ai_equity_preview_runtime
@@ -50,7 +50,7 @@ CREATE ROLE ai_equity_preview_runtime
   NOINHERIT;
 ```
 
-Set the role password interactively in `psql` so it is not embedded in shell history:
+Set the role password interactively in `psql` so it is not embedded in shell history. If using the Neon SQL Editor, use its secure role/password management workflow rather than pasting a password into a saved query:
 
 ```text
 \password ai_equity_preview_runtime
@@ -67,7 +67,7 @@ cd Projects/ai-equity-research-v2
 python -m pip install -r requirements.txt
 ```
 
-Set the administrator connection only in the current private PowerShell session. Do not commit it or share it:
+From Neon Console → Connect, select the Preview branch, database, and Neon project owner/admin role. Turn Connection pooling OFF and use the direct (unpooled) connection for migrations. Set that administrator connection only in the current private PowerShell session. Do not commit it or share it:
 
 ```powershell
 $env:DATABASE_URL = "YOUR_PRIVATE_PREVIEW_ADMIN_POSTGRES_URL"
@@ -104,7 +104,7 @@ The migration must reject a runtime role that is SUPERUSER, BYPASSRLS, inherits 
 In the Preview app's Settings → Secrets:
 
 - Configure the single OIDC provider and `[auth_roles]` mapping as documented in `OIDC_SETUP.md`.
-- Configure `DATABASE_URL` with the Preview runtime role connection only (not the administrator URL).
+- Configure `DATABASE_URL` with the Preview runtime role's pooled connection only (hostname includes `-pooler`; not the administrator URL). Keep the direct/unpooled administrator URL only in the trusted workstation session for migrations. Neon recommends pooled connections for application traffic and direct connections for migrations.
 - Keep all other required API credentials private and Preview-specific.
 - Do not copy a production database URL or migration/admin credential into Preview.
 
