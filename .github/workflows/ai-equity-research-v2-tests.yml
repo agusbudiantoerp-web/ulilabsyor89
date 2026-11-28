@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/advanced-equity-intelligence
+      - recovery/ai-equity-research-2026-11-28
     paths:
       - "Projects/ai-equity-research-v2/**"
       - ".github/workflows/ai-equity-research-v2-tests.yml"
