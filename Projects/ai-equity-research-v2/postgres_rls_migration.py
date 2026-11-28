@@ -94,10 +94,28 @@ def apply_rls_policies() -> tuple[str, ...]:
             )
             migration_role = cursor.fetchone()
             migration_is_superuser = bool(migration_role[0])
-            if not migration_is_superuser and not bool(migration_role[1]):
+            migration_has_bypassrls = bool(migration_role[1])
+            # Neon does not expose a PostgreSQL SUPERUSER login. Its managed
+            # administrator role inherits elevated privileges through membership
+            # in the NOLOGIN neon_superuser role (including BYPASSRLS).
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='neon_superuser')"
+            )
+            neon_role_exists = bool(cursor.fetchone()[0])
+            migration_is_neon_admin = False
+            if neon_role_exists:
+                cursor.execute(
+                    "SELECT pg_has_role(current_user, 'neon_superuser', 'MEMBER')"
+                )
+                migration_is_neon_admin = bool(cursor.fetchone()[0])
+            migration_can_bypass_rls = (
+                migration_is_superuser or migration_has_bypassrls or migration_is_neon_admin
+            )
+            if not migration_can_bypass_rls:
                 raise RuntimeError(
-                    "The RLS migration identity must be SUPERUSER or BYPASSRLS so future "
-                    "maintenance migrations can safely run after FORCE ROW LEVEL SECURITY."
+                    "The RLS migration identity must be SUPERUSER, BYPASSRLS, or a managed "
+                    "Neon administrator member of neon_superuser so maintenance migrations "
+                    "can safely run after FORCE ROW LEVEL SECURITY."
                 )
             for table, table_owner in owners.items():
                 if table_owner == runtime_role:
@@ -108,7 +126,7 @@ def apply_rls_policies() -> tuple[str, ...]:
                 )
                 if cursor.fetchone()[0]:
                     raise RuntimeError(f"Runtime role inherits ownership privileges for table {table}.")
-                if not migration_is_superuser and table_owner != connection.info.user:
+                if not migration_is_superuser and not migration_is_neon_admin and table_owner != connection.info.user:
                     raise RuntimeError(
                         f"Migration identity must own table {table} or be a database superuser."
                     )
