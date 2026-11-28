@@ -1,0 +1,112 @@
+import pandas as pd
+import pytest
+
+from portfolio_valuation_store import delete_valuations, list_valuations, save_valuations
+
+
+def sample():
+    return pd.DataFrame([
+        {"date":"2026-01-01","portfolio_value":1000,"external_flow":0},
+        {"date":"2026-02-01","portfolio_value":1100,"external_flow":0},
+    ])
+
+
+def test_valuation_snapshots_persist_and_are_owner_scoped(tmp_path):
+    db=str(tmp_path/"valuations.sqlite")
+    assert save_valuations("issuer|alice","main",sample(),currency="IDR",path=db)==2
+    assert len(list_valuations("issuer|alice","main",path=db))==2
+    assert list_valuations("issuer|bob","main",path=db).empty
+    assert delete_valuations("issuer|bob","main",path=db)==0
+    assert delete_valuations("issuer|alice","main",path=db)==2
+
+
+def test_valuation_snapshots_upsert_by_date(tmp_path):
+    db=str(tmp_path/"valuations.sqlite")
+    save_valuations("owner","main",sample(),path=db)
+    changed=sample()
+    changed.loc[1,"portfolio_value"]=1200
+    save_valuations("owner","main",changed,path=db)
+    result=list_valuations("owner","main",path=db)
+    assert len(result)==2
+    assert result.iloc[1]["portfolio_value"]==1200
+
+
+def test_valuation_snapshots_reject_duplicate_dates_and_invalid_values(tmp_path):
+    db=str(tmp_path/"valuations.sqlite")
+    duplicate=pd.DataFrame([
+        {"date":"2026-01-01","portfolio_value":100,"external_flow":0},
+        {"date":"2026-01-01","portfolio_value":101,"external_flow":0},
+    ])
+    with pytest.raises(ValueError,match="unik"):
+        save_valuations("owner","main",duplicate,path=db)
+
+    # Distinct intraday timestamps still map to one persisted calendar-day key.
+    duplicate_intraday = pd.DataFrame([
+        {"date": "2026-01-01T09:00:00", "portfolio_value": 100, "external_flow": 0},
+        {"date": "2026-01-01T16:30:00", "portfolio_value": 101, "external_flow": 0},
+    ])
+    with pytest.raises(ValueError, match="unik"):
+        save_valuations("owner", "main", duplicate_intraday, path=db)
+
+    invalid=sample()
+    invalid.loc[0,"portfolio_value"]=0
+    with pytest.raises(ValueError,match="positif"):
+        save_valuations("owner","main",invalid,path=db)
+
+
+def test_valuation_snapshot_replacement_rolls_back_when_insert_fails(tmp_path):
+    import sqlite3
+
+    db = str(tmp_path / "valuations.sqlite")
+    save_valuations("owner", "main", sample(), path=db)
+    with sqlite3.connect(db) as connection:
+        connection.execute("""
+            CREATE TRIGGER reject_valuation_insert
+            BEFORE INSERT ON portfolio_valuations
+            WHEN NEW.portfolio_value = 9999
+            BEGIN
+                SELECT RAISE(ABORT, 'injected insert failure');
+            END
+        """)
+
+    replacement = pd.DataFrame([
+        {"date": "2026-03-01", "portfolio_value": 9999, "external_flow": 0},
+    ])
+    with pytest.raises(sqlite3.IntegrityError, match="injected insert failure"):
+        save_valuations("owner", "main", replacement, path=db)
+
+    preserved = list_valuations("owner", "main", path=db)
+    assert len(preserved) == 2
+    assert preserved["date"].tolist() == ["2026-01-01", "2026-02-01"]
+
+
+@pytest.mark.parametrize("field,value", [
+    ("portfolio_value", True),
+    ("external_flow", False),
+])
+def test_valuation_snapshots_reject_boolean_numeric_fields(tmp_path, field, value):
+    db = str(tmp_path / "valuations.sqlite")
+    invalid = sample().astype({field: "object"})
+    invalid.loc[0, field] = value
+    with pytest.raises(ValueError, match="boolean"):
+        save_valuations("owner", "main", invalid, path=db)
+    assert list_valuations("owner", "main", path=db).empty
+
+
+@pytest.mark.parametrize("value", [True, False, 0, 1, 1767225600000000000])
+def test_valuation_snapshots_reject_numeric_dates(tmp_path, value):
+    db = str(tmp_path / "valuations.sqlite")
+    invalid = sample()
+    invalid.loc[0, "date"] = value
+    with pytest.raises(ValueError, match="Tanggal"):
+        save_valuations("owner", "main", invalid, path=db)
+    assert list_valuations("owner", "main", path=db).empty
+
+
+def test_valuation_snapshots_reject_numpy_boolean_values(tmp_path):
+    import numpy as np
+    db = str(tmp_path / "valuations.sqlite")
+    invalid = sample().astype({"portfolio_value": "object"})
+    invalid.loc[0, "portfolio_value"] = np.bool_(True)
+    with pytest.raises(ValueError, match="boolean"):
+        save_valuations("owner", "main", invalid, path=db)

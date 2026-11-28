@@ -5,6 +5,8 @@ from typing import Any
 import math
 import pandas as pd
 from market_engine import resolve_market_ticker
+from market_data_contract import build_market_data_metadata
+from market_data_provider import YahooFinanceProvider
 
 RULESET_VERSION = "1.0.0"
 
@@ -49,14 +51,12 @@ def calculate_indicators(bars: pd.DataFrame) -> pd.DataFrame:
 
 def load_daily_history(symbol: str, market: str, period: str = "1y") -> tuple[pd.DataFrame, dict]:
     meta = resolve_market_ticker(symbol, market)
-    try:
-        import yfinance as yf
-    except ImportError as exc:
-        raise RuntimeError("Paket yfinance belum terpasang.") from exc
-    bars = yf.download(meta["ticker"], period=period, interval="1d", auto_adjust=True,
-                       progress=False, threads=False)
-    if bars is None or bars.empty:
-        raise ValueError(f"Data harian {meta['ticker']} tidak tersedia.")
+    bars = YahooFinanceProvider().fetch_history(
+        meta["ticker"], period=period, interval="1d", auto_adjust=True
+    )
+    provider_retrieved_at = bars.attrs.get("provider_retrieved_at")
+    provider_cache_hit = bool(bars.attrs.get("provider_cache_hit", False))
+    provider_cache_age = float(bars.attrs.get("provider_cache_age_seconds", 0.0))
     required = ["Open", "High", "Low", "Close", "Volume"]
 
     if isinstance(bars.columns, pd.MultiIndex):
@@ -91,7 +91,16 @@ def load_daily_history(symbol: str, market: str, period: str = "1y") -> tuple[pd
     bars = bars.dropna(subset=["Open", "High", "Low", "Close"])
     if len(bars) < 60:
         raise ValueError("Minimal 60 sesi perdagangan diperlukan.")
-    meta.update({"source": "Yahoo Finance", "retrieved_at": datetime.now(timezone.utc).isoformat()})
+    retrieved_at = datetime.fromisoformat(provider_retrieved_at) if provider_retrieved_at else datetime.now(timezone.utc)
+    meta.update({
+        "source": YahooFinanceProvider.name,
+        "retrieved_at": retrieved_at.isoformat(),
+        "cache_hit": provider_cache_hit,
+        "cache_age_seconds": provider_cache_age,
+    })
+    meta["data_provenance"] = build_market_data_metadata(
+        bars, meta, adjustment_mode="auto_adjusted", retrieved_at=retrieved_at
+    )
     return bars, meta
 
 def evaluate_signal(bars: pd.DataFrame, market_meta: dict | None = None,

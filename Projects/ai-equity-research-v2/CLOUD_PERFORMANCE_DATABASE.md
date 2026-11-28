@@ -3,7 +3,8 @@
 The dashboard supports two isolated storage backends:
 
 - Local automation: SQLite at `DAILY_SIGNAL_DB` (default `data/daily_signals.sqlite3`). The local Telegram/Ollama scheduler continues using this database.
-- Streamlit Cloud: PostgreSQL when `DATABASE_URL` is present in Streamlit secrets or the process environment. Cloud scans and forward outcomes are stored there.
+- Streamlit Cloud: PostgreSQL when `DATABASE_URL` is present in Streamlit secrets or the process environment. Cloud scans, signals, forward outcomes, saved portfolio books, portfolio cash-flow events and valuation snapshots, research/backtest runs, versioned investment theses, assigned thesis reviews, corporate events and audit events use the same PostgreSQL connection. Private records are keyed by the authenticated OIDC issuer and subject; reads and writes are filtered by that owner. Audit events are append-serialized through a database lock and linked by SHA-256 hashes.
+- Research run history stores single-ticker, walk-forward and multi-asset backtest inputs/results under the authenticated owner. Thesis versions, corporate event records and portfolio cash-flow events are also owner-scoped. Local SQLite stores are included in the verified local backup inventory. Local mode uses `RESEARCH_RUNS_DB_PATH` (default `data/research_runs.sqlite3`); cloud mode uses the owner-scoped `research_runs` PostgreSQL table. No local run history is uploaded automatically.
 
 ## Streamlit Cloud configuration
 
@@ -15,16 +16,48 @@ The dashboard supports two isolated storage backends:
 DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
 ```
 
-4. Reboot the Streamlit app. On first use, the application creates the `scans`, `signals`, and `outcomes` tables and indexes automatically.
+4. From a trusted administrator workstation, run `postgres_schema_migration.py` with a dedicated private DDL connection and explicit `AI_EQUITY_RESEARCH_CONFIRM_SCHEMA_MIGRATION=YES`. Create a separate runtime role that is not a table owner, SUPERUSER or BYPASSRLS and has no inherited role memberships. Then run `postgres_rls_migration.py` with `AI_EQUITY_RESEARCH_RUNTIME_ROLE` naming that role and `AI_EQUITY_RESEARCH_CONFIRM_RLS_MIGRATION=YES` to enable and FORCE tenant/reviewer policies and grant only required table privileges plus backing sequences for inserts. The migration identity must be SUPERUSER or BYPASSRLS and own the application tables (unless superuser). Never put the migration connection in Streamlit Secrets.
+5. Configure Streamlit Secrets with only the restricted runtime `DATABASE_URL`, reboot the Preview app, and run the read-only Security & Audit database check. Confirm RLS, FORCE RLS, table ownership, policy coverage/applicability and required grants all pass. Existing learning rows assigned `legacy-unassigned` remain unavailable to authenticated users. Local SQLite portfolio books and research runs are not automatically uploaded.
 
 Never commit the real connection URI, database password, or service credentials. Keep `.streamlit/secrets.toml` out of Git.
 
+## Backup and recovery operations
+
+The repository includes `database_backup.py` for verified local SQLite backups and PostgreSQL logical backups. Run it from the project directory:
+
+~~~powershell
+# Back up every known local SQLite database that exists
+python database_backup.py local --output-dir backups
+
+# Set DATABASE_URL privately in this PowerShell process (do not paste it into chat or Git)
+# Then create and verify a PostgreSQL custom-format dump
+python database_backup.py postgres --output-dir backups
+~~~
+
+SQLite backups are checked with `PRAGMA integrity_check`; PostgreSQL dumps are checked with `pg_restore --list`. Each backup gets a SHA-256 manifest. The PostgreSQL backup utility parses the connection URI into libpq environment variables so the URI is not placed in the `pg_dump` command-line arguments or written to the manifest. The generated `backups/` directory is ignored by Git. The administrator console reports which backend is selected from configuration; it does not prove that the live database is reachable or that a restore is successful.
+
+Before multi-user production use:
+
+1. Enable the database provider's automated backups and point-in-time recovery where available. Confirm retention, recovery-point objective and recovery-time objective with the provider; availability may depend on the selected service plan.
+2. Keep a separate encrypted backup copy under administrator-controlled access. Never commit backup files or connection strings to Git.
+3. Rehearse restore against a separate staging database first. Use a protected PostgreSQL service file or password file (`PGPASSFILE`) and set `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` and `PGSSLMODE` as private process environment variables. Do not pass a full connection URI with a password through `--dbname`, because command-line arguments may be visible to other local processes.
+4. Only after verifying the target database and backup manifest, restore to staging with:
+
+~~~powershell
+pg_restore --clean --if-exists --no-owner --dbname="$env:PGDATABASE" ".\\backups\\ai-equity-research-YYYYMMDD-HHMMSS.dump"
+~~~
+
+5. Never rehearse destructive restore commands against production. A production restore requires an approved maintenance window, a verified backup and a separate recovery plan.
+6. Back up role mappings and OIDC configuration separately through the provider's secure secret-management process. Do not include client secrets or database credentials in database dumps or support messages.
+
+The application does not automate provider-level snapshots, PITR configuration, off-site backup replication or restore orchestration. Those remain administrator/provider operations and must be included in release validation.
+
 ## Forward outcome recording
 
-The Performance Dashboard's **Perbarui outcome 1/3/5 sesi** action checks Yahoo Finance daily closes after each stored signal's bar date. It records a horizon only when the corresponding future trading-session close exists. Existing outcomes are refreshed idempotently; unavailable future observations remain blank.
+The Performance Dashboard's **Perbarui outcome 1/3/5/10/20 sesi** action checks Yahoo Finance daily closes after each stored signal's bar date. It records a missing horizon only when the corresponding future trading-session close exists. Existing outcome rows are retained and not re-counted; unavailable future observations remain blank.
 
 Returns are close-to-close percentage changes from the signal bar close. They do not include dividends, fees, or slippage and are not a simulated trading P/L.
 
 ## Local/cloud separation
 
-No local SQLite file is uploaded or synchronized automatically. Local Telegram and Ollama jobs remain independent. To populate cloud history, run scans from the Streamlit Cloud app while the PostgreSQL secret is configured.
+No local SQLite file is uploaded or synchronized automatically. The Windows scheduler uses the separate `local-automation` owner in its local SQLite database; Streamlit users see only rows written under their own OIDC principal. Local Telegram and Ollama jobs remain independent. To populate cloud history, run scans from the Streamlit Cloud app while the PostgreSQL secret is configured.

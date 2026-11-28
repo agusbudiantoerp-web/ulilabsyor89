@@ -1,0 +1,332 @@
+"""Peer valuation and reverse DCF Streamlit page."""
+from __future__ import annotations
+
+import pandas as pd
+import streamlit as st
+
+from ui_theme import render_page_hero
+
+from security_controls import require_permission
+
+from market_engine import resolve_market_ticker
+from peer_valuation import build_peer_comparison, compare_company_to_peers
+from reverse_dcf import reverse_dcf_implied_growth, reverse_dcf_sensitivity
+from market_data_provider import YahooFinanceProvider
+from report_export_utils import safe_csv_bytes
+from valuation_reconciliation import reconcile_dcf_models
+from peer_filing_reconciliation import reconcile_peer_filing_records
+
+
+def _peer_record(symbol: str, market: str) -> dict:
+    resolved = resolve_market_ticker(symbol, market)
+    ticker = resolved["ticker"]
+    info = YahooFinanceProvider().fetch_info(ticker)
+    return {
+        "ticker": symbol.upper(),
+        "provider_ticker": ticker,
+        "industry": info.get("industry") or info.get("sector") or "Unknown",
+        "currency": str(info.get("financialCurrency") or info.get("currency") or resolved.get("currency") or "unknown").upper(),
+        "quote_currency": str(info.get("currency") or resolved.get("currency") or "unknown").upper(),
+        "pe_ttm": info.get("trailingPE"),
+        "pb": info.get("priceToBook"),
+        "ev_ebitda": info.get("enterpriseToEbitda"),
+        "ev_sales": info.get("enterpriseToRevenue"),
+        "roe": info.get("returnOnEquity"),
+        "roic": info.get("returnOnCapitalEmployed"),
+        "revenue_growth": info.get("revenueGrowth"),
+        "operating_margin": info.get("operatingMargins"),
+        "totalRevenue": info.get("totalRevenue"),
+        "ebitda": info.get("ebitda"),
+        "totalDebt": info.get("totalDebt"),
+        "totalCash": info.get("totalCash"),
+        "sharesOutstanding": info.get("sharesOutstanding"),
+        "bookValue": info.get("bookValue"),
+        "fiscal_year_end": (
+            pd.to_datetime(info.get("lastFiscalYearEnd"), unit="s", utc=True).date().isoformat()
+            if isinstance(info.get("lastFiscalYearEnd"), (int, float)) and info.get("lastFiscalYearEnd")
+            else str(info.get("lastFiscalYearEnd") or "unknown")
+        ),
+        "source": "Yahoo Finance",
+    }
+
+
+def render_valuation_intelligence() -> None:
+    require_permission(st.session_state.get("_auth_role"), "run_analysis")
+    render_page_hero("VALUATION INTELLIGENCE", "Relative Valuation & Reverse DCF", "Compare peer multiples and examine market-implied cash-flow growth with fiscal-period and currency context.", "PEER MULTIPLES  ·  REVERSE DCF")
+    st.caption("Peer multiples dan market-implied FCF growth. Periksa mata uang, periode fiskal, dan definisi metrik sebelum membandingkan.")
+    with st.expander("Peer valuation comparison", expanded=True):
+        c1, c2 = st.columns(2)
+        market = c1.selectbox("Market peer", ["IDX", "US"], key="peer_market")
+        symbols_raw = c2.text_input(
+            "Daftar ticker peer (pisahkan koma)",
+            "BBCA, BBRI, BMRI, BBNI" if market == "IDX" else "JPM, BAC, WFC, C",
+            key="peer_symbols",
+        )
+        if st.button("Ambil data peer", key="peer_fetch", type="primary"):
+            for stale_key in (
+                "peer_filing_reconciliation_details",
+                "peer_filing_reconciliation_metrics",
+                "peer_filing_reconciliation_limitations",
+            ):
+                st.session_state.pop(stale_key, None)
+            symbols = list(dict.fromkeys(
+                item.strip().upper() for item in symbols_raw.replace("\n", ",").split(",") if item.strip()
+            ))
+            if len(symbols) < 2:
+                st.warning("Masukkan minimal dua ticker.")
+            else:
+                records, errors = [], []
+                with st.spinner("Mengambil metrik fundamental peer..."):
+                    for symbol in symbols[:20]:
+                        try:
+                            records.append(_peer_record(symbol, market))
+                        except Exception as exc:
+                            errors.append({"ticker": symbol, "error": type(exc).__name__})
+                st.session_state["peer_valuation_records"] = records
+                st.session_state["peer_valuation_errors"] = errors
+        records = st.session_state.get("peer_valuation_records", [])
+        errors = st.session_state.get("peer_valuation_errors", [])
+        if records:
+            frame = pd.DataFrame(records)
+            industries = sorted(frame["industry"].dropna().astype(str).unique())
+            currencies = sorted(frame["currency"].dropna().astype(str).unique())
+            c1, c2 = st.columns(2)
+            industry = c1.selectbox("Industri peer", industries, key="peer_industry")
+            currency = c2.selectbox("Mata uang laporan", currencies, key="peer_currency")
+            try:
+                comparison = build_peer_comparison(records, industry=industry, currency=currency)
+                st.dataframe(pd.DataFrame(comparison["records"]), use_container_width=True, hide_index=True)
+                if any(bool(row.get("currency_mismatch")) for row in comparison["records"]):
+                    st.warning("Sebagian peer memiliki quote currency berbeda dari financial reporting currency. Periksa sumber dan satuan laporan sebelum membandingkan.")
+                if comparison["fiscal_period_warning_tickers"]:
+                    st.warning(
+                        "Fiscal year-end sebagian peer berbeda lebih dari 90 hari dari median peer: "
+                        + ", ".join(comparison["fiscal_period_warning_tickers"])
+                        + ". Periode tidak dinormalisasi otomatis."
+                    )
+                st.caption("Basis periode metrik: P/E, EV/EBITDA, EV/Sales umumnya TTM; P/B point-in-time; growth YoY provider-defined. ROE/ROIC/margin mengikuti definisi trailing provider.")
+                summary_rows = [
+                    {"Metric": metric, **values}
+                    for metric, values in comparison["metrics"].items()
+                ]
+                st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                st.caption("Outlier ditandai dengan aturan IQR 1,5×; periksa manual sebelum mengecualikan perusahaan dari peer set.")
+                selected = st.selectbox("Ticker untuk dibandingkan dengan median", comparison["tickers"])
+                compared = compare_company_to_peers(comparison, selected)
+                st.dataframe(pd.DataFrame([
+                    {"Metric": metric, **values}
+                    for metric, values in compared["metrics"].items()
+                ]), use_container_width=True, hide_index=True)
+                st.caption(comparison["limitations"])
+                st.download_button(
+                    "Unduh peer comparison CSV",
+                    safe_csv_bytes(pd.DataFrame(comparison["records"])),
+                    file_name="peer_valuation_comparison.csv", mime="text/csv",
+                )
+            except Exception as exc:
+                st.error(f"Peer comparison tidak dapat dihitung: {type(exc).__name__}: {exc}")
+        if errors:
+            with st.expander(f"Ticker gagal diambil ({len(errors)})"):
+                st.dataframe(pd.DataFrame(errors), use_container_width=True, hide_index=True)
+
+        with st.expander("Verifikasi fundamental dengan data laporan emiten/BEI (CSV)", expanded=False):
+            st.caption(
+                "Masukkan angka yang ditranskripsi dari laporan resmi emiten/BEI. "
+                "Gunakan satuan dan mata uang pelaporan yang sama dengan data provider; "
+                "URL sumber wajib dicantumkan. Sistem membandingkan angka, bukan mengesahkan dokumen."
+            )
+            filing_template = pd.DataFrame(columns=[
+                "ticker", "period_end", "currency", "source_name", "source_url",
+                "total_revenue", "ebitda", "total_debt", "cash",
+                "shares_outstanding", "book_value_per_share",
+            ])
+            st.download_button(
+                "Unduh template verifikasi filing CSV",
+                filing_template.to_csv(index=False).encode("utf-8-sig"),
+                file_name="issuer_filing_verification_template.csv",
+                mime="text/csv", key="peer_filing_template_download",
+            )
+            filing_upload = st.file_uploader(
+                "Unggah data filing terverifikasi", type=["csv"],
+                key="peer_filing_verification_upload",
+            )
+            f1, f2 = st.columns(2)
+            filing_tolerance = f1.number_input(
+                "Toleransi selisih angka (%)", min_value=0.0, max_value=50.0,
+                value=5.0, step=1.0, key="peer_filing_tolerance",
+            )
+            filing_period_tolerance = f2.number_input(
+                "Toleransi beda periode (hari)", min_value=0, max_value=366,
+                value=90, key="peer_filing_period_tolerance",
+            )
+            if st.button("Bandingkan provider vs filing", key="peer_filing_compare"):
+                try:
+                    if filing_upload is None:
+                        raise ValueError("Unggah CSV filing terlebih dahulu.")
+                    provider_records = st.session_state.get("peer_valuation_records", [])
+                    if not provider_records:
+                        raise ValueError("Ambil data peer dari provider terlebih dahulu.")
+                    filing_records = pd.read_csv(filing_upload)
+                    filing_result = reconcile_peer_filing_records(
+                        provider_records, filing_records,
+                        tolerance_pct=float(filing_tolerance),
+                        period_tolerance_days=int(filing_period_tolerance),
+                    )
+                    st.session_state["peer_filing_reconciliation_details"] = filing_result["details"].copy()
+                    st.session_state["peer_filing_reconciliation_metrics"] = {
+                        key: filing_result[key] for key in (
+                            "metric_count", "matched_count", "mismatch_count",
+                            "period_mismatch_count", "currency_mismatch_count",
+                            "missing_count", "invalid_value_count", "status_counts",
+                        )
+                    }
+                    st.session_state["peer_filing_reconciliation_limitations"] = filing_result["limitations"]
+                except Exception as exc:
+                    st.error(f"Verifikasi filing gagal: {type(exc).__name__}: {exc}")
+            filing_details = st.session_state.get("peer_filing_reconciliation_details")
+            filing_metrics = st.session_state.get("peer_filing_reconciliation_metrics") or {}
+            if filing_metrics:
+                v1, v2, v3, v4, v5 = st.columns(5)
+                v1.metric("Matched", filing_metrics["matched_count"])
+                v2.metric("Value mismatch", filing_metrics["mismatch_count"])
+                v3.metric("Invalid values", filing_metrics["invalid_value_count"])
+                v4.metric("Period mismatch", filing_metrics["period_mismatch_count"])
+                v5.metric("Currency mismatch", filing_metrics["currency_mismatch_count"])
+                if filing_metrics["missing_count"]:
+                    st.warning(f"{filing_metrics['missing_count']} nilai provider/filing belum tersedia.")
+                if isinstance(filing_details, pd.DataFrame):
+                    st.dataframe(filing_details, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Unduh filing reconciliation CSV",
+                        safe_csv_bytes(filing_details),
+                        file_name="peer_filing_reconciliation.csv", mime="text/csv",
+                        key="peer_filing_reconciliation_download",
+                    )
+                st.caption(st.session_state.get("peer_filing_reconciliation_limitations", ""))
+
+    st.divider()
+    with st.expander("Reverse DCF — implied FCF growth", expanded=True):
+        st.caption(
+            "Masukkan angka dalam satu mata uang dan satuan yang konsisten. Reverse DCF "
+            "ini menggunakan constant FCF growth selama periode eksplisit."
+        )
+        with st.form("reverse_dcf_form"):
+            c1, c2, c3 = st.columns(3)
+            fcf = c1.number_input("Normalized current FCF", min_value=0.01, value=1000000000.0)
+            price = c2.number_input("Harga pasar per saham", min_value=0.01, value=1000.0)
+            shares = c3.number_input("Diluted shares", min_value=0.01, value=1000000000.0)
+            c4, c5, c6 = st.columns(3)
+            net_debt = c4.number_input("Net debt (+) / net cash (-)", value=0.0)
+            wacc_pct = c5.number_input("WACC (%)", min_value=0.1, max_value=50.0, value=12.0)
+            terminal_pct = c6.number_input("Terminal growth (%)", min_value=-5.0, max_value=15.0, value=3.0)
+            fx_rate = st.number_input("FX rate: quote currency per 1 model currency", min_value=0.000001, value=18000.0, help="Contoh: harga pasar dalam IDR, FCF/net debt dalam USD → masukkan jumlah IDR untuk 1 USD. Jika mata uang sama, gunakan 1.")
+            c10, c11 = st.columns(2)
+            model_currency = c10.text_input("Mata uang FCF / net debt", "USD").strip().upper()
+            quote_currency = c11.text_input("Mata uang harga pasar", "IDR").strip().upper()
+            equity_context = st.session_state.get("equity_result") or {}
+            default_market = str(equity_context.get("market") or "IDX").upper()
+            default_symbol = str(equity_context.get("ticker") or "")
+            c12, c13 = st.columns(2)
+            reverse_market = c12.selectbox(
+                "Market ticker untuk rekonsiliasi", ["IDX", "US"],
+                index=0 if default_market == "IDX" else 1,
+            )
+            reverse_symbol = c13.text_input(
+                "Ticker untuk rekonsiliasi (opsional)", value=default_symbol,
+                help="Isi ticker yang sama dengan analisis Multi-Stage DCF agar kedua model dapat dibandingkan.",
+            ).strip().upper()
+            c7, c8, c9 = st.columns(3)
+            years = c7.number_input("Forecast years", min_value=1, max_value=30, value=5)
+            lower_pct = c8.number_input("Batas growth bawah (%)", min_value=-90.0, max_value=99.0, value=-20.0)
+            upper_pct = c9.number_input("Batas growth atas (%)", min_value=-89.0, max_value=300.0, value=100.0)
+            calculate = st.form_submit_button("Hitung implied FCF growth", type="primary")
+        if calculate:
+            try:
+                if len(model_currency) != 3 or len(quote_currency) != 3:
+                    raise ValueError("Kode mata uang harus berupa kode 3 huruf, misalnya IDR atau USD.")
+                if model_currency == quote_currency and abs(float(fx_rate) - 1.0) > 1e-9:
+                    raise ValueError("Mata uang model dan quote sama; FX rate harus 1. Gunakan FX hanya bila mata uang berbeda.")
+                result = reverse_dcf_implied_growth(
+                    current_fcf=fcf, market_price=price, diluted_shares=shares,
+                    net_debt=net_debt, wacc=wacc_pct / 100.0,
+                    terminal_growth=terminal_pct / 100.0,
+                    fx_rate_quote_per_model=fx_rate,
+                    forecast_years=int(years), lower_growth=lower_pct / 100.0,
+                    upper_growth=upper_pct / 100.0,
+                )
+                st.session_state["reverse_dcf_result"] = {
+                    **result, "model_currency": model_currency,
+                    "quote_currency": quote_currency,
+                    "market": reverse_market, "symbol": reverse_symbol,
+                }
+                st.session_state.pop("valuation_reconciliation_result", None)
+            except Exception as exc:
+                st.error(f"Reverse DCF tidak dapat dihitung: {type(exc).__name__}: {exc}")
+        result = st.session_state.get("reverse_dcf_result")
+        if result:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Implied FCF growth", f"{result['implied_fcf_growth_pct']:.2f}%")
+            c2.metric("Market price (" + result.get("quote_currency", "quote") + ")", f"{result['market_price']:,.2f}")
+            c3.metric("Reconciled price (" + result.get("quote_currency", "quote") + ")", f"{result['implied_price']:,.2f}")
+            st.caption("Komponen enterprise/equity valuation di bawah ditampilkan dalam mata uang model (FCF dan net debt). Harga pasar dan implied price ditampilkan dalam mata uang quote.")
+            multistage = st.session_state.get("equity_multistage_dcf") or {}
+            equity_context = st.session_state.get("equity_result") or {}
+            def _ticker_key(value):
+                return str(value or "").strip().upper().replace(".JK", "").replace("-", ".")
+            same_ticker = (
+                bool(result.get("symbol"))
+                and _ticker_key(result.get("symbol")) == _ticker_key(equity_context.get("ticker"))
+                and result.get("market") == equity_context.get("market")
+            )
+            if multistage.get("available") and same_ticker:
+                st.markdown("**Rekonsiliasi Multi-Stage DCF vs Reverse DCF**")
+                try:
+                    reconciliation = reconcile_dcf_models(multistage, result)
+                    st.session_state["valuation_reconciliation_result"] = reconciliation
+                    r1, r2, r3 = st.columns(3)
+                    r1.metric("EV gap vs market-implied", f"{reconciliation['enterprise_value_gap_pct']:+.2f}%")
+                    r2.metric("Equity value gap", f"{reconciliation['equity_value_gap']:,.2f} {reconciliation['financial_currency']}")
+                    r3.metric("Intrinsic price gap", f"{reconciliation['intrinsic_price_gap_pct']:+.2f}%")
+                    st.write("Assumption differences:", reconciliation["assumption_gaps"])
+                    for warning in reconciliation["warnings"]:
+                        st.caption(warning)
+                except Exception as exc:
+                    st.warning(f"Rekonsiliasi DCF belum dapat dilakukan: {type(exc).__name__}: {exc}")
+            elif multistage.get("available"):
+                st.session_state.pop("valuation_reconciliation_result", None)
+                st.info("Untuk rekonsiliasi, isi ticker dan market yang sama dengan analisis Multi-Stage DCF.")
+            else:
+                st.session_state.pop("valuation_reconciliation_result", None)
+            st.dataframe(pd.DataFrame([
+                {"Komponen": "PV explicit FCF", "Nilai": result["pv_explicit_fcf"]},
+                {"Komponen": "Terminal value (undiscounted)", "Nilai": result["terminal_value"]},
+                {"Komponen": "PV terminal value", "Nilai": result["pv_terminal_value"]},
+                {"Komponen": "Enterprise value", "Nilai": result["enterprise_value"]},
+                {"Komponen": "Net debt", "Nilai": result["net_debt"]},
+                {"Komponen": "Equity value target", "Nilai": result["target_equity_value"]},
+                {"Komponen": "Terminal value share (%)", "Nilai": result["terminal_value_share_pct"]},
+            ]), use_container_width=True, hide_index=True)
+            sensitivity_rows = reverse_dcf_sensitivity(
+                current_fcf=result["current_fcf"],
+                market_price=result["market_price"],
+                diluted_shares=result["diluted_shares"],
+                net_debt=result["net_debt"],
+                fx_rate_quote_per_model=result["fx_rate_quote_per_model"],
+                forecast_years=result["forecast_years"],
+                lower_growth=result["lower_growth"],
+                upper_growth=result["upper_growth"],
+                wacc_values=[
+                    max(-0.9, result["wacc"] - 0.01),
+                    result["wacc"],
+                    result["wacc"] + 0.01,
+                ],
+                terminal_growth_values=[
+                    result["terminal_growth"] - 0.005,
+                    result["terminal_growth"],
+                    result["terminal_growth"] + 0.005,
+                ],
+            )
+            st.markdown("**Sensitivitas implied growth: WACC × terminal growth**")
+            st.dataframe(pd.DataFrame(sensitivity_rows), use_container_width=True, hide_index=True)
+            st.caption(f"Model currency: {result.get('model_currency', 'model')} · Quote currency: {result.get('quote_currency', 'quote')} · FX bridge: {result['fx_rate_quote_per_model']:,.6f} quote per model · market price in model currency: {result['market_price_model_currency']:,.4f}")
+            st.warning(result["limitations"])

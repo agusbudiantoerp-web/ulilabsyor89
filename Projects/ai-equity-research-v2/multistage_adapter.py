@@ -33,6 +33,19 @@ def calculate_multistage_dcf(
     ratios = data.get("ratios") or {}
     warnings = []
     informational_warnings = list(data.get("data_quality_warnings") or [])
+    critical_data_warning_fragments = (
+        "Mata uang harga saham tidak tersedia",
+        "Mata uang laporan keuangan tidak dapat dipastikan",
+        "Laporan laba rugi tidak tersedia",
+        "Neraca tidak tersedia",
+        "Laporan arus kas tidak tersedia",
+        "Periode laporan laba rugi dan neraca berbeda",
+        "Periode arus kas dan laba rugi berbeda",
+    )
+    critical_data_warnings = [
+        warning for warning in informational_warnings
+        if any(fragment.lower() in str(warning).lower() for fragment in critical_data_warning_fragments)
+    ]
 
     sector = str(data.get("sector", "")).lower()
     industry = str(data.get("industry", "")).lower()
@@ -170,11 +183,13 @@ def calculate_multistage_dcf(
         if 0 <= calculated_tax_rate <= 1:
             tax_rate = calculated_tax_rate
 
-    if warnings and not allow_data_quality_override:
+    blocking_warnings = list(warnings) + list(critical_data_warnings)
+    if blocking_warnings and not allow_data_quality_override:
         return {
             "available": False,
-            "reason": "Requires Manual Review: " + " ".join(warnings),
+            "reason": "Requires Manual Review: " + " ".join(blocking_warnings),
             "warnings": warnings,
+            "critical_data_quality_warnings": critical_data_warnings,
             "data_quality_warnings": informational_warnings
         }
 
@@ -277,11 +292,12 @@ def calculate_multistage_dcf(
         result["sensitivity_financials"] = dict(financials)
         result["sensitivity_assumptions"] = dict(model_assumptions)
         result["warnings"] = warnings
+        result["critical_data_quality_warnings"] = critical_data_warnings
         result["data_quality_warnings"] = informational_warnings
         result["fx_source_date"] = fx_source_date if financial_currency != quote_currency else None
         result["fx_rate_applied"] = applied_fx_rate
         result["data_quality_override"] = bool(
-            warnings and allow_data_quality_override
+            blocking_warnings and allow_data_quality_override
         )
 
     return result

@@ -55,6 +55,18 @@ def is_financial_institution(data: dict) -> bool:
     )
     return any(term in identity for term in terms)
 
+def is_bank(data: dict) -> bool:
+    """Identify banks specifically; do not classify every financial firm as a bank."""
+    sector = str(data.get("sector") or "").lower()
+    industry = str(data.get("industry") or "").lower()
+    company = str(data.get("company") or "").lower()
+    return (
+        "bank" in industry
+        or ("bank" in company and (
+            "financial services" in sector or "financials" in sector
+        ))
+    )
+
 
 def _ordered_columns(frame: pd.DataFrame):
     if frame is None or frame.empty:
@@ -99,6 +111,25 @@ def _statement_value(frame: pd.DataFrame, candidates: list[str]):
             if value is not None:
                 return value
 
+    return None
+
+
+def _statement_value_at_column(frame: pd.DataFrame, candidates: list[str], column):
+    """Read a matching statement value from a specified reporting period."""
+    if frame is None or frame.empty or column not in frame.columns:
+        return None
+    for candidate in candidates:
+        matches = [
+            label for label in frame.index
+            if str(label).strip().lower() == candidate.strip().lower()
+        ]
+        if matches:
+            row = frame.loc[matches[0]]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            value = _number(row.get(column))
+            if value is not None:
+                return value
     return None
 
 
@@ -228,6 +259,39 @@ def analyze_equity(symbol: str, period: str = "5y", market: str = "IDX") -> dict
             "Cash And Cash Equivalents",
             "Cash Cash Equivalents And Short Term Investments"
         ]
+    )
+    total_stockholders_equity = _statement_value(
+        balance,
+        [
+            "Common Stock Equity",
+            "Stockholders Equity",
+            "Total Stockholder Equity",
+            "Total Equity Gross Minority Interest",
+            "Total Equity Net Minority Interest"
+        ]
+    )
+    equity_columns = _ordered_columns(balance)
+    prior_stockholders_equity = (
+        _statement_value_at_column(
+            balance,
+            [
+                "Common Stock Equity",
+                "Stockholders Equity",
+                "Total Stockholder Equity",
+                "Total Equity Gross Minority Interest",
+                "Total Equity Net Minority Interest"
+            ],
+            equity_columns[1],
+        )
+        if len(equity_columns) > 1 else None
+    )
+    average_stockholders_equity = (
+        (total_stockholders_equity + prior_stockholders_equity) / 2
+        if total_stockholders_equity is not None
+        and prior_stockholders_equity is not None
+        and total_stockholders_equity > 0
+        and prior_stockholders_equity > 0
+        else None
     )
     accounts_receivable = _statement_value(
         balance,
@@ -390,7 +454,15 @@ def analyze_equity(symbol: str, period: str = "5y", market: str = "IDX") -> dict
         "Inventory": inventory,
         "Accounts payable": accounts_payable,
         "Market capitalization": _number(info.get("marketCap")),
-	"Shares outstanding": _number(info.get("sharesOutstanding")),
+        "Shares outstanding": _number(info.get("sharesOutstanding")),
+        "Total stockholders equity": total_stockholders_equity,
+        "Prior stockholders equity": prior_stockholders_equity,
+        "Average stockholders equity": average_stockholders_equity,
+        "Calculated ROE (%)": (
+            net_income_parent / average_stockholders_equity * 100
+            if net_income_parent is not None and average_stockholders_equity is not None
+            and average_stockholders_equity > 0 else None
+        ),
         "Trailing P/E": raw_pe,
         "Price to book": raw_pb,
         "ROE (%)": roe,
@@ -460,6 +532,9 @@ def calculate_dcf(
 ) -> dict:
     """Calculate DCF enterprise value, equity value and intrinsic value per share."""
 
+    if not isinstance(data, dict):
+        return {"available": False, "reason": "Data saham tidak valid."}
+
     if is_financial_institution(data):
         return {
             "available": False,
@@ -493,8 +568,8 @@ def calculate_dcf(
             "reason": "Shares outstanding tidak tersedia atau tidak valid."
         }
 
-    if not isinstance(years, int) or not 1 <= years <= 20:
-        return {"available": False, "reason": "Periode proyeksi harus 1 sampai 20 tahun."}
+    if not isinstance(years, int) or isinstance(years, bool) or not 1 <= years <= 20:
+        return {"available": False, "reason": "Periode proyeksi harus bilangan bulat 1 sampai 20 tahun."}
 
     growth = _number(growth)
     wacc = _number(wacc)
@@ -503,8 +578,14 @@ def calculate_dcf(
     if any(x is None for x in (growth, wacc, terminal_growth)):
         return {"available": False, "reason": "Asumsi DCF harus berupa angka valid."}
 
-    if growth <= -1 or wacc <= -1 or terminal_growth <= -1:
-        return {"available": False, "reason": "Growth dan tingkat diskonto tidak boleh <= -100%."}
+    if growth <= -1 or growth > 1:
+        return {"available": False, "reason": "FCF growth harus lebih besar dari -100% dan tidak boleh melebihi 100%."}
+
+    if not 0 < wacc <= 1:
+        return {"available": False, "reason": "WACC harus lebih besar dari 0% dan maksimal 100%."}
+
+    if not -1 < terminal_growth < 1:
+        return {"available": False, "reason": "Terminal growth harus di antara -100% dan 100%."}
 
     if wacc <= terminal_growth:
         return {
@@ -535,7 +616,25 @@ def calculate_dcf(
     enterprise_value = pv_sum + terminal_pv
     net_debt = debt - cash
     equity_value = enterprise_value - net_debt
+    if not all(math.isfinite(value) for value in (
+        pv_sum, terminal_value, terminal_pv, enterprise_value, net_debt, equity_value
+    )):
+        return {"available": False, "reason": "Hasil DCF mengandung nilai non-finite."}
+    if equity_value <= 0:
+        return {
+            "available": False,
+            "reason": "Equity value tidak positif setelah dikurangi net debt; intrinsic value per saham tidak layak ditampilkan.",
+            "enterprise_value": enterprise_value,
+            "net_debt": net_debt,
+            "equity_value": equity_value,
+        }
     intrinsic_value = equity_value / shares
+    terminal_value_share_pct = terminal_pv / enterprise_value * 100 if enterprise_value > 0 else None
+    model_warnings = [
+        "Yahoo Finance Free Cash Flow is an OCF-minus-CAPEX proxy and may reflect financing/interest cash flows; confirm FCFF versus FCFE before interpreting EV less net debt."
+    ]
+    if terminal_value_share_pct is not None and terminal_value_share_pct > 75:
+        model_warnings.append("PV terminal value exceeds 75% of enterprise value; valuation is highly sensitive to terminal assumptions.")
 
     financial_currency = (
         data.get("financial_currency") or data.get("currency", "Unknown")
@@ -558,6 +657,8 @@ def calculate_dcf(
             intrinsic_value *= fx_rate
             display_currency = quote_currency
             conversion_applied = True
+    if not math.isfinite(intrinsic_value):
+        return {"available": False, "reason": "Intrinsic value per share melampaui rentang numerik yang didukung."}
 
     return {
         "available": True,
@@ -567,6 +668,8 @@ def calculate_dcf(
         "terminal_value": terminal_value,
         "pv_terminal_value": terminal_pv,
         "enterprise_value": enterprise_value,
+        "terminal_value_share_pct": terminal_value_share_pct,
+        "model_warnings": model_warnings,
         "total_debt": debt,
         "cash": cash,
         "net_debt": net_debt,
@@ -589,7 +692,9 @@ def calculate_dcf(
             "DCF ini merupakan estimasi sederhana. Equity Value dihitung "
             "dari EV dikurangi total debt dan ditambah cash. Nilai per saham "
             "bergantung pada kualitas FCF, neraca, jumlah saham, asumsi, "
-            "dan kurs konversi jika digunakan. Bukan rekomendasi investasi."
+            "dan kurs konversi jika digunakan. FCF Yahoo adalah proxy OCF dikurangi CAPEX; "
+            "klasifikasi FCFF/FCFE wajib diverifikasi sebelum EV dikurangi net debt. "
+            "Bukan rekomendasi investasi."
         )
     }
 
@@ -622,7 +727,7 @@ def dcf_sensitivity(
             "reason": "Debt, cash, atau shares outstanding tidak tersedia."
         }
 
-    if not isinstance(years, int) or not 1 <= years <= 20:
+    if not isinstance(years, int) or isinstance(years, bool) or not 1 <= years <= 20:
         return {"available": False, "reason": "Periode proyeksi harus 1 sampai 20 tahun."}
 
     growth_rates = list(growth_rates if growth_rates is not None else [0.00, 0.05, 0.10])
@@ -632,8 +737,8 @@ def dcf_sensitivity(
         return {"available": False, "reason": "Skenario growth dan WACC tidak boleh kosong."}
 
     terminal_growth = _number(terminal_growth)
-    if terminal_growth is None or terminal_growth <= -1:
-        return {"available": False, "reason": "Terminal growth tidak valid."}
+    if terminal_growth is None or not -1 < terminal_growth < 1:
+        return {"available": False, "reason": "Terminal growth harus di antara -100% dan 100%."}
 
     financial_currency = data.get("financial_currency") or data.get("currency", "Unknown")
     quote_currency = data.get("currency", "Unknown")
@@ -653,8 +758,8 @@ def dcf_sensitivity(
     for growth_rate in growth_rates:
         g = _number(growth_rate)
 
-        if g is None or g <= -1:
-            return {"available": False, "reason": "Growth scenario harus lebih besar dari -100%."}
+        if g is None or not -1 < g <= 1:
+            return {"available": False, "reason": "Growth scenario harus lebih besar dari -100% dan maksimal 100%."}
 
         share_row = {"FCF growth": g}
         ev_row = {"FCF growth": g}
@@ -662,7 +767,7 @@ def dcf_sensitivity(
         for discount_rate in wacc_rates:
             w = _number(discount_rate)
 
-            if w is None or w <= terminal_growth:
+            if w is None or not terminal_growth < w <= 1:
                 return {
                     "available": False,
                     "reason": "Setiap WACC harus lebih tinggi daripada terminal growth."
@@ -686,6 +791,13 @@ def dcf_sensitivity(
 
             if conversion_applied:
                 per_share *= fx_rate
+            if not all(math.isfinite(value) for value in (
+                pv, terminal_fcf, terminal_value, pv_terminal, ev, equity, per_share
+            )):
+                return {
+                    "available": False,
+                    "reason": "Sensitivity menghasilkan numerical overflow; periksa growth, WACC, dan kurs.",
+                }
 
             column = f"WACC {w:.1%}"
             ev_row[column] = ev

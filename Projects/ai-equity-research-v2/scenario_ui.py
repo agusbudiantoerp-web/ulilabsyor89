@@ -1,12 +1,24 @@
 ﻿import pandas as pd
 import streamlit as st
 
-from scenario_engine import run_scenarios, scenario_sensitivity
+from scenario_engine import run_scenarios, scenario_sensitivity, operating_scenario_sensitivity
 
 
 def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     st.subheader("Scenario Analysis")
     st.caption("Bear, Base, and Bull valuation based on explicit operating assumptions.")
+
+    st.caption("Catatan katalis dan risiko diisi analis; sistem tidak mengarang peristiwa korporasi.")
+    catalyst_notes = st.text_area(
+        "Katalis utama (opsional, sertakan tanggal/sumber bila tersedia)",
+        value="", key=f"scenario_catalysts_{data.get('ticker', 'unknown')}",
+        help="Contoh: ekspansi kapasitas, kontrak baru, perubahan regulasi. Cantumkan sumber dan tanggal."
+    )
+    risk_notes = st.text_area(
+        "Risiko utama (opsional, sertakan tanggal/sumber bila tersedia)",
+        value="", key=f"scenario_risks_{data.get('ticker', 'unknown')}",
+        help="Contoh: leverage, volatilitas bahan baku, risiko proyek, likuiditas."
+    )
 
     ratios = data.get("ratios", {})
 
@@ -27,8 +39,9 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     missing = [name for name, value in required_values.items() if value is None]
 
     if missing:
-        st.warning("Scenario Analysis tidak tersedia. Data belum lengkap: " + ", ".join(missing))
-        return
+        reason = "Data belum lengkap: " + ", ".join(missing)
+        st.warning("Scenario Analysis tidak tersedia. " + reason)
+        return {"available": False, "reason": reason}
 
     financial_currency = data.get("financial_currency") or data.get("currency")
     quote_currency = data.get("quote_currency") or data.get("currency")
@@ -146,6 +159,8 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
 
             if not result.get("available"):
                 st.warning(result.get("reason", "Scenario valuation unavailable."))
+            for warning in result.get("model_warnings") or []:
+                st.warning(warning)
 
     st.subheader("DCF Sensitivity Analysis")
 
@@ -199,7 +214,71 @@ def render_scenario_analysis(data: dict, fx_rate: float, years: int = 5):
     else:
         st.info("Sensitivity analysis is not available.")
 
+    st.subheader("Operating Assumption Sensitivity")
+    st.caption(
+        "Matriks ini menghitung ulang seluruh proyeksi FCFF untuk kombinasi "
+        "pertumbuhan pendapatan dan margin EBITDA. Angka bukan probabilitas atau target harga."
+    )
+    try:
+        growth_axis = [
+            max(-1.0, scenarios[selected_scenario]["revenue_growth"] + delta)
+            for delta in (-0.05, -0.025, 0.0, 0.025, 0.05)
+        ]
+        margin_axis = [
+            min(1.0, max(-1.0, scenarios[selected_scenario]["ebitda_margin"] + delta))
+            for delta in (-0.05, -0.025, 0.0, 0.025, 0.05)
+        ]
+        growth_axis = list(dict.fromkeys(growth_axis))
+        margin_axis = list(dict.fromkeys(margin_axis))
+        operating_sensitivity = operating_scenario_sensitivity(
+            financials, scenarios[selected_scenario],
+            revenue_growth_values=growth_axis,
+            ebitda_margin_values=margin_axis,
+            years=years,
+        )
+        matrix_rows = []
+        for matrix_row in operating_sensitivity["sensitivity"]:
+            display_row = {"EBITDA margin": f"{matrix_row['ebitda_margin']:.1%}"}
+            for index, growth in enumerate(growth_axis):
+                cell = matrix_row["values"][index]
+                display_row[f"Revenue growth {growth:.1%}"] = (
+                    f"{cell['value_per_share']:,.2f} {quote_currency}"
+                    if cell["available"] else "N/M"
+                )
+            matrix_rows.append(display_row)
+        st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, hide_index=True)
+        st.caption(operating_sensitivity["note"])
+    except Exception as exc:
+        operating_sensitivity = {"available": False, "reason": str(exc)}
+        st.warning("Operating sensitivity tidak tersedia: " + str(exc))
+
     st.warning(
         "Scenario results depend on assumptions, not guaranteed future prices. "
         "Review financial data and assumptions before using these results."
     )
+    return {
+        "available": True,
+        "ticker": financials.get("ticker"),
+        "financials": financials,
+        "assumptions": scenarios,
+        "results": results.get("scenarios", {}),
+        "sensitivity": sensitivity,
+        "operating_sensitivity": operating_sensitivity,
+        "selected_scenario": selected_scenario,
+        "research_context": {
+            "catalysts": catalyst_notes.strip(),
+            "risks": risk_notes.strip(),
+            "analyst_note": "Katalis dan risiko merupakan catatan analis yang dimasukkan manual; bukan hasil verifikasi otomatis.",
+        },
+        "source_metadata": {
+            "provider": data.get("data_source", "Yahoo Finance"),
+            "generated_at_utc": data.get("as_of"),
+            "latest_price_date": data.get("latest_price_date"),
+            "income_statement_period": data.get("latest_financial_period"),
+            "balance_sheet_period": data.get("latest_balance_period"),
+            "cash_flow_period": data.get("latest_cashflow_period"),
+            "financial_currency": financial_currency,
+            "quote_currency": quote_currency,
+            "fx_rate": effective_fx,
+        },
+    }

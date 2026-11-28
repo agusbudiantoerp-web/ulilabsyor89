@@ -1,0 +1,154 @@
+import pandas as pd
+import pytest
+
+from portfolio_snapshot_reconciliation import (
+    reconcile_broker_snapshot, classify_snapshot_exceptions,
+    filter_portfolio_events_as_of,
+)
+
+
+def run(**overrides):
+    args = dict(
+        ledger_cash=1000, ledger_positions={"BBCA": 10, "TLKM": 5},
+        broker_cash=1000, broker_positions={"BBCA": 10, "TLKM": 5},
+        ledger_currency="IDR", broker_currency="IDR",
+        ledger_as_of_date="2026-11-25", broker_as_of_date="2026-11-25",
+    )
+    args.update(overrides)
+    return reconcile_broker_snapshot(**args)
+
+
+def test_exact_snapshot_match_is_read_only():
+    result = run()
+    assert result["comparable"] is True
+    assert result["exception_count"] == 0
+    assert result["matched_count"] == 3
+    assert result["read_only"] is True
+
+
+def test_cash_difference_is_reported_broker_minus_ledger():
+    result = run(broker_cash=950, cash_tolerance=10)
+    cash = result["details"].query("item_type == 'CASH'").iloc[0]
+    assert cash["status"] == "CASH_MISMATCH"
+    assert cash["difference"] == -50
+
+
+def test_missing_and_extra_holdings_are_reported():
+    result = run(ledger_positions={"BBCA": 10}, broker_positions={"TLKM": 5})
+    holdings = result["details"].query("item_type == 'HOLDING'")
+    statuses = dict(zip(holdings["ticker"], holdings["status"]))
+    assert statuses == {"BBCA": "MISSING_IN_BROKER", "TLKM": "MISSING_IN_LEDGER"}
+
+
+def test_quantity_mismatch_is_reported():
+    result = run(broker_positions={"BBCA": 9, "TLKM": 5})
+    bbca = result["details"].query("ticker == 'BBCA'").iloc[0]
+    assert bbca["status"] == "QUANTITY_MISMATCH"
+    assert bbca["difference"] == -1
+
+
+def test_currency_mismatch_blocks_all_balance_comparisons():
+    result = run(broker_currency="USD")
+    assert result["status"] == "NOT_COMPARABLE"
+    assert result["cash_difference"] is None
+    assert set(result["details"]["status"]) == {"NOT_COMPARABLE"}
+
+
+def test_date_mismatch_blocks_comparison_unless_within_explicit_tolerance():
+    blocked = run(broker_as_of_date="2026-11-23")
+    allowed = run(broker_as_of_date="2026-11-24", date_tolerance_days=1)
+    assert blocked["comparable"] is False
+    assert allowed["comparable"] is True
+
+
+def test_duplicate_ticker_rows_are_rejected():
+    duplicate = pd.DataFrame([{"ticker": "BBCA", "shares": 10}, {"ticker": "bbca", "shares": 2}])
+    with pytest.raises(ValueError, match="duplikat"):
+        run(broker_positions=duplicate)
+
+
+@pytest.mark.parametrize("value", [-1, float("nan"), float("inf"), True, "x"])
+def test_invalid_cash_and_tolerances_are_rejected(value):
+    with pytest.raises(ValueError):
+        run(broker_cash=value)
+    with pytest.raises(ValueError):
+        run(cash_tolerance=value)
+
+
+@pytest.mark.parametrize("value", [-1, float("nan"), float("inf"), True])
+def test_invalid_share_balances_are_rejected(value):
+    with pytest.raises(ValueError):
+        run(broker_positions={"BBCA": value})
+
+
+def test_empty_holdings_and_zero_cash_are_valid():
+    result = run(ledger_cash=0, broker_cash=0, ledger_positions={}, broker_positions={})
+    assert result["matched_count"] == 1
+    assert result["exception_count"] == 0
+
+
+def test_invalid_date_tolerance_is_rejected():
+    with pytest.raises(ValueError, match="Date tolerance"):
+        run(date_tolerance_days=1.5)
+
+
+def test_exception_classification_prioritizes_blockers_and_missing_holdings():
+    result = run(broker_currency="USD")
+    report = classify_snapshot_exceptions(result["details"])
+    details = report["details"]
+    assert set(details["priority"]) == {"BLOCKER"}
+    assert report["priority_counts"]["BLOCKER"] == len(details)
+    assert report["action_required_count"] == len(details)
+    assert report["read_only"] is True
+
+
+def test_exception_report_orders_critical_before_warnings_and_matches():
+    result = run(
+        broker_cash=900,
+        ledger_positions={"BBCA": 10, "TLKM": 5},
+        broker_positions={"BBCA": 9, "ASII": 2},
+    )
+    report = classify_snapshot_exceptions(result["details"])
+    details = report["details"]
+    assert details["priority"].tolist() == [
+        "CRITICAL", "CRITICAL", "WARNING", "WARNING"
+    ]
+    assert report["priority_counts"]["CRITICAL"] == 2
+    assert report["priority_counts"]["WARNING"] == 2
+    assert report["action_required_count"] == 4
+    assert details.iloc[0]["recommended_action"]
+
+
+def test_exception_report_marks_exact_matches_as_informational():
+    report = classify_snapshot_exceptions(run()["details"])
+    assert set(report["details"]["priority"]) == {"MATCHED"}
+    assert report["action_required_count"] == 0
+
+
+def test_exception_classifier_rejects_invalid_detail_schema():
+    with pytest.raises(ValueError, match="[Kk]olom"):
+        classify_snapshot_exceptions(pd.DataFrame([{"status": "MATCH"}]))
+
+
+
+def test_as_of_filter_accepts_empty_ledger_and_preserves_schema():
+    result = filter_portfolio_events_as_of(pd.DataFrame(), "2026-11-25")
+    assert result["events"].empty
+    assert {"date", "event_type", "amount"}.issubset(result["events"].columns)
+    assert result["excluded_future_events"] == 0
+
+
+def test_as_of_filter_excludes_future_events_and_counts_them():
+    events = pd.DataFrame([
+        {"date": "2026-11-24", "event_type": "DEPOSIT", "amount": 100},
+        {"date": "2026-11-26", "event_type": "DEPOSIT", "amount": 50},
+    ])
+    result = filter_portfolio_events_as_of(events, "2026-11-25")
+    assert result["events"]["amount"].tolist() == [100]
+    assert result["excluded_future_events"] == 1
+
+
+def test_as_of_filter_rejects_invalid_event_dates_instead_of_silently_dropping():
+    events = pd.DataFrame([{"date": "not-a-date", "event_type": "DEPOSIT", "amount": 100}])
+    with pytest.raises(ValueError, match="Tanggal event ledger"):
+        filter_portfolio_events_as_of(events, "2026-11-25")

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from daily_signal_backtest import backtest
+from daily_signal_backtest import backtest, walk_forward_backtest
 
 
 def sample_bars(n=300):
@@ -77,3 +77,79 @@ def test_backtest_report_is_readable_and_includes_limitations():
     assert "Maximum drawdown" in report
     assert "Buy-and-hold benchmark" in report
     assert "Simulasi sederhana" in report
+
+
+def test_benchmark_uses_entry_exit_costs_including_sell_tax():
+    from daily_signal_engine import calculate_indicators, DEFAULT_CONFIG
+
+    bars = sample_bars()
+    result = backtest(bars, fee_bps=10, slippage_bps=20, sell_tax_bps=15)
+    evaluated = calculate_indicators(bars).dropna(subset=[
+        "SMA50", "EMA9", "EMA21", "RSI14", "MACD", "MACD_SIGNAL", "ATR14", "REL_VOLUME"
+    ])
+    first_close = float(evaluated.Close.iloc[0])
+    last_close = float(evaluated.Close.iloc[-1])
+    entry_cost = 30 / 10000
+    exit_cost = 45 / 10000
+    expected = (
+        last_close * (1 - exit_cost) / (first_close * (1 + entry_cost)) - 1
+    ) * 100
+    assert result["benchmark_buy_hold_pct"] == pytest.approx(expected)
+    assert result["cost_bps_round_trip"] == pytest.approx(75)
+    assert result["transaction_costs"]["sell_tax_bps_on_exit"] == pytest.approx(15)
+
+
+def test_backtest_rejects_non_finite_transaction_costs():
+    with pytest.raises(ValueError, match="finite"):
+        backtest(sample_bars(), sell_tax_bps=float("nan"))
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"train_months": True},
+        {"train_months": 5},
+        {"train_months": 24.5},
+        {"train_months": "24"},
+        {"test_months": False},
+        {"test_months": 0},
+        {"test_months": 1.5},
+        {"test_months": "6"},
+    ],
+)
+def test_walk_forward_rejects_invalid_window_parameters(kwargs):
+    with pytest.raises(ValueError, match="train_months|test_months"):
+        walk_forward_backtest(sample_bars(), **kwargs)
+
+
+def test_walk_forward_rejects_non_datetime_index():
+    bars = sample_bars()
+    bars.index = range(len(bars))
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        walk_forward_backtest(bars)
+
+
+def test_walk_forward_rejects_duplicate_dates():
+    bars = sample_bars()
+    bars.index = list(bars.index[:-1]) + [bars.index[-2]]
+    with pytest.raises(ValueError, match="duplikat"):
+        walk_forward_backtest(bars)
+
+
+def test_walk_forward_rejects_unsorted_history_instead_of_sorting_silently():
+    bars = sample_bars()
+    bars = bars.iloc[::-1]
+    with pytest.raises(ValueError, match="berurutan"):
+        walk_forward_backtest(bars)
+
+
+def test_walk_forward_rejects_duplicate_dates_after_timezone_normalization():
+    bars = sample_bars()
+    duplicated_local_time = pd.to_datetime(
+        ["2024-11-03T01:30:00-04:00", "2024-11-03T01:30:00-05:00"],
+        utc=True,
+    ).tz_convert("America/New_York")
+    remaining = pd.date_range("2024-11-04", periods=len(bars) - 2, freq="B", tz="America/New_York")
+    bars.index = duplicated_local_time.append(remaining)
+    with pytest.raises(ValueError, match="normalisasi timezone"):
+        walk_forward_backtest(bars)
